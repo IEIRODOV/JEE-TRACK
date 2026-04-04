@@ -13,6 +13,11 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:1234567890:web:abcdef"
 };
 
+// Log warning if using placeholders on production
+if (import.meta.env.PROD && firebaseConfig.apiKey.includes("PLACEHOLDER")) {
+  console.warn("Firebase is running with placeholder configuration. Please set your environment variables in GitHub Secrets.");
+}
+
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app, import.meta.env.VITE_FIREBASE_DATABASE_ID || "(default)");

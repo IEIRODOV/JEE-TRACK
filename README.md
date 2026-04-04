@@ -68,6 +68,24 @@ npm run build
 ```
 The output will be in the `dist/` folder.
 
+## 🚀 Deploy to GitHub Pages
+
+To deploy your application to GitHub Pages:
+
+1. **Set your homepage in `package.json`:**
+   ```json
+   "homepage": "https://your-username.github.io/your-repo-name/"
+   ```
+
+2. **Run the deployment script:**
+   ```bash
+   npm run deploy
+   ```
+   This will build your project and push the `dist` folder to the `gh-pages` branch.
+
+3. **Configure GitHub Pages:**
+   In your GitHub repository settings, go to **Pages** and ensure the source is set to the `gh-pages` branch.
+
 ## 🛡️ Security Rules
 
 Make sure to deploy the Firestore security rules provided in `firestore.rules` to your Firebase project to ensure data integrity and security.
