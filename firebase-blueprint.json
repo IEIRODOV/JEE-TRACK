@@ -1,0 +1,24 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Stores user statistics for the competition leaderboard.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique identifier for the user." },
+        "displayName": { "type": "string", "description": "The user's display name from Google." },
+        "photoURL": { "type": "string", "description": "The user's profile photo URL." },
+        "totalQuestions": { "type": "integer", "description": "Total questions solved by the user." },
+        "totalStudySeconds": { "type": "integer", "description": "Total study time in seconds." },
+        "lastUpdated": { "type": "string", "format": "date-time", "description": "The last time the user's stats were updated." }
+      },
+      "required": ["uid", "displayName", "totalQuestions", "totalStudySeconds"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "UserProfile",
+      "description": "User profiles for the leaderboard."
+    }
+  }
+}
