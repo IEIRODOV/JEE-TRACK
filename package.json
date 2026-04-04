@@ -1,7 +1,9 @@
 {
-  "name": "react-example",
-  "private": true,
-  "version": "0.0.0",
+  "name": "exam-track-mission-control",
+  "description": "A high-performance JEE preparation hub with real-time leaderboards, resource tracking, and interactive 3D elements.",
+  "private": false,
+  "license": "MIT",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",

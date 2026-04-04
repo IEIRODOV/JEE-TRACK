@@ -1,0 +1,34 @@
+name: Build Check
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Build project
+      run: npm run build
+      env:
+        # Provide dummy values for build-time env vars if needed
+        VITE_FIREBASE_API_KEY: "dummy"
+        VITE_FIREBASE_AUTH_DOMAIN: "dummy"
+        VITE_FIREBASE_PROJECT_ID: "dummy"
+        VITE_FIREBASE_STORAGE_BUCKET: "dummy"
+        VITE_FIREBASE_MESSAGING_SENDER_ID: "dummy"
+        VITE_FIREBASE_APP_ID: "dummy"
