@@ -1,24 +1,209 @@
 {
   "entities": {
-    "UserProfile": {
+    "User": {
       "title": "User Profile",
-      "description": "Stores user statistics for the competition leaderboard.",
+      "description": "Public profile information for the leaderboard and community.",
       "type": "object",
       "properties": {
-        "uid": { "type": "string", "description": "Unique identifier for the user." },
-        "displayName": { "type": "string", "description": "The user's display name from Google." },
-        "photoURL": { "type": "string", "description": "The user's profile photo URL." },
-        "totalQuestions": { "type": "integer", "description": "Total questions solved by the user." },
-        "totalStudySeconds": { "type": "integer", "description": "Total study time in seconds." },
-        "lastUpdated": { "type": "string", "format": "date-time", "description": "The last time the user's stats were updated." }
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "totalQuestions": { "type": "integer" },
+        "totalHours": { "type": "number" },
+        "streak": { "type": "integer" },
+        "lastUpdated": { "type": "string", "format": "date-time" }
       },
-      "required": ["uid", "displayName", "totalQuestions", "totalStudySeconds"]
+      "required": ["displayName", "totalQuestions", "totalHours", "streak"]
+    },
+    "DashboardSettings": {
+      "title": "Dashboard Settings",
+      "description": "User-specific dashboard configuration.",
+      "type": "object",
+      "properties": {
+        "customExams": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string" },
+              "date": { "type": "string", "format": "date-time" }
+            }
+          }
+        },
+        "selectedExam": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string" },
+            "label": { "type": "string" },
+            "date": { "type": "string", "format": "date-time" }
+          }
+        },
+        "targetHours": { "type": "number" }
+      }
+    },
+    "DailyTargets": {
+      "title": "Daily Targets",
+      "description": "List of daily goals for the user.",
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "text": { "type": "string" },
+              "completed": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "SubjectChecklist": {
+      "title": "Subject Checklist",
+      "description": "Progress tracking for subjects and chapters.",
+      "type": "object",
+      "properties": {
+        "subjects": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "color": { "type": "string" },
+              "font": { "type": "string" },
+              "chapters": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string" },
+                    "name": { "type": "string" },
+                    "completed": { "type": "boolean" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "TimerState": {
+      "title": "Timer State",
+      "description": "Current state of the study timer.",
+      "type": "object",
+      "properties": {
+        "isRunning": { "type": "boolean" },
+        "startTime": { "type": "number" },
+        "accumulatedSeconds": { "type": "number" },
+        "lastUpdated": { "type": "string", "format": "date-time" }
+      }
+    },
+    "DailyStats": {
+      "title": "Daily Stats",
+      "description": "Study statistics for a specific day.",
+      "type": "object",
+      "properties": {
+        "studySeconds": { "type": "number" },
+        "questionsSolved": { "type": "integer" },
+        "isMockTest": { "type": "boolean" },
+        "mockTestCompleted": { "type": "boolean" },
+        "mockTestMarks": { "type": "string" },
+        "date": { "type": "string" },
+        "lastUpdated": { "type": "string", "format": "date-time" }
+      }
+    },
+    "GlobalStats": {
+      "title": "Global Stats",
+      "description": "Aggregated statistics for all users.",
+      "type": "object",
+      "properties": {
+        "totalStudents": { "type": "integer" },
+        "totalQuestions": { "type": "integer" },
+        "totalHours": { "type": "number" },
+        "lastUpdated": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Activity": {
+      "title": "Activity",
+      "description": "A single activity log entry.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "action": { "type": "string" },
+        "type": { "type": "string", "enum": ["questions", "hours"] },
+        "value": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Post": {
+      "title": "Community Post",
+      "description": "A post in the community feed.",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "category": { "type": "string" },
+        "community": { "type": "string", "enum": ["jee", "neet"] },
+        "likes": { "type": "array", "items": { "type": "string" } },
+        "reactions": { "type": "object" },
+        "comments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "text": { "type": "string" },
+              "uid": { "type": "string" },
+              "displayName": { "type": "string" },
+              "photoURL": { "type": "string" },
+              "createdAt": { "type": "string", "format": "date-time" }
+            }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "firestore": {
-    "/users/{uid}": {
-      "schema": "UserProfile",
-      "description": "User profiles for the leaderboard."
+    "/users/{uid}/settings/dashboard": {
+      "schema": "DashboardSettings",
+      "description": "Dashboard configuration for a user."
+    },
+    "/users/{uid}/data/dailyTargets": {
+      "schema": "DailyTargets",
+      "description": "Daily targets for a user."
+    },
+    "/users/{uid}/data/checklist": {
+      "schema": "SubjectChecklist",
+      "description": "Subject checklist for a user."
+    },
+    "/users/{uid}/data/timer": {
+      "schema": "TimerState",
+      "description": "Timer state for a user."
+    },
+    "/users/{uid}/dailyStats/{date}": {
+      "schema": "DailyStats",
+      "description": "Daily study statistics for a user."
+    },
+    "/leaderboard/{uid}": {
+      "schema": "User",
+      "description": "Leaderboard entry for a user."
+    },
+    "/stats/global": {
+      "schema": "GlobalStats",
+      "description": "Global statistics for the application."
+    },
+    "/activity/{id}": {
+      "schema": "Activity",
+      "description": "Activity log entry."
+    },
+    "/posts/{id}": {
+      "schema": "Post",
+      "description": "Community post."
     }
   }
 }

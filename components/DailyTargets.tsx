@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, CheckCircle2, Circle, Target } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { auth, onAuthStateChanged, db, doc, onSnapshot, setDoc, User, handleFirestoreError, OperationType } from '@/src/firebase';
 
 interface TargetItem {
   id: string;
@@ -9,23 +10,52 @@ interface TargetItem {
 }
 
 const DailyTargets = () => {
+  const [user, setUser] = useState<User | null>(null);
   const [targets, setTargets] = useState<TargetItem[]>([]);
   const [inputValue, setInputValue] = useState('');
 
   useEffect(() => {
-    const saved = localStorage.getItem('jee-daily-targets');
-    if (saved) {
-      try {
-        setTargets(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to parse daily targets", e);
-      }
-    }
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
   }, []);
 
-  const saveTargets = (newTargets: TargetItem[]) => {
+  useEffect(() => {
+    if (!user) {
+      const saved = localStorage.getItem('jee-daily-targets');
+      if (saved) {
+        try {
+          setTargets(JSON.parse(saved));
+        } catch (e) {
+          console.error("Failed to parse daily targets", e);
+        }
+      }
+      return;
+    }
+
+    const unsubscribe = onSnapshot(doc(db, 'users', user.uid, 'data', 'dailyTargets'), (doc) => {
+      if (doc.exists()) {
+        setTargets(doc.data().items || []);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, `users/${user.uid}/data/dailyTargets`, false);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  const saveTargets = async (newTargets: TargetItem[]) => {
     setTargets(newTargets);
-    localStorage.setItem('jee-daily-targets', JSON.stringify(newTargets));
+    if (user) {
+      try {
+        await setDoc(doc(db, 'users', user.uid, 'data', 'dailyTargets'), { items: newTargets });
+      } catch (error) {
+        handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/data/dailyTargets`);
+      }
+    } else {
+      localStorage.setItem('jee-daily-targets', JSON.stringify(newTargets));
+    }
   };
 
   const addTarget = (e: React.FormEvent) => {

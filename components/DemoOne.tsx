@@ -1,109 +1,246 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Target, Zap, Clock, Trophy, Plus, X, CheckCircle2 } from 'lucide-react';
+import { Target, Zap, Clock, Trophy, Plus, X, CheckCircle2, Loader2, Heart, BookOpen } from 'lucide-react';
 import AnoAI from "@/components/ui/animated-shader-background";
 import CountdownTimer from "@/components/ui/countdown-timer";
 import SubjectChecklist from "@/components/SubjectChecklist";
 import DailyTargets from "@/components/DailyTargets";
+import { auth, onAuthStateChanged, db, doc, getDoc, setDoc, onSnapshot, collection, query, orderBy, limit, User, handleFirestoreError, OperationType, serverTimestamp, increment, addDoc } from '@/src/firebase';
 
 const DemoOne = () => {
-  const [stats, setStats] = React.useState([
+  const [user, setUser] = useState<User | null>(null);
+  const [globalRank, setGlobalRank] = useState<number | string>('--');
+  const [timerState, setTimerState] = useState({ isRunning: false, startTime: null as number | null, accumulatedSeconds: 0 });
+  const [dailyStudySeconds, setDailyStudySeconds] = useState<Record<string, number>>({});
+  const [stats, setStats] = useState([
     { label: "Daily Goal", value: "--", icon: <Target className="w-3 h-3" />, color: "text-emerald-400" },
     { label: "Current Streak", value: "--", icon: <Zap className="w-3 h-3" />, color: "text-amber-400" },
     { label: "Study Time", value: "--", icon: <Clock className="w-3 h-3" />, color: "text-blue-400" },
     { label: "Global Rank", value: "--", icon: <Trophy className="w-3 h-3" />, color: "text-purple-400" },
   ]);
 
-  const defaultExams = [
-    { id: 'adv2026', label: 'JEE ADVANCE 2026', date: '2026-05-17T09:00:00' },
-    { id: 'mains1_2027', label: 'JEE MAINS 1 2027', date: '2027-01-21T09:00:00' },
-    { id: 'mains2_2027', label: 'JEE MAINS 2 2027', date: '2027-04-02T09:00:00' },
-    { id: 'neet2026', label: 'NEET 2026', date: '2026-05-03T09:00:00' },
-    { id: 'neet2027', label: 'NEET 2027', date: '2027-05-03T09:00:00' },
+  const EXAM_CATEGORIES = [
+    { id: 'jee', label: 'JEE', icon: <Target className="w-3 h-3" /> },
+    { id: 'neet', label: 'NEET', icon: <Heart className="w-3 h-3" /> },
+    { id: 'boards', label: 'Boards', icon: <BookOpen className="w-3 h-3" /> },
   ];
 
-  const [customExams, setCustomExams] = React.useState<{id: string, label: string, date: string}[]>(() => {
-    const saved = localStorage.getItem('jee-custom-exams');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const DEFAULT_EXAMS_BY_CATEGORY: Record<string, { id: string, label: string, date: string }[]> = {
+    jee: [
+      { id: 'mains1_2027', label: 'JEE MAINS 1 2027', date: '2027-01-21T09:00:00' },
+      { id: 'mains2_2027', label: 'JEE MAINS 2 2027', date: '2027-04-02T09:00:00' },
+      { id: 'adv2026', label: 'JEE ADVANCE 2026', date: '2026-05-17T09:00:00' },
+    ],
+    neet: [
+      { id: 'neet2026', label: 'NEET 2026', date: '2026-05-03T09:00:00' },
+      { id: 'neet2027', label: 'NEET 2027', date: '2027-05-03T09:00:00' },
+    ],
+    boards: [
+      { id: 'boards_9', label: 'CLASS 9 BOARDS', date: '2027-03-01T09:00:00' },
+      { id: 'boards_10', label: 'CLASS 10 BOARDS', date: '2027-02-15T09:00:00' },
+      { id: 'boards_11', label: 'CLASS 11 BOARDS', date: '2027-03-01T09:00:00' },
+      { id: 'boards_12', label: 'CLASS 12 BOARDS', date: '2027-02-15T09:00:00' },
+    ]
+  };
 
-  const exams = [...defaultExams, ...customExams];
+  const [selectedCategory, setSelectedCategory] = useState('jee');
+  const [customExams, setCustomExams] = useState<{id: string, label: string, date: string}[]>([]);
+  const [selectedExam, setSelectedExam] = useState(DEFAULT_EXAMS_BY_CATEGORY.jee[0]);
+  const [targetHours, setTargetHours] = useState(6);
+  const [showAddCustom, setShowAddCustom] = useState(false);
+  const [customLabel, setCustomLabel] = useState('');
+  const [customDate, setCustomDate] = useState('');
 
-  const [selectedExam, setSelectedExam] = React.useState(() => {
-    const saved = localStorage.getItem('jee-selected-exam');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      // Check if the saved exam still exists in current exams list
-      if (exams.some(e => e.id === parsed.id)) return parsed;
+  const currentCategoryExams = [...(DEFAULT_EXAMS_BY_CATEGORY[selectedCategory] || []), ...customExams.filter(e => e.id.includes(selectedCategory))];
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Sync Settings from Firestore
+  useEffect(() => {
+    if (!user) {
+      // Fallback to localStorage for guest
+      const savedExams = localStorage.getItem('jee-custom-exams');
+      if (savedExams) setCustomExams(JSON.parse(savedExams));
+      const savedCategory = localStorage.getItem('jee-selected-category');
+      if (savedCategory) setSelectedCategory(savedCategory);
+      const savedSelected = localStorage.getItem('jee-selected-exam');
+      if (savedSelected) setSelectedExam(JSON.parse(savedSelected));
+      const savedTarget = localStorage.getItem('jee-target-hours');
+      if (savedTarget) setTargetHours(Number(savedTarget));
+      return;
     }
-    return defaultExams[0];
-  });
 
-  const [showAddCustom, setShowAddCustom] = React.useState(false);
-  const [customLabel, setCustomLabel] = React.useState('');
-  const [customDate, setCustomDate] = React.useState('');
+    const unsubscribe = onSnapshot(doc(db, 'users', user.uid, 'settings', 'dashboard'), (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        if (data.customExams) setCustomExams(data.customExams);
+        if (data.selectedCategory) setSelectedCategory(data.selectedCategory);
+        if (data.selectedExam) setSelectedExam(data.selectedExam);
+        if (data.targetHours) setTargetHours(data.targetHours);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, `users/${user.uid}/settings/dashboard`, false);
+    });
 
-  const handleExamChange = (examId: string) => {
-    const exam = exams.find(e => e.id === examId);
-    if (exam) {
-      setSelectedExam(exam);
-      localStorage.setItem('jee-selected-exam', JSON.stringify(exam));
+    return () => unsubscribe();
+  }, [user]);
+
+  // Global Rank Listener
+  useEffect(() => {
+    const q = query(collection(db, 'leaderboard'), orderBy('totalQuestions', 'desc'), limit(100));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (user) {
+        const index = snapshot.docs.findIndex(d => d.id === user.uid);
+        setGlobalRank(index !== -1 ? `#${index + 1}` : '100+');
+      } else {
+        setGlobalRank('--');
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'leaderboard', false);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  // Timer State Listener
+  useEffect(() => {
+    if (!user) return;
+    const unsubscribe = onSnapshot(doc(db, 'users', user.uid, 'data', 'timer'), (doc) => {
+      if (doc.exists()) {
+        setTimerState(doc.data() as any);
+      }
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  // Daily Study Seconds Listener
+  useEffect(() => {
+    if (!user) return;
+    const unsubscribe = onSnapshot(collection(db, 'users', user.uid, 'dailyStats'), (snapshot) => {
+      const secondsMap: Record<string, number> = {};
+      snapshot.docs.forEach(doc => {
+        if (doc.data().studySeconds) {
+          secondsMap[doc.id] = doc.data().studySeconds;
+        }
+      });
+      setDailyStudySeconds(secondsMap);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  const handleCategoryChange = async (categoryId: string) => {
+    setSelectedCategory(categoryId);
+    const firstExam = DEFAULT_EXAMS_BY_CATEGORY[categoryId][0];
+    setSelectedExam(firstExam);
+    
+    if (user) {
+      try {
+        await setDoc(doc(db, 'users', user.uid, 'settings', 'dashboard'), { 
+          selectedCategory: categoryId,
+          selectedExam: firstExam 
+        }, { merge: true });
+      } catch (error) {
+        handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/settings/dashboard`);
+      }
+    } else {
+      localStorage.setItem('jee-selected-category', categoryId);
+      localStorage.setItem('jee-selected-exam', JSON.stringify(firstExam));
     }
   };
 
-  const addCustomExam = () => {
+  const handleExamChange = async (examId: string) => {
+    const exam = currentCategoryExams.find(e => e.id === examId);
+    if (exam) {
+      setSelectedExam(exam);
+      if (user) {
+        try {
+          await setDoc(doc(db, 'users', user.uid, 'settings', 'dashboard'), { selectedExam: exam }, { merge: true });
+        } catch (error) {
+          handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/settings/dashboard`);
+        }
+      } else {
+        localStorage.setItem('jee-selected-exam', JSON.stringify(exam));
+      }
+    }
+  };
+
+  const addCustomExam = async () => {
     if (!customLabel || !customDate) return;
     const newExam = {
-      id: `custom-${Date.now()}`,
+      id: `custom-${selectedCategory}-${Date.now()}`,
       label: customLabel.toUpperCase(),
       date: `${customDate}T09:00:00`
     };
     const newCustomExams = [...customExams, newExam];
     setCustomExams(newCustomExams);
-    localStorage.setItem('jee-custom-exams', JSON.stringify(newCustomExams));
     setSelectedExam(newExam);
-    localStorage.setItem('jee-selected-exam', JSON.stringify(newExam));
+    
+    if (user) {
+      await setDoc(doc(db, 'users', user.uid, 'settings', 'dashboard'), { 
+        customExams: newCustomExams,
+        selectedExam: newExam
+      }, { merge: true });
+    } else {
+      localStorage.setItem('jee-custom-exams', JSON.stringify(newCustomExams));
+      localStorage.setItem('jee-selected-exam', JSON.stringify(newExam));
+    }
+    
     setCustomLabel('');
     setCustomDate('');
     setShowAddCustom(false);
   };
 
-  const deleteCustomExam = (id: string, e: React.MouseEvent) => {
+  const deleteCustomExam = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const newCustomExams = customExams.filter(exam => exam.id !== id);
     setCustomExams(newCustomExams);
-    localStorage.setItem('jee-custom-exams', JSON.stringify(newCustomExams));
+    
+    let newSelected = selectedExam;
     if (selectedExam.id === id) {
-      setSelectedExam(defaultExams[0]);
-      localStorage.setItem('jee-selected-exam', JSON.stringify(defaultExams[0]));
+      newSelected = DEFAULT_EXAMS_BY_CATEGORY[selectedCategory][0];
+      setSelectedExam(newSelected);
+    }
+
+    if (user) {
+      await setDoc(doc(db, 'users', user.uid, 'settings', 'dashboard'), { 
+        customExams: newCustomExams,
+        selectedExam: newSelected
+      }, { merge: true });
+    } else {
+      localStorage.setItem('jee-custom-exams', JSON.stringify(newCustomExams));
+      localStorage.setItem('jee-selected-exam', JSON.stringify(newSelected));
     }
   };
 
-  const [targetHours, setTargetHours] = React.useState(() => {
-    const saved = localStorage.getItem('jee-target-hours');
-    return saved ? Number(saved) : 6;
-  });
+  const updateTargetHours = async (newTarget: number) => {
+    setTargetHours(newTarget);
+    if (user) {
+      await setDoc(doc(db, 'users', user.uid, 'settings', 'dashboard'), { targetHours: newTarget }, { merge: true });
+    } else {
+      localStorage.setItem('jee-target-hours', newTarget.toString());
+    }
+  };
 
   const calculateStreak = (secondsMap: Record<string, number>, target: number) => {
     let currentStreak = 0;
     let checkDate = new Date();
     checkDate.setHours(0, 0, 0, 0);
-    
     const targetSeconds = target * 3600;
 
-    // Check if today's goal is met or at least yesterday's was
     const todayStr = checkDate.toDateString();
     const todaySeconds = secondsMap[todayStr] || 0;
 
     if (todaySeconds < targetSeconds) {
-      // If today's goal not met, check if yesterday's was. If not, streak is 0.
       checkDate.setDate(checkDate.getDate() - 1);
       const yesterdayStr = checkDate.toDateString();
       const yesterdaySeconds = secondsMap[yesterdayStr] || 0;
       if (yesterdaySeconds < targetSeconds) return 0;
     }
 
-    // Now count backwards
     while (true) {
       const dateStr = checkDate.toDateString();
       const seconds = secondsMap[dateStr] || 0;
@@ -117,32 +254,18 @@ const DemoOne = () => {
     return currentStreak;
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     const today = new Date().toDateString();
-    
     const updateStats = () => {
-      // Study Time
-      const savedSeconds = localStorage.getItem('jee-daily-study-seconds');
-      let studyTimeSeconds = 0;
-      let secondsMap: Record<string, number> = {};
-      if (savedSeconds) {
-        secondsMap = JSON.parse(savedSeconds);
-        studyTimeSeconds = secondsMap[today] || 0;
-      }
+      let studyTimeSeconds = dailyStudySeconds[today] || 0;
 
-      // Check if timer is running and add session time
-      const isRunning = localStorage.getItem('jee-timer-running') === 'true';
-      const startTime = localStorage.getItem('jee-timer-start-time');
-      const accumulated = localStorage.getItem('jee-timer-accumulated');
-      
-      if (isRunning && startTime) {
-        const sessionSeconds = Math.floor((Date.now() - Number(startTime)) / 1000);
-        studyTimeSeconds = Number(accumulated) + sessionSeconds;
+      if (timerState.isRunning && timerState.startTime) {
+        const sessionSeconds = Math.floor((Date.now() - timerState.startTime) / 1000);
+        studyTimeSeconds = timerState.accumulatedSeconds + sessionSeconds;
       }
 
       const studyTime = `${(studyTimeSeconds / 3600).toFixed(1)}h`;
 
-      // Daily Goal (from Daily Targets)
       const savedTargets = localStorage.getItem('jee-daily-targets');
       let dailyGoal = "0%";
       if (savedTargets) {
@@ -153,8 +276,8 @@ const DemoOne = () => {
         }
       }
 
-      // Streak calculation based on hours
-      const currentStreak = calculateStreak(secondsMap, targetHours);
+      const currentSecondsMap = { ...dailyStudySeconds, [today]: studyTimeSeconds };
+      const currentStreak = calculateStreak(currentSecondsMap, targetHours);
       const streak = `${currentStreak} Days`;
       const isGoalMet = studyTimeSeconds >= targetHours * 3600;
 
@@ -162,18 +285,102 @@ const DemoOne = () => {
         { label: "Daily Goal", value: dailyGoal, icon: <Target className="w-3 h-3" />, color: "text-emerald-400", completed: dailyGoal === "100%" },
         { label: "Current Streak", value: streak, icon: <Zap className="w-3 h-3" />, color: "text-amber-400", completed: isGoalMet },
         { label: "Study Time", value: studyTime, icon: <Clock className="w-3 h-3" />, color: "text-blue-400", completed: isGoalMet },
-        { label: "Global Rank", value: "#--", icon: <Trophy className="w-3 h-3" />, color: "text-purple-400", completed: false },
+        { label: "Global Rank", value: globalRank.toString(), icon: <Trophy className="w-3 h-3" />, color: "text-purple-400", completed: false },
       ]);
     };
 
     updateStats();
-    const interval = setInterval(updateStats, 1000);
+    const interval = setInterval(updateStats, 2000); // Throttled to 2s
     return () => clearInterval(interval);
-  }, [targetHours]);
+  }, [targetHours, globalRank, timerState, dailyStudySeconds]);
 
-  const updateTargetHours = (newTarget: number) => {
-    setTargetHours(newTarget);
-    localStorage.setItem('jee-target-hours', newTarget.toString());
+  const toggleTimer = async () => {
+    if (!user) return;
+    const today = new Date().toDateString();
+    const todaySeconds = dailyStudySeconds[today] || 0;
+
+    const syncGlobalProgress = async (questions: number, hours: number) => {
+      try {
+        const leaderboardRef = doc(db, 'leaderboard', user.uid);
+        const leaderboardSnap = await getDoc(leaderboardRef);
+        const isNewUser = !leaderboardSnap.exists();
+
+        // Update Leaderboard
+        await setDoc(leaderboardRef, {
+          displayName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
+          photoURL: user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=random`,
+          totalQuestions: increment(questions),
+          totalHours: increment(hours),
+          streak: increment(1),
+          lastUpdated: serverTimestamp()
+        }, { merge: true });
+
+        // Update Global Stats
+        const globalStatsRef = doc(db, 'stats', 'global');
+        await setDoc(globalStatsRef, {
+          totalStudents: increment(isNewUser ? 1 : 0),
+          totalQuestions: increment(questions),
+          totalHours: increment(hours),
+          lastUpdated: serverTimestamp()
+        }, { merge: true });
+
+        // Add Activity
+        if (questions > 0) {
+          await addDoc(collection(db, 'activity'), {
+            uid: user.uid,
+            displayName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
+            action: `solved ${questions} questions`,
+            type: 'questions',
+            value: questions,
+            createdAt: serverTimestamp()
+          });
+        }
+        if (hours > 0) {
+          await addDoc(collection(db, 'activity'), {
+            uid: user.uid,
+            displayName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
+            action: `completed ${hours.toFixed(1)}h study`,
+            type: 'hours',
+            value: hours,
+            createdAt: serverTimestamp()
+          });
+        }
+      } catch (error) {
+        console.error("Global sync error:", error);
+      }
+    };
+
+    if (!timerState.isRunning) {
+      const now = Date.now();
+      const timerRef = doc(db, 'users', user.uid, 'data', 'timer');
+      await setDoc(timerRef, {
+        isRunning: true,
+        startTime: now,
+        accumulatedSeconds: todaySeconds,
+        lastUpdated: serverTimestamp()
+      }, { merge: true });
+    } else {
+      const sessionSeconds = Math.floor((Date.now() - (timerState.startTime || Date.now())) / 1000);
+      const totalElapsed = timerState.accumulatedSeconds + sessionSeconds;
+      
+      const timerRef = doc(db, 'users', user.uid, 'data', 'timer');
+      await setDoc(timerRef, {
+        isRunning: false,
+        startTime: null,
+        accumulatedSeconds: 0,
+        lastUpdated: serverTimestamp()
+      }, { merge: true });
+
+      const sessionHours = sessionSeconds / 3600;
+      await syncGlobalProgress(0, sessionHours);
+
+      const statsRef = doc(db, 'users', user.uid, 'dailyStats', today);
+      await setDoc(statsRef, {
+        studySeconds: totalElapsed,
+        date: today,
+        lastUpdated: serverTimestamp()
+      }, { merge: true });
+    }
   };
 
   const containerVariants = {
@@ -222,8 +429,24 @@ const DemoOne = () => {
               <div className="h-px w-8 bg-white/20" />
             </div>
 
+            {/* Category Selector */}
+            <div className="flex items-center gap-2 p-1 rounded-xl bg-white/5 border border-white/10 backdrop-blur-xl">
+              {EXAM_CATEGORIES.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => handleCategoryChange(cat.id)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all
+                    ${selectedCategory === cat.id ? 'bg-white/10 text-white shadow-lg' : 'text-white/40 hover:text-white/60'}`}
+                >
+                  {cat.icon}
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Exam Selector */}
             <div className="flex flex-wrap justify-center items-center gap-2 p-1 rounded-xl bg-white/5 border border-white/10 backdrop-blur-xl max-w-2xl">
-              {exams.map((exam) => (
+              {currentCategoryExams.map((exam) => (
                 <div key={exam.id} className="relative group/btn">
                   <button
                     onClick={() => handleExamChange(exam.id)}
@@ -283,7 +506,7 @@ const DemoOne = () => {
             </AnimatePresence>
           </div>
 
-          <div className="scale-110 md:scale-125 mb-12">
+          <div className="scale-110 md:scale-125 mb-16">
             <CountdownTimer targetDate={selectedExam.date} />
           </div>
 
@@ -307,7 +530,21 @@ const DemoOne = () => {
                   </div>
                   <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">{stat.label}</span>
                 </div>
-                <div className="text-xl font-mono font-bold text-white tracking-tight">{stat.value}</div>
+                <div className="flex items-end justify-between">
+                  <div className="text-xl font-mono font-bold text-white tracking-tight">{stat.value}</div>
+                  {stat.label === "Study Time" && (
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleTimer();
+                      }}
+                      className={`px-2 py-1 rounded-md text-[7px] font-black uppercase tracking-widest transition-all
+                        ${timerState.isRunning ? 'bg-rose-500 text-white animate-pulse' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}
+                    >
+                      {timerState.isRunning ? 'Stop' : 'Start'}
+                    </button>
+                  )}
+                </div>
               </motion.div>
             ))}
           </div>
@@ -339,10 +576,13 @@ const DemoOne = () => {
           </motion.div>
         </motion.div>
 
-        <motion.div variants={itemVariants} className="w-full flex flex-col items-center gap-8">
-          <DailyTargets />
-          <SubjectChecklist />
-        </motion.div>
+          <motion.div variants={itemVariants} className="w-full flex flex-col items-center gap-8">
+            <DailyTargets />
+            <SubjectChecklist 
+              category={selectedCategory} 
+              examId={selectedExam.id} 
+            />
+          </motion.div>
       </motion.div>
     </div>
   );

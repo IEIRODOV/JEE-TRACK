@@ -1,114 +1,172 @@
-import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, TrendingUp, Zap, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, TrendingUp, Zap, Trash2, Cloud, CloudOff, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import AnoAI from "@/components/ui/animated-shader-background";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
-import { auth, db, doc, setDoc, onAuthStateChanged } from '@/src/firebase';
+import { auth, db, onAuthStateChanged } from '@/src/firebase';
+import { 
+  doc, 
+  setDoc, 
+  getDoc, 
+  collection, 
+  onSnapshot, 
+  query, 
+  where, 
+  serverTimestamp,
+  deleteDoc,
+  writeBatch,
+  increment,
+  addDoc
+} from 'firebase/firestore';
 
 const CalendarPage = () => {
   const [user, setUser] = useState<any>(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [mockTestDates, setMockTestDates] = useState<string[]>(() => {
-    const saved = localStorage.getItem('jee-mock-tests');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [mockTestDetails, setMockTestDetails] = useState<Record<string, { completed: boolean, marks: string }>>(() => {
-    const saved = localStorage.getItem('jee-mock-test-details');
-    return saved ? JSON.parse(saved) : {};
-  });
-
-  const [completedStudyDays, setCompletedStudyDays] = useState<string[]>(() => {
-    const saved = localStorage.getItem('jee-completed-study-days');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [completedQuestionDays, setCompletedQuestionDays] = useState<string[]>(() => {
-    const saved = localStorage.getItem('jee-completed-question-days');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [dailyQuestionCounts, setDailyQuestionCounts] = useState<Record<string, number>>(() => {
-    const saved = localStorage.getItem('jee-daily-question-counts');
-    return saved ? JSON.parse(saved) : {};
-  });
-
-  const [dailyStudySeconds, setDailyStudySeconds] = useState<Record<string, number>>(() => {
-    const saved = localStorage.getItem('jee-daily-study-seconds');
-    return saved ? JSON.parse(saved) : {};
-  });
-
-  const [targetHours, setTargetHours] = useState<number>(() => {
-    const saved = localStorage.getItem('jee-target-hours');
-    return saved ? Number(saved) : 6;
-  });
-
-  const [questionTarget, setQuestionTarget] = useState<number>(() => {
-    const saved = localStorage.getItem('jee-question-target');
-    return saved ? Number(saved) : 50;
-  });
-
-  const [currentQuestions, setCurrentQuestions] = useState<number>(() => {
-    const today = new Date().toDateString();
-    const saved = localStorage.getItem('jee-daily-question-counts');
-    if (saved) {
-      const counts = JSON.parse(saved);
-      return counts[today] || 0;
-    }
-    return 0;
-  });
-
-  const [elapsedSeconds, setElapsedSeconds] = useState<number>(() => {
-    const today = new Date().toDateString();
-    const saved = localStorage.getItem('jee-daily-study-seconds');
-    if (saved) {
-      const seconds = JSON.parse(saved);
-      return seconds[today] || 0;
-    }
-    return 0;
-  });
-
-  const [isTimerRunning, setIsTimerRunning] = useState(() => {
-    return localStorage.getItem('jee-timer-running') === 'true';
-  });
-  const [startTime, setStartTime] = useState<number | null>(() => {
-    const saved = localStorage.getItem('jee-timer-start-time');
-    return saved ? Number(saved) : null;
-  });
-  const [accumulatedSeconds, setAccumulatedSeconds] = useState<number>(() => {
-    const saved = localStorage.getItem('jee-timer-accumulated');
-    return saved ? Number(saved) : 0;
-  });
+  const [mockTestDates, setMockTestDates] = useState<string[]>([]);
+  const [mockTestDetails, setMockTestDetails] = useState<Record<string, { completed: boolean, marks: string }>>({});
+  const [completedStudyDays, setCompletedStudyDays] = useState<string[]>([]);
+  const [completedQuestionDays, setCompletedQuestionDays] = useState<string[]>([]);
+  const [dailyQuestionCounts, setDailyQuestionCounts] = useState<Record<string, number>>({});
+  const [dailyStudySeconds, setDailyStudySeconds] = useState<Record<string, number>>({});
+  const [globalStats, setGlobalStats] = useState({ totalStudents: 0, totalQuestions: 0 });
+  
+  const [targetHours, setTargetHours] = useState<number>(6);
+  const [questionTarget, setQuestionTarget] = useState<number>(50);
+  
+  const [currentQuestions, setCurrentQuestions] = useState<number>(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+  
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [startTime, setStartTime] = useState<number | null>(null);
+  const [accumulatedSeconds, setAccumulatedSeconds] = useState<number>(0);
+  const [isTimerLoading, setIsTimerLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
+
+  // Refs to avoid stale closures in timer
+  const dailyStudySecondsRef = useRef(dailyStudySeconds);
+  const completedStudyDaysRef = useRef(completedStudyDays);
+  const targetHoursRef = useRef(targetHours);
+
+  useEffect(() => {
+    dailyStudySecondsRef.current = dailyStudySeconds;
+    completedStudyDaysRef.current = completedStudyDays;
+    targetHoursRef.current = targetHours;
+  }, [dailyStudySeconds, completedStudyDays, targetHours]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      setIsAuthReady(true);
     });
     return () => unsubscribe();
   }, []);
 
-  // Sync totals to Firestore
+  // Real-time sync from Firestore
   useEffect(() => {
-    if (user) {
-      const syncStats = async () => {
-        const totalQuestions = Object.values(dailyQuestionCounts).reduce((a: number, b: number) => a + b, 0);
-        const totalStudySeconds = Object.values(dailyStudySeconds).reduce((a: number, b: number) => a + b, 0);
-        
-        const userRef = doc(db, 'users', user.uid);
-        await setDoc(userRef, {
-          totalQuestions,
-          totalStudySeconds,
-          lastUpdated: new Date().toISOString()
-        }, { merge: true });
-      };
-      syncStats();
-    }
-  }, [user, dailyQuestionCounts, dailyStudySeconds]);
+    if (!user) return;
 
-  React.useEffect(() => {
+    setIsSyncing(true);
+    const statsRef = collection(db, 'users', user.uid, 'dailyStats');
+    
+    const unsubscribe = onSnapshot(statsRef, (snapshot) => {
+      const newQuestionCounts: Record<string, number> = {};
+      const newStudySeconds: Record<string, number> = {};
+      const newMockTestDates: string[] = [];
+      const newMockTestDetails: Record<string, { completed: boolean, marks: string }> = {};
+      const newCompletedStudy: string[] = [];
+      const newCompletedQuestions: string[] = [];
+
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        const dateStr = doc.id; // Using doc ID as date string
+
+        if (data.questionsSolved !== undefined) newQuestionCounts[dateStr] = data.questionsSolved;
+        if (data.studySeconds !== undefined) newStudySeconds[dateStr] = data.studySeconds;
+        
+        if (data.isMockTest) {
+          newMockTestDates.push(dateStr);
+          newMockTestDetails[dateStr] = {
+            completed: data.mockTestCompleted || false,
+            marks: data.mockTestMarks || ''
+          };
+        }
+
+        if (data.studySeconds >= targetHoursRef.current * 3600) {
+          newCompletedStudy.push(dateStr);
+        }
+        if (data.questionsSolved >= questionTarget) {
+          newCompletedQuestions.push(dateStr);
+        }
+      });
+
+      setDailyQuestionCounts(newQuestionCounts);
+      setDailyStudySeconds(newStudySeconds);
+      setMockTestDates(newMockTestDates);
+      setMockTestDetails(newMockTestDetails);
+      setCompletedStudyDays(newCompletedStudy);
+      setCompletedQuestionDays(newCompletedQuestions);
+
+      // Update current day's values
+      const today = new Date().toDateString();
+      setCurrentQuestions(newQuestionCounts[today] || 0);
+      setElapsedSeconds(newStudySeconds[today] || 0);
+
+      setIsSyncing(false);
+      setLastSyncTime(new Date());
+    }, (error) => {
+      console.error("Firestore Sync Error:", error);
+      setIsSyncing(false);
+    });
+
+    return () => unsubscribe();
+  }, [user, questionTarget]);
+
+  // Timer State Sync from Firestore
+  useEffect(() => {
+    if (!user) {
+      setIsTimerLoading(false);
+      return;
+    }
+
+    const timerRef = doc(db, 'users', user.uid, 'data', 'timer');
+    const unsubscribe = onSnapshot(timerRef, (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        setIsTimerRunning(data.isRunning || false);
+        setStartTime(data.startTime || null);
+        setAccumulatedSeconds(data.accumulatedSeconds || 0);
+      }
+      setIsTimerLoading(false);
+    }, (error) => {
+      console.error("Timer Sync Error:", error);
+      setIsTimerLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  // Global Stats Listener
+  useEffect(() => {
+    const unsubscribe = onSnapshot(doc(db, 'stats', 'global'), (doc) => {
+      if (doc.exists()) {
+        setGlobalStats(doc.data() as any);
+      }
+    }, (error) => {
+      console.error("Global Stats Sync Error:", error);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Timer logic
+  useEffect(() => {
     let interval: NodeJS.Timeout;
+    let periodicSave: NodeJS.Timeout;
+
     if (isTimerRunning && startTime) {
       interval = setInterval(() => {
         const now = Date.now();
@@ -118,95 +176,182 @@ const CalendarPage = () => {
         setElapsedSeconds(totalElapsed);
         
         const today = new Date().toDateString();
-        const newSeconds = { ...dailyStudySeconds, [today]: totalElapsed };
+        const newSeconds = { ...dailyStudySecondsRef.current, [today]: totalElapsed };
         setDailyStudySeconds(newSeconds);
-        localStorage.setItem('jee-daily-study-seconds', JSON.stringify(newSeconds));
 
-        if (totalElapsed >= targetHours * 3600 && !completedStudyDays.includes(today)) {
-          const newCompleted = [...completedStudyDays, today];
-          setCompletedStudyDays(newCompleted);
-          localStorage.setItem('jee-completed-study-days', JSON.stringify(newCompleted));
+        if (totalElapsed >= targetHoursRef.current * 3600 && !completedStudyDaysRef.current.includes(today)) {
+          setCompletedStudyDays(prev => [...prev, today]);
         }
       }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isTimerRunning, startTime, accumulatedSeconds, targetHours, completedStudyDays, dailyStudySeconds]);
 
-  const toggleTimer = () => {
-    const today = new Date().toDateString();
-    if (!isTimerRunning) {
-      // Starting timer
-      const now = Date.now();
-      setStartTime(now);
-      setAccumulatedSeconds(elapsedSeconds);
-      setIsTimerRunning(true);
-      
-      localStorage.setItem('jee-timer-start-time', now.toString());
-      localStorage.setItem('jee-timer-accumulated', elapsedSeconds.toString());
-      localStorage.setItem('jee-timer-running', 'true');
-    } else {
-      // Stopping timer
-      setIsTimerRunning(false);
-      setStartTime(null);
-      setAccumulatedSeconds(0);
-      
-      localStorage.removeItem('jee-timer-start-time');
-      localStorage.removeItem('jee-timer-accumulated');
-      localStorage.setItem('jee-timer-running', 'false');
+      // Periodic save to Firestore every 30 seconds to prevent data loss
+      periodicSave = setInterval(async () => {
+        const today = new Date().toDateString();
+        const now = Date.now();
+        const sessionSeconds = Math.floor((now - startTime) / 1000);
+        const totalElapsed = accumulatedSeconds + sessionSeconds;
+        
+        await saveToFirestore(today, {
+          studySeconds: totalElapsed,
+          date: today
+        });
+      }, 30000);
+    }
+    return () => {
+      clearInterval(interval);
+      clearInterval(periodicSave);
+    };
+  }, [isTimerRunning, startTime, accumulatedSeconds]);
+
+  const saveToFirestore = async (dateStr: string, data: any) => {
+    if (!user) return;
+    try {
+      const docRef = doc(db, 'users', user.uid, 'dailyStats', dateStr);
+      await setDoc(docRef, {
+        ...data,
+        lastUpdated: serverTimestamp()
+      }, { merge: true });
+    } catch (error) {
+      console.error("Error saving to Firestore:", error);
     }
   };
 
-  const updateQuestions = (val: number) => {
+  const saveTimerState = async (running: boolean, start: number | null, accumulated: number) => {
+    if (!user) return;
+    try {
+      const timerRef = doc(db, 'users', user.uid, 'data', 'timer');
+      await setDoc(timerRef, {
+        isRunning: running,
+        startTime: start,
+        accumulatedSeconds: accumulated,
+        lastUpdated: serverTimestamp()
+      }, { merge: true });
+    } catch (error) {
+      console.error("Error saving timer state:", error);
+    }
+  };
+
+  const syncGlobalProgress = async (questions: number, hours: number) => {
+    if (!user) return;
+    try {
+      const leaderboardRef = doc(db, 'leaderboard', user.uid);
+      const leaderboardSnap = await getDoc(leaderboardRef);
+      const isNewUser = !leaderboardSnap.exists();
+
+      // Update Leaderboard
+      await setDoc(leaderboardRef, {
+        displayName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
+        photoURL: user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=random`,
+        totalQuestions: increment(questions),
+        totalHours: increment(hours),
+        streak: increment(1),
+        lastUpdated: serverTimestamp()
+      }, { merge: true });
+
+      // Update Global Stats
+      const globalStatsRef = doc(db, 'stats', 'global');
+      await setDoc(globalStatsRef, {
+        totalStudents: increment(isNewUser ? 1 : 0),
+        totalQuestions: increment(questions),
+        totalHours: increment(hours),
+        lastUpdated: serverTimestamp()
+      }, { merge: true });
+
+      // Add Activity
+      if (questions > 0) {
+        await addDoc(collection(db, 'activity'), {
+          uid: user.uid,
+          displayName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
+          action: `solved ${questions} questions`,
+          type: 'questions',
+          value: questions,
+          createdAt: serverTimestamp()
+        });
+      }
+      if (hours > 0) {
+        await addDoc(collection(db, 'activity'), {
+          uid: user.uid,
+          displayName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
+          action: `completed ${hours.toFixed(1)}h study`,
+          type: 'hours',
+          value: hours,
+          createdAt: serverTimestamp()
+        });
+      }
+    } catch (error) {
+      console.error("Global sync error:", error);
+    }
+  };
+
+  const toggleTimer = async () => {
+    const today = new Date().toDateString();
+    if (!isTimerRunning) {
+      const now = Date.now();
+      const newAccumulated = elapsedSeconds;
+      setStartTime(now);
+      setAccumulatedSeconds(newAccumulated);
+      setIsTimerRunning(true);
+      await saveTimerState(true, now, newAccumulated);
+    } else {
+      setIsTimerRunning(false);
+      setStartTime(null);
+      setAccumulatedSeconds(0);
+      await saveTimerState(false, null, 0);
+      
+      const sessionHours = elapsedSeconds / 3600;
+      await syncGlobalProgress(0, sessionHours);
+
+      // Final save on stop
+      await saveToFirestore(today, {
+        studySeconds: elapsedSeconds,
+        date: today
+      });
+    }
+  };
+
+  const updateQuestions = async (val: number) => {
+    const diff = val - currentQuestions;
     const today = new Date().toDateString();
     setCurrentQuestions(val);
     
     const newCounts = { ...dailyQuestionCounts, [today]: val };
     setDailyQuestionCounts(newCounts);
-    localStorage.setItem('jee-daily-question-counts', JSON.stringify(newCounts));
 
-    if (val >= questionTarget && !completedQuestionDays.includes(today)) {
-      const newCompleted = [...completedQuestionDays, today];
-      setCompletedQuestionDays(newCompleted);
-      localStorage.setItem('jee-completed-question-days', JSON.stringify(newCompleted));
-    } else if (val < questionTarget && completedQuestionDays.includes(today)) {
-      const newCompleted = completedQuestionDays.filter(d => d !== today);
-      setCompletedQuestionDays(newCompleted);
-      localStorage.setItem('jee-completed-question-days', JSON.stringify(newCompleted));
+    await saveToFirestore(today, {
+      questionsSolved: val,
+      date: today
+    });
+
+    if (diff > 0) {
+      await syncGlobalProgress(diff, 0);
     }
   };
 
-  const saveMockTests = (dates: string[]) => {
-    setMockTestDates(dates);
-    localStorage.setItem('jee-mock-tests', JSON.stringify(dates));
-  };
-
-  const toggleMockTest = (dateStr: string) => {
-    const newDates = mockTestDates.includes(dateStr)
-      ? mockTestDates.filter(d => d !== dateStr)
-      : [...mockTestDates, dateStr];
-    saveMockTests(newDates);
+  const toggleMockTest = async (dateStr: string) => {
+    const isCurrentlyMock = mockTestDates.includes(dateStr);
     
-    if (!newDates.includes(dateStr)) {
-      const newDetails = { ...mockTestDetails };
-      delete newDetails[dateStr];
-      setMockTestDetails(newDetails);
-      localStorage.setItem('jee-mock-test-details', JSON.stringify(newDetails));
-    }
+    await saveToFirestore(dateStr, {
+      isMockTest: !isCurrentlyMock,
+      date: dateStr
+    });
   };
 
-  const updateMockTestDetail = (dateStr: string, completed: boolean, marks: string) => {
-    const newDetails = { ...mockTestDetails, [dateStr]: { completed, marks } };
-    setMockTestDetails(newDetails);
-    localStorage.setItem('jee-mock-test-details', JSON.stringify(newDetails));
+  const updateMockTestDetail = async (dateStr: string, completed: boolean, marks: string) => {
+    await saveToFirestore(dateStr, {
+      mockTestCompleted: completed,
+      mockTestMarks: marks,
+      isMockTest: true,
+      date: dateStr
+    });
   };
 
-  const deleteMockTest = (dateStr: string) => {
-    const newDates = mockTestDates.filter(d => d !== dateStr);
-    saveMockTests(newDates);
-    const newDetails = { ...mockTestDetails };
-    delete newDetails[dateStr];
-    setMockTestDetails(newDetails);
-    localStorage.setItem('jee-mock-test-details', JSON.stringify(newDetails));
+  const deleteMockTest = async (dateStr: string) => {
+    await saveToFirestore(dateStr, {
+      isMockTest: false,
+      mockTestCompleted: false,
+      mockTestMarks: '',
+      date: dateStr
+    });
   };
 
   const chartData = (Object.entries(mockTestDetails) as [string, { completed: boolean, marks: string }][])
@@ -393,7 +538,28 @@ const CalendarPage = () => {
               </div>
               <div>
                 <h1 className="text-2xl md:text-3xl font-black text-white tracking-tighter font-heading uppercase">{monthName} {year}</h1>
-                <p className="text-white/40 tracking-[0.3em] uppercase text-[9px] font-bold">Study Schedule</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-white/40 tracking-[0.3em] uppercase text-[9px] font-bold">Study Schedule</p>
+                  <div className="h-3 w-px bg-white/10 mx-1" />
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[9px] font-black text-emerald-400/80 uppercase tracking-widest">
+                      {globalStats.totalStudents.toLocaleString()} Students Online
+                    </span>
+                  </div>
+                  {isSyncing ? (
+                    <Loader2 className="w-3 h-3 text-purple-400 animate-spin" />
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <Cloud className="w-3 h-3 text-emerald-400/50" />
+                      {lastSyncTime && (
+                        <span className="text-[8px] text-white/20 font-bold uppercase">
+                          Synced {lastSyncTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             
@@ -425,14 +591,19 @@ const CalendarPage = () => {
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mb-4">Focus Session</div>
               <div className="text-6xl font-mono font-black text-white tracking-tighter mb-8 tabular-nums">
-                {formatTime(elapsedSeconds)}
+                {isTimerLoading ? (
+                  <Loader2 className="w-12 h-12 animate-spin text-white/20" />
+                ) : (
+                  formatTime(elapsedSeconds)
+                )}
               </div>
               <button 
                 onClick={toggleTimer}
-                className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all active:scale-95
+                disabled={isTimerLoading}
+                className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all active:scale-95 disabled:opacity-50
                   ${isTimerRunning ? 'bg-rose-500 text-white shadow-[0_0_30px_rgba(244,63,94,0.3)]' : 'bg-white text-black hover:bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.1)]'}`}
               >
-                {isTimerRunning ? 'Stop Session' : 'Start Session'}
+                {isTimerLoading ? 'Syncing...' : (isTimerRunning ? 'Stop Session' : 'Start Session')}
               </button>
             </motion.div>
 

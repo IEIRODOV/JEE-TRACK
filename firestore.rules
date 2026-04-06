@@ -1,21 +1,138 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper functions
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: leaderboard
+    // Document ID: {userId}
+    // Fields:
+    //   - displayName: string (required)
+    //   - photoURL: string (required)
+    //   - totalQuestions: number (required)
+    //   - totalHours: number (required)
+    //   - streak: number (required)
+    //   - lastUpdated: timestamp (required)
+    //
+    // Collection: activity
+    // Document ID: {activityId}
+    // Fields:
+    //   - uid: string (required)
+    //   - displayName: string (required)
+    //   - action: string (required)
+    //   - type: string (required, enum: ['questions', 'hours'])
+    //   - value: number (required)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: posts
+    // Document ID: {postId}
+    // Fields:
+    //   - text: string (required)
+    //   - uid: string (required)
+    //   - displayName: string (required)
+    //   - photoURL: string (required)
+    //   - category: string (required)
+    //   - community: string (required, enum: ['jee', 'neet'])
+    //   - likes: array (required)
+    //   - reactions: map (optional)
+    //   - comments: array (optional)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Sub-paths:
+    //   - settings/dashboard: Dashboard configuration
+    //   - data/dailyTargets: Daily goals
+    //   - data/checklist: Subject/Chapter progress
+    //   - data/timer: Current timer state
+    //   - dailyStats/{date}: Daily study statistics
+    //
+    // Collection: stats
+    // Document ID: global
+    // Fields:
+    //   - totalStudents: number (required)
+    //   - totalQuestions: number (required)
+    //   - totalHours: number (required)
+    //   - lastUpdated: timestamp (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
     function isAuthenticated() {
       return request.auth != null;
     }
-    
-    function isOwner(uid) {
-      return isAuthenticated() && request.auth.uid == uid;
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
     }
 
-    match /users/{uid} {
-      // Anyone can read the leaderboard (public profile info)
-      allow read: if true;
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email == "bablasaur19@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function isValidString(field, maxLen) {
+      return request.resource.data[field] is string && request.resource.data[field].size() <= maxLen;
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    // Leaderboard: Publicly readable, owner/admin writable
+    match /leaderboard/{userId} {
+      allow get, list: if true;
+      allow write: if isOwner(userId) || isAdmin();
+    }
+
+    // Activity: Publicly readable, owner/admin creatable
+    match /activity/{activityId} {
+      allow get, list: if true;
+      allow create: if (isAuthenticated() && request.resource.data.uid == request.auth.uid) || isAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    // Posts: Publicly readable, owner/admin creatable
+    match /posts/{postId} {
+      allow get, list: if true;
+      allow create: if (isAuthenticated() && request.resource.data.uid == request.auth.uid) || isAdmin();
+      allow update: if isAuthenticated() && (
+        // Allow users to like/unlike or react (only update specific keys)
+        request.resource.data.diff(resource.data).affectedKeys().hasAny(['likes', 'reactions', 'comments']) ||
+        // Allow owner to edit their post
+        (resource.data.uid == request.auth.uid && request.resource.data.uid == request.auth.uid)
+      );
+      allow delete: if (isAuthenticated() && resource.data.uid == request.auth.uid) || isAdmin();
+    }
+
+    // Private User Data: Owner/Admin only
+    match /users/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin();
       
-      // Users can only update their own profile
-      allow write: if isOwner(uid);
+      match /{allPaths=**} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+    }
+
+    // Stats: Publicly readable, authenticated incrementable
+    match /stats/{statId} {
+      allow get, list: if true;
+      allow update: if isAuthenticated() && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['totalStudents', 'totalQuestions', 'totalHours', 'lastUpdated']);
+      allow create: if isAdmin();
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
