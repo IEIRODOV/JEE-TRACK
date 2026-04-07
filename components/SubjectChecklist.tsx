@@ -16,6 +16,8 @@ interface Subject {
   chapters: Chapter[];
 }
 
+import { playTickSound } from '@/src/lib/sounds';
+
 const SubjectIcon = ({ name }: { name: string }) => {
   switch (name.toLowerCase()) {
     case 'maths': return <Calculator className="w-6 h-6" />;
@@ -261,6 +263,7 @@ const SubjectChecklist = ({ category, examId }: SubjectChecklistProps) => {
   };
 
   const toggleChapter = async (subjectIndex: number, chapterIndex: number) => {
+    playTickSound();
     const newSubjects = [...subjects];
     newSubjects[subjectIndex].chapters[chapterIndex].completed = !newSubjects[subjectIndex].chapters[chapterIndex].completed;
     setSubjects(newSubjects);
@@ -283,38 +286,43 @@ const SubjectChecklist = ({ category, examId }: SubjectChecklistProps) => {
   return (
     <div className="w-full max-w-6xl mx-auto px-4 py-12">
       {/* Total Progress Bar */}
-      <div className="mb-12 p-8 rounded-3xl border border-white/10 backdrop-blur-xl bg-white/5">
-        <div className="flex justify-between items-end mb-4">
-          <div>
-            <h3 className="text-white/40 text-[10px] uppercase tracking-[0.3em] font-bold font-heading">Overall Completion</h3>
-            <div className="text-3xl font-black text-white tracking-tighter mt-1 font-heading">
-              {totalProgress}%
-            </div>
+      <div className="mb-12 p-8 rounded-3xl border border-white/10 backdrop-blur-xl bg-white/5 text-center">
+        <div className="flex flex-col items-center mb-6">
+          <h3 className="text-white/40 text-[10px] uppercase tracking-[0.4em] font-black font-heading mb-2">Overall Mission Progress</h3>
+          <div className="text-5xl font-black text-white tracking-tighter font-heading text-glow">
+            {totalProgress}%
           </div>
-          <div className="text-right">
-            <span className="text-white/40 text-sm font-mono">
-              {completedChapters} / {totalChapters} Chapters
+          <div className="mt-2 px-3 py-1 rounded-full bg-white/5 border border-white/10">
+            <span className="text-white/40 text-[10px] font-mono uppercase tracking-widest">
+              {completedChapters} / {totalChapters} Chapters Mastered
             </span>
           </div>
         </div>
-        <div className="w-full h-3 bg-white/5 rounded-full overflow-hidden">
+        <div className="w-full h-3 bg-white/5 rounded-full overflow-hidden relative">
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${totalProgress}%` }}
             transition={{ type: "spring", stiffness: 50, damping: 20 }}
-            className="h-full bg-gradient-to-r from-blue-500 via-rose-500 to-emerald-500"
+            className="h-full bg-gradient-to-r from-blue-500 via-rose-500 to-emerald-500 relative z-10"
           />
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-rose-500/20 to-emerald-500/20 blur-sm" />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
       {subjects.map((subject, sIdx) => (
-        <div key={subject.name} className={`rounded-2xl border backdrop-blur-md p-6 flex flex-col h-[500px] ${subject.color}`}>
-          <div className="flex items-center gap-3 mb-6">
-            <SubjectIcon name={subject.name} />
-            <h2 className={`text-lg font-black uppercase tracking-[0.2em] ${subject.font}`}>
+        <div 
+          key={subject.name} 
+          className={`w-full rounded-2xl border backdrop-blur-md p-6 flex flex-col h-[550px] transition-all duration-300 hover:scale-[1.02] ${subject.color}`}
+        >
+          <div className="flex flex-col items-center text-center gap-3 mb-6">
+            <div className="p-3 rounded-2xl bg-white/5 border border-white/10">
+              <SubjectIcon name={subject.name} />
+            </div>
+            <h2 className={`text-xl font-black uppercase tracking-[0.3em] ${subject.font}`}>
               {subject.name}
             </h2>
+            <div className="h-1 w-12 bg-current opacity-20 rounded-full" />
           </div>
           
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
@@ -339,18 +347,18 @@ const SubjectChecklist = ({ category, examId }: SubjectChecklistProps) => {
             </div>
           </div>
 
-          <div className="mt-6 pt-4 border-t border-white/10">
-            <div className="flex justify-between items-end">
-              <span className="text-xs uppercase tracking-wider opacity-60">Progress</span>
-              <span className="text-lg font-bold">
+          <div className="mt-6 pt-4 border-t border-white/10 text-center">
+            <div className="flex justify-between items-end mb-1">
+              <span className="text-[10px] uppercase tracking-widest opacity-60 font-black">Progress</span>
+              <span className="text-xl font-black">
                 {Math.round((subject.chapters.filter(c => c.completed).length / subject.chapters.length) * 100)}%
               </span>
             </div>
-            <div className="w-full h-1.5 bg-white/5 rounded-full mt-2 overflow-hidden">
+            <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${(subject.chapters.filter(c => c.completed).length / subject.chapters.length) * 100}%` }}
-                className="h-full bg-current"
+                className="h-full bg-current rounded-full"
               />
             </div>
           </div>

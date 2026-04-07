@@ -41,17 +41,9 @@ const Navbar = ({ activeTab, setActiveTab }: NavbarProps) => {
               {/* Hover Indicator */}
               <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity" />
             </button>
-            <div className="w-px h-4 bg-white/5 mx-0.5" />
+            {idx < 3 && <div className="w-px h-4 bg-white/5 mx-0.5" />}
           </React.Fragment>
         ))}
-        
-        <button
-          onClick={handleLogout}
-          className="relative flex items-center gap-2.5 px-5 py-3 rounded-[18px] transition-all duration-500 group text-red-400/60 hover:text-red-400 hover:bg-red-500/10"
-        >
-          <LogOut className="w-4.5 h-4.5 transition-all duration-500 group-hover:scale-110" />
-          <span className="text-[10px] font-black tracking-[0.2em] uppercase hidden md:block">Logout</span>
-        </button>
       </div>
     </div>
   );

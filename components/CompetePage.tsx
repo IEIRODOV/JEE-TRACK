@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Users, Target, Zap, ChevronRight, Globe, ShieldCheck, TrendingUp, Medal, Plus, Share2, Award, Loader2 } from 'lucide-react';
+import { Trophy, Users, Target, Zap, ChevronRight, Globe, ShieldCheck, TrendingUp, Medal, Plus, Share2, Award } from 'lucide-react';
+import PulseLoader from "@/components/ui/pulse-loader";
 import { motion, AnimatePresence } from 'motion/react';
 import AnoAI from "@/components/ui/animated-shader-background";
 import { auth, onAuthStateChanged, User, db, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, limit, Timestamp, setDoc, doc, getDoc, increment, handleFirestoreError, OperationType } from '@/src/firebase';
@@ -188,7 +189,7 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
                     whileTap={{ scale: 0.98 }}
                     onClick={() => {
                       const rank = leaderboard.findIndex(p => p.uid === user.uid) + 1;
-                      const text = `I'm ranked #${rank || '--'} on EXAM TRACK with ${userStats.totalQuestions} points! Join me: ${window.location.origin}`;
+                      const text = `I'm ranked #${rank || '--'} on EXAM PULSE with ${userStats.totalQuestions} points! Join me: ${window.location.origin}`;
                       navigator.clipboard.writeText(text);
                       alert("Rank shared to clipboard!");
                     }}
@@ -268,8 +269,7 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
             <div className="divide-y divide-white/5">
               {isLoading ? (
                 <div className="p-12 flex flex-col items-center justify-center gap-4">
-                  <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-                  <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Fetching Arena Stats...</span>
+                  <PulseLoader size={32} />
                 </div>
               ) : leaderboard.length === 0 ? (
                 <div className="p-12 text-center">

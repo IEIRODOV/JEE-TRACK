@@ -154,9 +154,17 @@ const DailyTargets = () => {
                     )}
                   </button>
                   
-                  <span className={`flex-1 text-[10px] font-medium transition-all ${target.completed ? 'line-through' : ''}`}>
+                  <span className={`flex-1 text-[10px] font-medium transition-all ${target.completed ? 'line-through text-emerald-400/50' : ''}`}>
                     {target.text}
                   </span>
+
+                  {target.completed && (
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="absolute inset-0 bg-emerald-500/[0.03] pointer-events-none rounded-lg shadow-[inset_0_0_20px_rgba(52,211,153,0.15)] ring-1 ring-emerald-500/20"
+                    />
+                  )}
 
                   <button
                     onClick={() => deleteTarget(target.id)}

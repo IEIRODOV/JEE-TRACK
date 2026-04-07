@@ -1,8 +1,8 @@
-# EXAM TRACK: Mission Control 🚀
+# EXAM PULSE: Mission Control 🚀
 
 A high-performance JEE preparation hub designed for elite aspirants. Featuring real-time leaderboards, interactive 3D elements, and a curated resource hub.
 
-![EXAM TRACK Preview](https://picsum.photos/seed/examtrack/1200/600)
+![EXAM PULSE Preview](https://picsum.photos/seed/exampulse/1200/600)
 
 ## ✨ Features
 
@@ -34,8 +34,8 @@ A high-performance JEE preparation hub designed for elite aspirants. Featuring r
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/your-username/exam-track.git
-   cd exam-track
+   git clone https://github.com/your-username/exam-pulse.git
+   cd exam-pulse
    ```
 
 2. **Install dependencies:**

@@ -6,31 +6,64 @@ import CommunityPage from "@/components/CommunityPage";
 import Navbar from "@/components/Navbar";
 import AuthPage from "@/components/AuthPage";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import { auth, onAuthStateChanged, User } from '@/src/firebase';
+import { auth, onAuthStateChanged, User, db } from '@/src/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import { AnimatePresence, motion } from 'motion/react';
 
+import ProfilePage from "@/components/ProfilePage";
+import PulseLoader from "@/components/ui/pulse-loader";
+
+import { playTickSound } from '@/src/lib/sounds';
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'calendar' | 'compete' | 'community'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'calendar' | 'compete' | 'community' | 'profile'>('dashboard');
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const startTime = Date.now();
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
-      setLoading(false);
-      if (currentUser) setShowAuth(false);
+      
+      let needsOnboarding = false;
+      if (currentUser) {
+        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+        if (!userDoc.exists() || !userDoc.data()?.onboarded) {
+          needsOnboarding = true;
+        }
+      } else {
+        const localExam = localStorage.getItem('pulse_user_exam');
+        if (!localExam) {
+          // For guests, we might want to show auth/selection too
+          // But usually we just let them in as guest and then they select
+        }
+      }
+
+      const elapsedTime = Date.now() - startTime;
+      const remainingTime = Math.max(0, 1000 - elapsedTime);
+      
+      setTimeout(() => {
+        setLoading(false);
+      }, remainingTime);
+
+      if (currentUser && !needsOnboarding) {
+        setShowAuth(false);
+      } else {
+        setShowAuth(true);
+      }
     });
     return () => unsubscribe();
   }, []);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
-      </div>
-    );
+    return <PulseLoader fullScreen />;
   }
+
+  const handleTabChange = (tab: typeof activeTab) => {
+    playTickSound();
+    setActiveTab(tab);
+  };
 
   return (
     <ErrorBoundary>
@@ -49,11 +82,13 @@ export default function App() {
             className="w-full"
           >
             {activeTab === 'dashboard' ? (
-              <DemoOne />
+              <DemoOne onProfileClick={() => handleTabChange('profile')} />
             ) : activeTab === 'calendar' ? (
               <CalendarPage />
             ) : activeTab === 'compete' ? (
               <CompetePage onAuthRequest={() => setShowAuth(true)} />
+            ) : activeTab === 'profile' ? (
+              <ProfilePage onBack={() => handleTabChange('dashboard')} />
             ) : (
               <CommunityPage onAuthRequest={() => setShowAuth(true)} />
             )}
@@ -71,7 +106,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {!showAuth && <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />}
+      {!showAuth && <Navbar activeTab={activeTab} setActiveTab={handleTabChange} />}
       </main>
     </ErrorBoundary>
   );

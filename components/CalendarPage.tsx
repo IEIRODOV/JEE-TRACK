@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, TrendingUp, Zap, Trash2, Cloud, CloudOff, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, TrendingUp, Zap, Trash2, Cloud, CloudOff, Loader2, Activity } from 'lucide-react';
+import { playTickSound } from '@/src/lib/sounds';
 import { motion, AnimatePresence } from 'motion/react';
 import AnoAI from "@/components/ui/animated-shader-background";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 import { auth, db, onAuthStateChanged } from '@/src/firebase';
+import PulseLoader from "@/components/ui/pulse-loader";
 import { 
   doc, 
   setDoc, 
@@ -66,9 +68,51 @@ const CalendarPage = () => {
     return () => unsubscribe();
   }, []);
 
-  // Real-time sync from Firestore
+  // Real-time sync from Firestore or localStorage
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      const localData = JSON.parse(localStorage.getItem('pulse_calendar_data') || '{}');
+      const newQuestionCounts: Record<string, number> = {};
+      const newStudySeconds: Record<string, number> = {};
+      const newMockTestDates: string[] = [];
+      const newMockTestDetails: Record<string, { completed: boolean, marks: string }> = {};
+      const newCompletedStudy: string[] = [];
+      const newCompletedQuestions: string[] = [];
+
+      Object.entries(localData).forEach(([dateStr, data]: [string, any]) => {
+        if (data.questionsSolved !== undefined) newQuestionCounts[dateStr] = data.questionsSolved;
+        if (data.studySeconds !== undefined) newStudySeconds[dateStr] = data.studySeconds;
+        
+        if (data.isMockTest) {
+          newMockTestDates.push(dateStr);
+          newMockTestDetails[dateStr] = {
+            completed: data.mockTestCompleted || false,
+            marks: data.mockTestMarks || ''
+          };
+        }
+
+        if (data.studySeconds >= targetHours * 3600) {
+          newCompletedStudy.push(dateStr);
+        }
+        if (data.questionsSolved >= questionTarget) {
+          newCompletedQuestions.push(dateStr);
+        }
+      });
+
+      setDailyQuestionCounts(newQuestionCounts);
+      setDailyStudySeconds(newStudySeconds);
+      setMockTestDates(newMockTestDates);
+      setMockTestDetails(newMockTestDetails);
+      setCompletedStudyDays(newCompletedStudy);
+      setCompletedQuestionDays(newCompletedQuestions);
+
+      const today = new Date().toDateString();
+      setCurrentQuestions(newQuestionCounts[today] || 0);
+      setElapsedSeconds(newStudySeconds[today] || 0);
+      
+      setIsSyncing(false);
+      return;
+    }
 
     setIsSyncing(true);
     const statsRef = collection(db, 'users', user.uid, 'dailyStats');
@@ -126,9 +170,16 @@ const CalendarPage = () => {
     return () => unsubscribe();
   }, [user, questionTarget]);
 
-  // Timer State Sync from Firestore
+  // Timer State Sync from Firestore or localStorage
   useEffect(() => {
     if (!user) {
+      const localTimer = localStorage.getItem('pulse_timer_state');
+      if (localTimer) {
+        const data = JSON.parse(localTimer);
+        setIsTimerRunning(data.isRunning || false);
+        setStartTime(data.startTime || null);
+        setAccumulatedSeconds(data.accumulatedSeconds || 0);
+      }
       setIsTimerLoading(false);
       return;
     }
@@ -170,6 +221,7 @@ const CalendarPage = () => {
     if (isTimerRunning && startTime) {
       interval = setInterval(() => {
         const now = Date.now();
+        
         const sessionSeconds = Math.floor((now - startTime) / 1000);
         const totalElapsed = accumulatedSeconds + sessionSeconds;
         
@@ -204,7 +256,43 @@ const CalendarPage = () => {
   }, [isTimerRunning, startTime, accumulatedSeconds]);
 
   const saveToFirestore = async (dateStr: string, data: any) => {
-    if (!user) return;
+    if (!user) {
+      // Update local state immediately for guest users
+      if (data.questionsSolved !== undefined) {
+        setDailyQuestionCounts(prev => ({ ...prev, [dateStr]: data.questionsSolved }));
+        if (data.questionsSolved >= questionTarget) {
+          setCompletedQuestionDays(prev => Array.from(new Set([...prev, dateStr])));
+        }
+      }
+      if (data.studySeconds !== undefined) {
+        setDailyStudySeconds(prev => ({ ...prev, [dateStr]: data.studySeconds }));
+        if (data.studySeconds >= targetHours * 3600) {
+          setCompletedStudyDays(prev => Array.from(new Set([...prev, dateStr])));
+        }
+      }
+      if (data.isMockTest !== undefined) {
+        if (data.isMockTest) {
+          setMockTestDates(prev => Array.from(new Set([...prev, dateStr])));
+        } else {
+          setMockTestDates(prev => prev.filter(d => d !== dateStr));
+        }
+      }
+      if (data.mockTestCompleted !== undefined || data.mockTestMarks !== undefined) {
+        setMockTestDetails(prev => ({
+          ...prev,
+          [dateStr]: {
+            completed: data.mockTestCompleted ?? prev[dateStr]?.completed ?? false,
+            marks: data.mockTestMarks ?? prev[dateStr]?.marks ?? ''
+          }
+        }));
+      }
+
+      // Save to localStorage
+      const localData = JSON.parse(localStorage.getItem('pulse_calendar_data') || '{}');
+      localData[dateStr] = { ...(localData[dateStr] || {}), ...data };
+      localStorage.setItem('pulse_calendar_data', JSON.stringify(localData));
+      return;
+    }
     try {
       const docRef = doc(db, 'users', user.uid, 'dailyStats', dateStr);
       await setDoc(docRef, {
@@ -217,7 +305,14 @@ const CalendarPage = () => {
   };
 
   const saveTimerState = async (running: boolean, start: number | null, accumulated: number) => {
-    if (!user) return;
+    if (!user) {
+      localStorage.setItem('pulse_timer_state', JSON.stringify({
+        isRunning: running,
+        startTime: start,
+        accumulatedSeconds: accumulated
+      }));
+      return;
+    }
     try {
       const timerRef = doc(db, 'users', user.uid, 'data', 'timer');
       await setDoc(timerRef, {
@@ -284,6 +379,7 @@ const CalendarPage = () => {
   };
 
   const toggleTimer = async () => {
+    playTickSound();
     const today = new Date().toDateString();
     if (!isTimerRunning) {
       const now = Date.now();
@@ -330,10 +426,14 @@ const CalendarPage = () => {
   const toggleMockTest = async (dateStr: string) => {
     const isCurrentlyMock = mockTestDates.includes(dateStr);
     
-    await saveToFirestore(dateStr, {
-      isMockTest: !isCurrentlyMock,
-      date: dateStr
-    });
+    if (isCurrentlyMock) {
+      await deleteMockTest(dateStr);
+    } else {
+      await saveToFirestore(dateStr, {
+        isMockTest: true,
+        date: dateStr
+      });
+    }
   };
 
   const updateMockTestDetail = async (dateStr: string, completed: boolean, marks: string) => {
@@ -548,7 +648,7 @@ const CalendarPage = () => {
                     </span>
                   </div>
                   {isSyncing ? (
-                    <Loader2 className="w-3 h-3 text-purple-400 animate-spin" />
+                    <PulseLoader size={12} />
                   ) : (
                     <div className="flex items-center gap-1">
                       <Cloud className="w-3 h-3 text-emerald-400/50" />
@@ -582,31 +682,95 @@ const CalendarPage = () => {
           </div>
 
           {/* Trackers Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
             {/* Stopwatch Card */}
             <motion.div 
               whileHover={{ y: -5 }}
-              className="p-8 rounded-[40px] glass border border-white/10 flex flex-col items-center justify-center text-center group relative overflow-hidden"
+              className="p-8 rounded-[40px] bg-black border border-white/10 flex flex-col items-center justify-center text-center group relative overflow-hidden"
             >
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mb-4">Focus Session</div>
-              <div className="text-6xl font-mono font-black text-white tracking-tighter mb-8 tabular-nums">
-                {isTimerLoading ? (
-                  <Loader2 className="w-12 h-12 animate-spin text-white/20" />
-                ) : (
-                  formatTime(elapsedSeconds)
-                )}
+              {/* RGB Border Animation */}
+              <div className="absolute inset-0 p-[2px] overflow-hidden">
+                <motion.div
+                  animate={{ 
+                    rotate: [0, 360]
+                  }}
+                  transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200%] h-[200%] bg-[conic-gradient(from_0deg,#ff0000,#ff7300,#fffb00,#48ff00,#00ffd5,#002bff,#7a00ff,#ff00c8,#ff0000)] opacity-20"
+                />
               </div>
-              <button 
-                onClick={toggleTimer}
-                disabled={isTimerLoading}
-                className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all active:scale-95 disabled:opacity-50
-                  ${isTimerRunning ? 'bg-rose-500 text-white shadow-[0_0_30px_rgba(244,63,94,0.3)]' : 'bg-white text-black hover:bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.1)]'}`}
-              >
-                {isTimerLoading ? 'Syncing...' : (isTimerRunning ? 'Stop Session' : 'Start Session')}
-              </button>
-            </motion.div>
+              {/* Fast Moving White Light Border */}
+              {isTimerRunning && (
+                <div className="absolute inset-0 p-[2px] overflow-hidden">
+                  <motion.div
+                    animate={{ 
+                      rotate: [0, 360]
+                    }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] bg-[conic-gradient(from_0deg,transparent_0deg,transparent_160deg,#ffffff_180deg,transparent_200deg,transparent_360deg)] opacity-60"
+                  />
+                </div>
+              )}
+              <div className="absolute inset-[1px] bg-black rounded-[39px] z-0" />
 
+              <div className="relative z-10 flex flex-col items-center w-full">
+                <div className="flex items-center justify-between w-full mb-4">
+                  <div className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Focus Session</div>
+                </div>
+                
+                <div className="relative mb-8">
+                  {isTimerLoading ? (
+                    <PulseLoader size={48} />
+                  ) : (
+                    <div className="relative">
+                      {isTimerRunning && (
+                        <>
+                          <motion.div
+                            animate={{ 
+                              scale: [1, 1.5, 1],
+                              opacity: [0.2, 0.5, 0.2]
+                            }}
+                            transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut" }}
+                            className="absolute inset-0 bg-red-500/20 rounded-full blur-xl"
+                          />
+                          <motion.div
+                            animate={{ scale: [1, 1.2, 1] }}
+                            transition={{ repeat: Infinity, duration: 0.6 }}
+                            className="absolute -top-8 left-1/2 -translate-x-1/2"
+                          >
+                            <Activity className="w-6 h-6 text-red-500" />
+                          </motion.div>
+                        </>
+                      )}
+                      <div className="flex flex-col items-center">
+                        <div className="text-6xl font-mono font-black text-white tracking-tighter tabular-nums relative">
+                          {formatTime(elapsedSeconds)}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-4 w-full">
+                  <button 
+                    onClick={toggleTimer}
+                    disabled={isTimerLoading}
+                    className={`flex-1 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2
+                      ${isTimerRunning ? 'bg-red-600 text-white shadow-[0_0_30px_rgba(220,38,38,0.4)]' : 'bg-white text-black hover:bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.1)]'}`}
+                  >
+                    {isTimerRunning && (
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ repeat: Infinity, duration: 0.8 }}
+                      >
+                        <Activity className="w-3 h-3 text-white" />
+                      </motion.div>
+                    )}
+                    {isTimerLoading ? 'Syncing...' : (isTimerRunning ? 'Stop Session' : 'Start Session')}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+            
             {/* Question Tracker Card */}
             <motion.div 
               whileHover={{ y: -5 }}
@@ -619,13 +783,19 @@ const CalendarPage = () => {
               </div>
               <div className="flex items-center gap-4 w-full">
                 <button 
-                  onClick={() => updateQuestions(Math.max(0, currentQuestions - 1))}
+                  onClick={() => {
+                    playTickSound();
+                    updateQuestions(Math.max(0, currentQuestions - 1));
+                  }}
                   className="flex-1 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 transition-all active:scale-95"
                 >
                   -
                 </button>
                 <button 
-                  onClick={() => updateQuestions(currentQuestions + 1)}
+                  onClick={() => {
+                    playTickSound();
+                    updateQuestions(currentQuestions + 1);
+                  }}
                   className="flex-1 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 transition-all active:scale-95"
                 >
                   +

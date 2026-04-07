@@ -5,7 +5,7 @@
   "license": "MIT",
   "version": "1.0.0",
   "type": "module",
-  "homepage": "https://ieirodov.github.io/JEE-TRACK/",
+  "homepage": "https://ieirodov.github.io/JEE-PULSE/",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
