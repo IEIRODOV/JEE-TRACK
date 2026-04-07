@@ -51,6 +51,10 @@ const DemoOne = ({ onProfileClick }: DemoOneProps) => {
       '2025': '2025-02-15T09:00:00',
       '2026': '2026-02-15T09:00:00',
       '2027': '2027-02-15T09:00:00',
+      '9th': '2027-03-01T09:00:00',
+      '10th': '2027-02-15T09:00:00',
+      '11th': '2027-03-01T09:00:00',
+      '12th': '2027-02-15T09:00:00',
     }
   };
 
@@ -75,11 +79,32 @@ const DemoOne = ({ onProfileClick }: DemoOneProps) => {
           exam = (data.exam || 'jee').toLowerCase();
           year = data.year || '2027';
           subExam = data.subExam || 'mains';
+          
+          if (data.customDate) {
+            setSelectedExam({
+              id: 'custom',
+              label: data.exam.toUpperCase(),
+              date: data.customDate,
+              subExam: ''
+            });
+            return;
+          }
         }
       } else {
         exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
         year = localStorage.getItem('pulse_user_year') || '2027';
         subExam = localStorage.getItem('pulse_user_subexam') || 'mains';
+        const customDate = localStorage.getItem('pulse_custom_date');
+        
+        if (customDate && !['jee', 'neet', 'boards'].includes(exam)) {
+          setSelectedExam({
+            id: 'custom',
+            label: exam.toUpperCase(),
+            date: customDate,
+            subExam: ''
+          });
+          return;
+        }
       }
 
       let targetDate = '';

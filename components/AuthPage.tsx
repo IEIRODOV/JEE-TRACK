@@ -17,6 +17,8 @@ const AuthPage = ({ onBack }: AuthPageProps) => {
   const [selectedExam, setSelectedExam] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedSubExam, setSelectedSubExam] = useState('mains'); // For JEE: mains or advanced
+  const [customExamName, setCustomExamName] = useState('');
+  const [customExamDate, setCustomExamDate] = useState('');
 
   const handleGoogleSignIn = async () => {
     setError('');
@@ -56,26 +58,41 @@ const AuthPage = ({ onBack }: AuthPageProps) => {
   };
 
   const handleExamSubmit = async () => {
-    if (!selectedExam || !selectedYear) {
-      setError("Please select both exam and year");
+    if (!selectedExam) {
+      setError("Please select an exam");
       return;
     }
+
+    if (selectedExam === 'more' && (!customExamName || !customExamDate)) {
+      setError("Please provide custom exam name and date");
+      return;
+    }
+
+    if (selectedExam !== 'more' && !selectedYear) {
+      setError("Please select a target year/class");
+      return;
+    }
+
     playTickSound();
     setLoading(true);
     try {
       const user = auth.currentUser;
       if (user) {
-        await setDoc(doc(db, 'users', user.uid), {
-          exam: selectedExam,
+        const examData = {
+          exam: selectedExam === 'more' ? customExamName : selectedExam,
           year: selectedYear,
           subExam: selectedExam === 'jee' ? selectedSubExam : null,
+          customDate: selectedExam === 'more' ? customExamDate : null,
           onboarded: true,
           updatedAt: new Date()
-        }, { merge: true });
+        };
+
+        await setDoc(doc(db, 'users', user.uid), examData, { merge: true });
         
-        localStorage.setItem('pulse_user_exam', selectedExam);
+        localStorage.setItem('pulse_user_exam', examData.exam);
         localStorage.setItem('pulse_user_year', selectedYear);
         localStorage.setItem('pulse_user_subexam', selectedSubExam);
+        if (customExamDate) localStorage.setItem('pulse_custom_date', customExamDate);
         
         window.location.reload();
       }
@@ -90,9 +107,11 @@ const AuthPage = ({ onBack }: AuthPageProps) => {
     { id: 'jee', label: 'JEE', icon: <Target className="w-5 h-5" /> },
     { id: 'neet', label: 'NEET', icon: <Activity className="w-5 h-5" /> },
     { id: 'boards', label: 'Boards', icon: <BookOpen className="w-5 h-5" /> },
+    { id: 'more', label: 'More', icon: <Sparkles className="w-5 h-5" /> },
   ];
 
   const YEARS = ['2025', '2026', '2027'];
+  const CLASSES = ['9th', '10th', '11th', '12th'];
 
   return (
     <div className="fixed inset-0 z-[100] bg-black flex flex-col md:flex-row overflow-hidden">
@@ -240,28 +259,60 @@ const AuthPage = ({ onBack }: AuthPageProps) => {
                   </motion.div>
                 )}
 
-                <div>
-                  <label className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-4 block">Target Year</label>
-                  <div className="grid grid-cols-3 gap-3">
-                    {YEARS.map((year) => (
-                      <button
-                        key={year}
-                        onClick={() => { playTickSound(); setSelectedYear(year); }}
-                        className={`py-3 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${
-                          selectedYear === year 
-                            ? 'bg-purple-500/20 border-purple-500 text-purple-400' 
-                            : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'
-                        }`}
-                      >
-                        {year}
-                      </button>
-                    ))}
+                {selectedExam === 'more' && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="space-y-6"
+                  >
+                    <div>
+                      <label className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-4 block">Exam Name</label>
+                      <input 
+                        type="text"
+                        value={customExamName}
+                        onChange={(e) => setCustomExamName(e.target.value)}
+                        placeholder="e.g. UPSC, GATE, SAT"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-4 block">Exam Date</label>
+                      <input 
+                        type="date"
+                        value={customExamDate}
+                        onChange={(e) => setCustomExamDate(e.target.value)}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all text-white [color-scheme:dark]"
+                      />
+                    </div>
+                  </motion.div>
+                )}
+
+                {selectedExam && selectedExam !== 'more' && (
+                  <div>
+                    <label className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-4 block">
+                      {selectedExam === 'boards' ? 'Target Class' : 'Target Year'}
+                    </label>
+                    <div className="grid grid-cols-4 gap-3">
+                      {(selectedExam === 'boards' ? CLASSES : YEARS).map((item) => (
+                        <button
+                          key={item}
+                          onClick={() => { playTickSound(); setSelectedYear(item); }}
+                          className={`py-3 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${
+                            selectedYear === item 
+                              ? 'bg-purple-500/20 border-purple-500 text-purple-400' 
+                              : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'
+                          }`}
+                        >
+                          {item}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <button
                   onClick={handleExamSubmit}
-                  disabled={loading || !selectedExam || !selectedYear}
+                  disabled={loading || !selectedExam || (selectedExam !== 'more' && !selectedYear) || (selectedExam === 'more' && (!customExamName || !customExamDate))}
                   className="w-full py-4 bg-purple-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-purple-500 transition-all active:scale-[0.98] disabled:opacity-50 mt-8 shadow-[0_0_20px_rgba(124,58,237,0.3)]"
                 >
                   {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Initiate Mission"}
