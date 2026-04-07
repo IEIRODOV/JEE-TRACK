@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, User, signOut, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail, signInAnonymously, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
-import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, limit, Timestamp, setDoc, doc, getDoc, increment, where, getDocs, deleteDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, limit, Timestamp, setDoc, doc, getDoc, increment, where, getDocs, deleteDoc, updateDoc, arrayUnion, arrayRemove, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase
@@ -14,6 +14,21 @@ const dbId = firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatab
 
 console.log('Initializing Firestore with database ID:', dbId || 'default');
 export const db = getFirestore(app, dbId);
+
+// Connection test
+async function testConnection() {
+  try {
+    // Attempt to fetch a non-existent doc to test connectivity
+    await getDocFromServer(doc(db, '_connection_test_', 'ping'));
+    console.log("Firebase connection verified.");
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('the client is offline')) {
+      console.error("Firebase configuration error: The client is offline. Please check your Firebase configuration.");
+    }
+    // Other errors (like permission denied) are fine as they imply connection was made
+  }
+}
+testConnection();
 
 export enum OperationType {
   CREATE = 'create',
