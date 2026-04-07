@@ -20,47 +20,25 @@ const AuthPage = ({ onBack }: AuthPageProps) => {
   const [customExamName, setCustomExamName] = useState('');
   const [customExamDate, setCustomExamDate] = useState('');
 
-  React.useEffect(() => {
-    const checkOnboarded = async () => {
-      const user = auth.currentUser;
-      if (user) {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists() && userDoc.data()?.onboarded) {
-            console.log("AuthPage: User already onboarded, reloading...");
-            window.location.reload();
-          }
-        } catch (e) {
-          console.error("AuthPage: Error checking onboarding status", e);
-        }
-      }
-    };
-    checkOnboarded();
-  }, []);
-
   const handleGoogleSignIn = async () => {
     setError('');
+    setLoading(true);
     const provider = new GoogleAuthProvider();
     
     try {
-      // Call signInWithPopup as early as possible to avoid popup blockers
-      // Browsers often block popups if there's any async gap between user click and window.open
       const result = await signInWithPopup(auth, provider);
-      
-      setLoading(true);
       playTickSound();
 
       if (result.user) {
-        // Check if user already has exam data
         const userDoc = await getDoc(doc(db, 'users', result.user.uid));
         if (userDoc.exists() && userDoc.data().exam) {
-          window.location.reload();
+          // App.tsx will handle redirection
+          console.log("AuthPage: User exists, waiting for App.tsx");
         } else {
           setStep('exam-selection');
         }
       }
     } catch (err: any) {
-      setLoading(false);
       console.error("Google Auth error:", err.code, err.message);
       if (err.code === 'auth/popup-blocked') {
         setError("Popup blocked by browser. Please allow popups for this site and try again.");
@@ -70,8 +48,7 @@ const AuthPage = ({ onBack }: AuthPageProps) => {
         setError(err.message);
       }
     } finally {
-      // We don't set loading to false here because if successful, we're either reloading or moving to next step
-      // If it failed, we set it to false in the catch block
+      setLoading(false);
     }
   };
 
@@ -142,12 +119,12 @@ const AuthPage = ({ onBack }: AuthPageProps) => {
   const CLASSES = ['9th', '10th', '11th', '12th'];
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black flex flex-col md:flex-row overflow-hidden">
+    <div className="min-h-screen bg-black flex flex-col md:flex-row relative z-[100] overflow-y-auto">
       {/* Left Side: Branding & Inspiration */}
-      <div className="w-full md:w-1/2 h-1/2 md:h-full relative overflow-hidden bg-zinc-950 border-r border-white/5">
+      <div className="w-full md:w-1/2 md:h-screen md:sticky md:top-0 overflow-hidden bg-zinc-950 border-r border-white/5 flex flex-col justify-center p-8 md:p-24 shrink-0">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(124,58,237,0.1),transparent_70%)]" />
         
-        <div className="relative h-full flex flex-col justify-center p-12 md:p-24">
+        <div className="relative">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -192,7 +169,7 @@ const AuthPage = ({ onBack }: AuthPageProps) => {
       </div>
 
       {/* Right Side: Auth/Onboarding */}
-      <div className="w-full md:w-1/2 h-1/2 md:h-full bg-black flex items-center justify-center p-8 relative">
+      <div className="w-full md:w-1/2 min-h-screen bg-black flex items-center justify-center p-8 relative">
         <div className="w-full max-w-md">
           {step === 'auth' ? (
             <motion.div

@@ -22,15 +22,14 @@ export default function App() {
   const [showAuth, setShowAuth] = useState(false);
 
   useEffect(() => {
-    const startTime = Date.now();
-    
     // Global safety timeout to ensure loading screen eventually disappears
     const safetyTimeout = setTimeout(() => {
       console.warn("App.tsx: Safety timeout triggered. Loading screen forced to close.");
       setLoading(false);
-    }, 8000); // 8 seconds max loading
+    }, 8000);
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      console.log("App.tsx: Auth state changed", currentUser?.uid);
       setUser(currentUser);
       
       let needsOnboarding = false;
@@ -45,7 +44,10 @@ export default function App() {
           const userDoc = await Promise.race([userDocPromise, timeoutPromise]) as any;
           
           if (!userDoc.exists() || !userDoc.data()?.onboarded) {
+            console.log("App.tsx: User needs onboarding");
             needsOnboarding = true;
+          } else {
+            console.log("App.tsx: User already onboarded");
           }
         } catch (error) {
           console.error("Error fetching user data in App.tsx:", error);
@@ -55,20 +57,10 @@ export default function App() {
             needsOnboarding = true;
           }
         }
-      } else {
-        const localExam = localStorage.getItem('pulse_user_exam');
-        if (!localExam) {
-          // For guests, we might want to show auth/selection too
-        }
       }
 
-      const elapsedTime = Date.now() - startTime;
-      const remainingTime = Math.max(0, 1000 - elapsedTime);
-      
-      setTimeout(() => {
-        clearTimeout(safetyTimeout);
-        setLoading(false);
-      }, remainingTime);
+      setLoading(false);
+      clearTimeout(safetyTimeout);
 
       if (currentUser && !needsOnboarding) {
         setShowAuth(false);
