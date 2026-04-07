@@ -20,6 +20,24 @@ const AuthPage = ({ onBack }: AuthPageProps) => {
   const [customExamName, setCustomExamName] = useState('');
   const [customExamDate, setCustomExamDate] = useState('');
 
+  React.useEffect(() => {
+    const checkOnboarded = async () => {
+      const user = auth.currentUser;
+      if (user) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists() && userDoc.data()?.onboarded) {
+            console.log("AuthPage: User already onboarded, reloading...");
+            window.location.reload();
+          }
+        } catch (e) {
+          console.error("AuthPage: Error checking onboarding status", e);
+        }
+      }
+    };
+    checkOnboarded();
+  }, []);
+
   const handleGoogleSignIn = async () => {
     setError('');
     const provider = new GoogleAuthProvider();
@@ -94,7 +112,17 @@ const AuthPage = ({ onBack }: AuthPageProps) => {
         localStorage.setItem('pulse_user_subexam', selectedSubExam);
         if (customExamDate) localStorage.setItem('pulse_custom_date', customExamDate);
         
-        window.location.reload();
+        console.log("AuthPage: Onboarding complete, reloading...");
+        // Small delay to ensure localStorage is written and Firestore is synced
+        setTimeout(() => {
+          window.location.reload();
+        }, 500);
+
+        // Safety fallback if reload doesn't happen
+        setTimeout(() => {
+          setLoading(false);
+          window.location.href = '/';
+        }, 5000);
       }
     } catch (err: any) {
       setError(err.message);

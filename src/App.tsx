@@ -23,20 +23,42 @@ export default function App() {
 
   useEffect(() => {
     const startTime = Date.now();
+    
+    // Global safety timeout to ensure loading screen eventually disappears
+    const safetyTimeout = setTimeout(() => {
+      console.warn("App.tsx: Safety timeout triggered. Loading screen forced to close.");
+      setLoading(false);
+    }, 8000); // 8 seconds max loading
+
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       
       let needsOnboarding = false;
       if (currentUser) {
-        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-        if (!userDoc.exists() || !userDoc.data()?.onboarded) {
-          needsOnboarding = true;
+        try {
+          // Add a timeout to the getDoc call to prevent infinite loading if Firestore is slow
+          const userDocPromise = getDoc(doc(db, 'users', currentUser.uid));
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Firestore timeout')), 5000)
+          );
+          
+          const userDoc = await Promise.race([userDocPromise, timeoutPromise]) as any;
+          
+          if (!userDoc.exists() || !userDoc.data()?.onboarded) {
+            needsOnboarding = true;
+          }
+        } catch (error) {
+          console.error("Error fetching user data in App.tsx:", error);
+          // Fallback to localStorage if Firestore fails
+          const localOnboarded = localStorage.getItem('pulse_user_exam');
+          if (!localOnboarded) {
+            needsOnboarding = true;
+          }
         }
       } else {
         const localExam = localStorage.getItem('pulse_user_exam');
         if (!localExam) {
           // For guests, we might want to show auth/selection too
-          // But usually we just let them in as guest and then they select
         }
       }
 
@@ -44,6 +66,7 @@ export default function App() {
       const remainingTime = Math.max(0, 1000 - elapsedTime);
       
       setTimeout(() => {
+        clearTimeout(safetyTimeout);
         setLoading(false);
       }, remainingTime);
 
@@ -53,7 +76,10 @@ export default function App() {
         setShowAuth(true);
       }
     });
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      clearTimeout(safetyTimeout);
+    };
   }, []);
 
   if (loading) {
