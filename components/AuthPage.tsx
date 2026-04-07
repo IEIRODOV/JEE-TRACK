@@ -111,7 +111,7 @@ const AuthPage = ({ onBack }: AuthPageProps) => {
               <span className="text-[10px] font-black uppercase tracking-widest text-purple-400">System Online</span>
             </div>
             <h1 className="text-5xl md:text-7xl font-black text-white tracking-tighter leading-none mb-6">
-              EXAM<br /><span className="text-purple-500">PULSE</span>
+              JEE<br /><span className="text-purple-500">PULSE</span>
             </h1>
             <p className="text-white/40 text-sm md:text-base font-medium max-w-md leading-relaxed">
               Precision tracking for high-stakes examinations. Monitor your progress, master your subjects, and dominate the competition.
