@@ -17,11 +17,12 @@ const DemoOne = ({ onProfileClick }: DemoOneProps) => {
   const [globalRank, setGlobalRank] = useState<number | string>('--');
   const [timerState, setTimerState] = useState({ isRunning: false, startTime: null as number | null, accumulatedSeconds: 0 });
   const [dailyStudySeconds, setDailyStudySeconds] = useState<Record<string, number>>({});
+  const [dailyQuestions, setDailyQuestions] = useState<Record<string, number>>({});
   const [stats, setStats] = useState([
     { label: "Daily Goal", value: "--", icon: <Target className="w-3 h-3" />, color: "text-emerald-400" },
     { label: "Current Streak", value: "--", icon: <Zap className="w-3 h-3" />, color: "text-amber-400" },
     { label: "Study Time", value: "--", icon: <Clock className="w-3 h-3" />, color: "text-blue-400" },
-    { label: "Global Rank", value: "--", icon: <Trophy className="w-3 h-3" />, color: "text-purple-400" },
+    { label: "Questions Solved", value: "--", icon: <Target className="w-3 h-3" />, color: "text-purple-400" },
   ]);
 
   const [selectedExam, setSelectedExam] = useState({ id: 'jee_2027', label: 'JEE 2027', date: '2027-01-21T09:00:00', subExam: 'mains' });
@@ -143,17 +144,19 @@ const DemoOne = ({ onProfileClick }: DemoOneProps) => {
     return () => unsubscribe();
   }, [user]);
 
-  // Daily Study Seconds Listener
+  // Daily Stats Listener
   useEffect(() => {
     if (!user) return;
     const unsubscribe = onSnapshot(collection(db, 'users', user.uid, 'dailyStats'), (snapshot) => {
       const secondsMap: Record<string, number> = {};
+      const questionsMap: Record<string, number> = {};
       snapshot.docs.forEach(doc => {
-        if (doc.data().studySeconds) {
-          secondsMap[doc.id] = doc.data().studySeconds;
-        }
+        const data = doc.data();
+        if (data.studySeconds) secondsMap[doc.id] = data.studySeconds;
+        if (data.questionsSolved) questionsMap[doc.id] = data.questionsSolved;
       });
       setDailyStudySeconds(secondsMap);
+      setDailyQuestions(questionsMap);
     });
     return () => unsubscribe();
   }, [user]);
@@ -200,6 +203,7 @@ const DemoOne = ({ onProfileClick }: DemoOneProps) => {
     const today = new Date().toDateString();
     const updateStats = () => {
       let studyTimeSeconds = dailyStudySeconds[today] || 0;
+      let questionsSolved = dailyQuestions[today] || 0;
 
       if (timerState.isRunning && timerState.startTime) {
         const sessionSeconds = Math.floor((Date.now() - timerState.startTime) / 1000);
@@ -209,8 +213,6 @@ const DemoOne = ({ onProfileClick }: DemoOneProps) => {
       const studyTime = `${(studyTimeSeconds / 3600).toFixed(1)}h`;
 
       const savedTargets = localStorage.getItem('jee-daily-targets');
-      // Note: This dailyGoal calculation might need adjustment for WeeklyTargets if needed, 
-      // but for now we keep it as is or use a placeholder if the old data is gone.
       let dailyGoal = "0%";
       if (savedTargets) {
         const targets = JSON.parse(savedTargets);
@@ -229,7 +231,7 @@ const DemoOne = ({ onProfileClick }: DemoOneProps) => {
         { label: "Daily Goal", value: dailyGoal, icon: <Target className="w-3 h-3" />, color: "text-emerald-400", completed: dailyGoal === "100%" },
         { label: "Current Streak", value: streak, icon: <Zap className="w-3 h-3" />, color: "text-amber-400", completed: isGoalMet },
         { label: "Study Time", value: studyTime, icon: <Clock className="w-3 h-3" />, color: "text-blue-400", completed: isGoalMet },
-        { label: "Global Rank", value: globalRank.toString(), icon: <Trophy className="w-3 h-3" />, color: "text-purple-400", completed: false },
+        { label: "Questions Solved", value: questionsSolved.toString(), icon: <Target className="w-3 h-3" />, color: "text-purple-400", completed: questionsSolved >= 50 },
       ]);
     };
 
@@ -428,7 +430,7 @@ const DemoOne = ({ onProfileClick }: DemoOneProps) => {
           </div>
 
           {/* Quick Stats Bar */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-3xl mb-8">
+          <div className="grid grid-cols-2 gap-4 w-full max-w-3xl mb-8">
             {stats.map((stat: any, i) => (
               <motion.div
                 key={stat.label}

@@ -682,7 +682,7 @@ const CalendarPage = () => {
           </div>
 
           {/* Trackers Section */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
             {/* Stopwatch Card */}
             <motion.div 
               whileHover={{ y: -5 }}
@@ -774,32 +774,45 @@ const CalendarPage = () => {
             {/* Question Tracker Card */}
             <motion.div 
               whileHover={{ y: -5 }}
-              className="p-8 rounded-[40px] glass border border-white/10 flex flex-col items-center justify-center text-center group relative overflow-hidden"
+              className="p-8 rounded-[40px] bg-black border border-white/10 flex flex-col items-center justify-center text-center group relative overflow-hidden"
             >
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mb-4">Questions Solved</div>
-              <div className="text-6xl font-mono font-black text-white tracking-tighter mb-8 tabular-nums">
-                {currentQuestions}
+              {/* RGB Border Animation */}
+              <div className="absolute inset-0 p-[2px] overflow-hidden">
+                <motion.div
+                  animate={{ 
+                    rotate: [0, 360]
+                  }}
+                  transition={{ duration: 4, repeat: Infinity, ease: "linear", delay: 1 }}
+                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200%] h-[200%] bg-[conic-gradient(from_0deg,#00ffd5,#002bff,#7a00ff,#ff00c8,#ff0000,#ff7300,#fffb00,#48ff00,#00ffd5)] opacity-20"
+                />
               </div>
-              <div className="flex items-center gap-4 w-full">
-                <button 
-                  onClick={() => {
-                    playTickSound();
-                    updateQuestions(Math.max(0, currentQuestions - 1));
-                  }}
-                  className="flex-1 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 transition-all active:scale-95"
-                >
-                  -
-                </button>
-                <button 
-                  onClick={() => {
-                    playTickSound();
-                    updateQuestions(currentQuestions + 1);
-                  }}
-                  className="flex-1 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 transition-all active:scale-95"
-                >
-                  +
-                </button>
+              <div className="absolute inset-[1px] bg-black rounded-[39px] z-0" />
+
+              <div className="relative z-10 flex flex-col items-center w-full">
+                <div className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mb-4">Questions Solved</div>
+                <div className="text-6xl font-mono font-black text-white tracking-tighter mb-8 tabular-nums">
+                  {currentQuestions}
+                </div>
+                <div className="flex items-center gap-4 w-full">
+                  <button 
+                    onClick={() => {
+                      playTickSound();
+                      updateQuestions(Math.max(0, currentQuestions - 1));
+                    }}
+                    className="flex-1 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 transition-all active:scale-95"
+                  >
+                    -
+                  </button>
+                  <button 
+                    onClick={() => {
+                      playTickSound();
+                      updateQuestions(currentQuestions + 1);
+                    }}
+                    className="flex-1 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 transition-all active:scale-95"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>
