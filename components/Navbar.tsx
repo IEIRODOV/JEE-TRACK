@@ -1,20 +1,17 @@
 import React from 'react';
-import { LayoutDashboard, Calendar as CalendarIcon, Trophy, BookOpen, MessageSquare, LogOut } from 'lucide-react';
+import { LayoutDashboard, Calendar as CalendarIcon, Trophy, MessageSquare } from 'lucide-react';
 import { motion } from 'motion/react';
 import { auth, signOut } from '@/src/firebase';
+import Notifications from './Notifications';
 
 interface NavbarProps {
-  activeTab: 'dashboard' | 'calendar' | 'compete' | 'community';
-  setActiveTab: (tab: 'dashboard' | 'calendar' | 'compete' | 'community') => void;
+  activeTab: 'dashboard' | 'calendar' | 'compete' | 'community' | 'profile';
+  setActiveTab: (tab: 'dashboard' | 'calendar' | 'compete' | 'community' | 'profile') => void;
 }
 
 const Navbar = ({ activeTab, setActiveTab }: NavbarProps) => {
-  const handleLogout = () => {
-    signOut(auth).catch(err => console.error("Logout error:", err));
-  };
-
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 px-4 w-full max-w-fit">
+    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 px-4 w-full max-w-fit flex items-center gap-3">
       <div className="flex items-center gap-1 p-1.5 rounded-[24px] border border-white/10 backdrop-blur-3xl bg-black/40 shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-1 ring-white/5">
         {[
           { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -44,6 +41,10 @@ const Navbar = ({ activeTab, setActiveTab }: NavbarProps) => {
             {idx < 3 && <div className="w-px h-4 bg-white/5 mx-0.5" />}
           </React.Fragment>
         ))}
+      </div>
+      
+      <div className="p-1.5 rounded-[24px] border border-white/10 backdrop-blur-3xl bg-black/40 shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-1 ring-white/5">
+        <Notifications />
       </div>
     </div>
   );

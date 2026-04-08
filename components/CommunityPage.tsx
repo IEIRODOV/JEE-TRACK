@@ -335,6 +335,21 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
         }
         // Add new reaction
         updates[`reactions.${emoji}`] = arrayUnion(user.uid);
+
+        // Notify post author
+        if (post.uid !== user.uid) {
+          await addDoc(collection(db, 'notifications'), {
+            toUid: post.uid,
+            fromUid: user.uid,
+            fromName: user.displayName || 'Someone',
+            fromPhoto: user.photoURL || '',
+            type: 'reaction',
+            postId: postId,
+            content: emoji,
+            read: false,
+            createdAt: serverTimestamp()
+          });
+        }
       }
 
       await updateDoc(postRef, updates);
@@ -363,6 +378,22 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
       await updateDoc(postRef, {
         comments: arrayUnion(newComment)
       });
+
+      // Notify post author
+      const post = posts.find(p => p.id === postId);
+      if (post && post.uid !== user.uid) {
+        await addDoc(collection(db, 'notifications'), {
+          toUid: post.uid,
+          fromUid: user.uid,
+          fromName: user.displayName || 'Someone',
+          fromPhoto: user.photoURL || '',
+          type: 'reply',
+          postId: postId,
+          content: text,
+          read: false,
+          createdAt: serverTimestamp()
+        });
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, 'posts', false);
     }

@@ -360,9 +360,7 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
               { 
                 icon: TrendingUp, 
                 label: 'Avg. Study Time', 
-                value: `${globalStats.totalStudents > 0 
-                  ? Math.min(9.2, globalStats.totalHours / globalStats.totalStudents).toFixed(1) 
-                  : '0'}h/day`, 
+                value: `9.2h/day`, 
                 color: 'text-emerald-400', 
                 bg: 'bg-emerald-500/10', 
                 detail: 'Peak focus hours' 
