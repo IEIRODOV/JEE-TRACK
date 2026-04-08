@@ -115,10 +115,25 @@ service cloud.firestore {
 
     // Private User Data: Owner/Admin only
     match /users/{userId} {
-      allow read, write: if isOwner(userId) || isAdmin();
+      // Allow authenticated users to read profiles (for friend search and viewing friend stats)
+      allow read: if isAuthenticated();
+      // Allow owner/admin full write
+      allow write: if isOwner(userId) || isAdmin();
       
+      // Allow anyone to add themselves to a user's friend list (mutual link)
+      allow update: if isAuthenticated() && (
+        isOwner(userId) || 
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['friends']) &&
+          request.resource.data.friends.hasAll(resource.data.friends || []) &&
+          request.resource.data.friends.size() == (resource.data.friends || []).size() + 1 &&
+          request.resource.data.friends.hasAny([request.auth.uid])
+        )
+      );
+
       match /{allPaths=**} {
-        allow read, write: if isOwner(userId) || isAdmin();
+        allow read: if isOwner(userId) || isAdmin() || (isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/users/$(userId)).data.friends);
+        allow write: if isOwner(userId) || isAdmin();
       }
     }
 

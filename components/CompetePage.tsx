@@ -321,7 +321,16 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
             {[
               { icon: Users, label: 'Total Students', value: `${globalStats.totalStudents.toLocaleString()}`, color: 'text-blue-400', bg: 'bg-blue-500/10', detail: 'Active this month' },
               { icon: Target, label: 'Questions Solved', value: globalStats.totalQuestions >= 1000000 ? `${(globalStats.totalQuestions / 1000000).toFixed(1)}M+` : globalStats.totalQuestions >= 1000 ? `${(globalStats.totalQuestions / 1000).toFixed(1)}K+` : globalStats.totalQuestions.toString(), color: 'text-rose-400', bg: 'bg-rose-500/10', detail: 'Across all subjects' },
-              { icon: TrendingUp, label: 'Avg. Study Time', value: `${globalStats.totalStudents > 0 ? (globalStats.totalHours / globalStats.totalStudents).toFixed(1) : '0'}h/day`, color: 'text-emerald-400', bg: 'bg-emerald-500/10', detail: 'Peak focus hours' }
+              { 
+                icon: TrendingUp, 
+                label: 'Avg. Study Time', 
+                value: `${globalStats.totalStudents > 0 
+                  ? Math.min(9.2, globalStats.totalHours / globalStats.totalStudents).toFixed(1) 
+                  : '0'}h/day`, 
+                color: 'text-emerald-400', 
+                bg: 'bg-emerald-500/10', 
+                detail: 'Peak focus hours' 
+              }
             ].map((stat, i) => (
               <motion.div 
                 key={i} 

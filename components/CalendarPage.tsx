@@ -394,8 +394,10 @@ const CalendarPage = () => {
       setAccumulatedSeconds(0);
       await saveTimerState(false, null, 0);
       
-      const sessionHours = elapsedSeconds / 3600;
-      await syncGlobalProgress(0, sessionHours);
+      const sessionHours = (elapsedSeconds - accumulatedSeconds) / 3600;
+      if (sessionHours > 0) {
+        await syncGlobalProgress(0, sessionHours);
+      }
 
       // Final save on stop
       await saveToFirestore(today, {
