@@ -22,7 +22,8 @@ import {
   PlayCircle,
   Zap,
   Coffee,
-  ExternalLink
+  ExternalLink,
+  Trash2
 } from 'lucide-react';
 import PulseLoader from "@/components/ui/pulse-loader";
 import { 
@@ -33,7 +34,9 @@ import {
   collection, 
   addDoc, 
   updateDoc,
+  deleteDoc,
   doc,
+  getDoc,
   query, 
   orderBy, 
   onSnapshot, 
@@ -196,6 +199,7 @@ const RESOURCES = {
 
 const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
   const [user, setUser] = useState<User | null>(null);
+  const [userExam, setUserExam] = useState<string | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [inputText, setInputText] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('questions');
@@ -214,8 +218,28 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
   const REACTION_EMOJIS = ['👍', '❤️', '🔥', '😂', '👏'];
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setUser(u);
+      if (u) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', u.uid));
+          if (userDoc.exists()) {
+            const exam = (userDoc.data().exam || 'jee').toLowerCase();
+            setUserExam(exam);
+            // Set initial community based on user's exam if valid
+            if (['jee', 'neet', 'boards'].includes(exam)) {
+              setSelectedCommunity(exam as 'jee' | 'neet' | 'boards');
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching user exam:", error);
+          const localExam = localStorage.getItem('pulse_user_exam');
+          if (localExam) setUserExam(localExam.toLowerCase());
+        }
+      } else {
+        const localExam = localStorage.getItem('pulse_user_exam');
+        if (localExam) setUserExam(localExam.toLowerCase());
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -337,6 +361,19 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
     }
   };
 
+  const handleDeletePost = async (postId: string) => {
+    if (!user) return;
+    if (!window.confirm("Are you sure you want to delete this post?")) return;
+
+    try {
+      await deleteDoc(doc(db, 'posts', postId));
+      setError(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'posts', false);
+      setError("Failed to delete post.");
+    }
+  };
+
   const formatTime = (timestamp: Timestamp | null) => {
     if (!timestamp) return 'Just now';
     const date = timestamp.toDate();
@@ -428,7 +465,7 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
         {/* Top Navigation - Community Switcher & View Switcher */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 glass rounded-3xl p-4 border border-white/10">
           <div className="flex bg-black/40 p-1.5 rounded-2xl border border-white/5">
-            {COMMUNITIES.map((comm) => (
+            {COMMUNITIES.filter(comm => !userExam || userExam === comm.id).map((comm) => (
               <button
                 key={comm.id}
                 onClick={() => setSelectedCommunity(comm.id as 'jee' | 'neet' | 'boards')}
@@ -763,6 +800,15 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
                               <span className="px-1.5 py-0.5 rounded bg-[#272729] border border-[#343536] text-[8px] font-black text-purple-400 uppercase tracking-widest">
                                 {post.category}
                               </span>
+                              {user?.uid === post.uid && (
+                                <button 
+                                  onClick={() => handleDeletePost(post.id)}
+                                  className="text-rose-500/40 hover:text-rose-500 transition-colors p-1"
+                                  title="Delete Post"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
                               <button className="text-[#818384] hover:text-[#d7dadc] transition-colors">
                                 <MoreVertical className="w-4 h-4" />
                               </button>

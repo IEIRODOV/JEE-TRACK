@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, TrendingUp, Zap, T
 import { playTickSound } from '@/src/lib/sounds';
 import { motion, AnimatePresence } from 'motion/react';
 import AnoAI from "@/components/ui/animated-shader-background";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar, Cell, ReferenceLine } from 'recharts';
 
 import { auth, db, onAuthStateChanged } from '@/src/firebase';
 import PulseLoader from "@/components/ui/pulse-loader";
@@ -514,6 +514,18 @@ const CalendarPage = () => {
 
   const monthStudyHours = (monthStudySeconds / 3600).toFixed(1);
 
+  const barChartData = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    const dateStr = d.toDateString();
+    return {
+      name: d.toLocaleDateString('default', { weekday: 'short' }),
+      hours: Number((dailyStudySeconds[dateStr] || 0) / 3600),
+      questions: dailyQuestionCounts[dateStr] || 0,
+      fullDate: dateStr
+    };
+  });
+
   const renderDay = (d: number, m: number, y: number, key: string) => {
     const date = new Date(y, m, d);
     const dateStr = date.toDateString();
@@ -813,6 +825,91 @@ const CalendarPage = () => {
                     +
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Bar Graphs Section */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-6 rounded-[32px] glass border border-white/10"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+                  <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Study Hours (Last 7 Days)</span>
+                </div>
+              </div>
+              <div className="h-48 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={barChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 900 }} 
+                    />
+                    <YAxis hide />
+                    <Tooltip 
+                      cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                      contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                      itemStyle={{ color: '#10b981', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
+                    />
+                    <Bar dataKey="hours" radius={[4, 4, 0, 0]}>
+                      {barChartData.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={entry.hours >= targetHours ? '#10b981' : 'rgba(16,185,129,0.3)'} 
+                        />
+                      ))}
+                    </Bar>
+                    <ReferenceLine y={targetHours} stroke="#10b981" strokeDasharray="3 3" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </motion.div>
+
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-6 rounded-[32px] glass border border-white/10"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-rose-500 rounded-full" />
+                  <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Questions Solved (Last 7 Days)</span>
+                </div>
+              </div>
+              <div className="h-48 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={barChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 900 }} 
+                    />
+                    <YAxis hide />
+                    <Tooltip 
+                      cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                      contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                      itemStyle={{ color: '#f43f5e', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
+                    />
+                    <Bar dataKey="questions" radius={[4, 4, 0, 0]}>
+                      {barChartData.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={entry.questions >= questionTarget ? '#f43f5e' : 'rgba(244,63,94,0.3)'} 
+                        />
+                      ))}
+                    </Bar>
+                    <ReferenceLine y={questionTarget} stroke="#f43f5e" strokeDasharray="3 3" />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </motion.div>
           </div>

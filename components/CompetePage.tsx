@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Users, Target, Zap, ChevronRight, Globe, ShieldCheck, TrendingUp, Medal, Plus, Share2, Award } from 'lucide-react';
+import { Trophy, Users, Target, Zap, ChevronRight, Globe, ShieldCheck, TrendingUp, Medal, Plus, Share2, Award, Clock } from 'lucide-react';
 import PulseLoader from "@/components/ui/pulse-loader";
 import { motion, AnimatePresence } from 'motion/react';
 import AnoAI from "@/components/ui/animated-shader-background";
@@ -357,31 +357,50 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
           >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                <h3 className="text-sm font-black text-white uppercase tracking-widest font-heading">Live Activity</h3>
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                <h3 className="text-sm font-black text-white uppercase tracking-widest font-heading">Study Groups</h3>
               </div>
-              <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">Real-time Feed</span>
+              <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">Collaborative Focus</span>
             </div>
             
-            <div className="space-y-4">
-              {activities.length === 0 ? (
-                <p className="text-center py-4 text-white/10 text-[10px] font-black uppercase tracking-widest">Waiting for transmissions...</p>
-              ) : (
-                activities.map((activity, i) => (
-                  <div key={i} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
-                    <div className="flex items-center gap-4">
-                      <div className={`p-2 rounded-xl bg-white/5 ${activity.type === 'questions' ? 'text-rose-400' : 'text-emerald-400'}`}>
-                        {activity.type === 'questions' ? <Target className="w-3 h-3" /> : <Zap className="w-3 h-3" />}
-                      </div>
-                      <div>
-                        <span className="text-[11px] font-bold text-white">{activity.displayName}</span>
-                        <span className="text-[10px] text-white/40 ml-2">{activity.action}</span>
-                      </div>
-                    </div>
-                    <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">{formatTimeAgo(activity.createdAt)}</span>
-                  </div>
-                ))
-              )}
+            <div className="space-y-6">
+              <div className="p-6 rounded-3xl bg-white/5 border border-white/10">
+                <h4 className="text-[10px] font-black text-white/60 uppercase tracking-widest mb-4">Invite Friends</h4>
+                <div className="flex gap-3">
+                  <input 
+                    type="text" 
+                    readOnly 
+                    value={`${window.location.origin}/invite/${user?.uid || 'guest'}`}
+                    className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-mono text-white/40 outline-none"
+                  />
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/invite/${user?.uid || 'guest'}`);
+                      alert("Invite link copied!");
+                    }}
+                    className="px-4 py-2 bg-white text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/90 transition-all"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-6 rounded-3xl bg-white/5 border border-white/10 flex flex-col items-center text-center">
+                  <Users className="w-6 h-6 text-blue-400 mb-3" />
+                  <span className="text-[10px] font-black text-white uppercase tracking-widest mb-1">Active Friends</span>
+                  <span className="text-2xl font-mono font-bold text-white">0</span>
+                </div>
+                <div className="p-6 rounded-3xl bg-white/5 border border-white/10 flex flex-col items-center text-center">
+                  <Clock className="w-6 h-6 text-emerald-400 mb-3" />
+                  <span className="text-[10px] font-black text-white uppercase tracking-widest mb-1">Group Study Hours</span>
+                  <span className="text-2xl font-mono font-bold text-white">0.0h</span>
+                </div>
+              </div>
+
+              <p className="text-center text-[9px] font-bold text-white/20 uppercase tracking-widest">
+                Invite friends to see their live study hours and questions solved here.
+              </p>
             </div>
           </motion.div>
 

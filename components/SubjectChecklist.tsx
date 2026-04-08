@@ -20,6 +20,7 @@ import { playTickSound } from '@/src/lib/sounds';
 
 const SubjectIcon = ({ name }: { name: string }) => {
   switch (name.toLowerCase()) {
+    case 'mathematics':
     case 'maths': return <Calculator className="w-6 h-6" />;
     case 'physics': return <Atom className="w-6 h-6" />;
     case 'chemistry': return <Beaker className="w-6 h-6" />;
@@ -29,6 +30,7 @@ const SubjectIcon = ({ name }: { name: string }) => {
     case 'geography': return <Globe className="w-6 h-6" />;
     case 'civics': return <Landmark className="w-6 h-6" />;
     case 'economics': return <Coins className="w-6 h-6" />;
+    case 'social science': return <Globe className="w-6 h-6" />;
     default: return <BookOpen className="w-6 h-6" />;
   }
 };
@@ -98,7 +100,7 @@ const SYLLABUS_DATA: Record<string, Record<string, string[]>> = {
     ]
   },
   boards_9: {
-    Maths: [
+    Mathematics: [
       "Number Systems", "Polynomials", "Coordinate Geometry", "Linear Equations in Two Variables",
       "Introduction to Euclid’s Geometry", "Lines and Angles", "Triangles", "Quadrilaterals",
       "Circles", "Heron’s Formula", "Surface Areas and Volumes", "Statistics"
@@ -109,24 +111,18 @@ const SYLLABUS_DATA: Record<string, Record<string, string[]>> = {
       "Force and Laws of Motion", "Gravitation", "Work and Energy", "Sound",
       "Improvement in Food Resources"
     ],
-    History: [
+    "Social Science": [
       "The French Revolution", "Socialism in Europe & Russian Revolution", "Nazism & Rise of Hitler",
-      "Forest Society & Colonialism", "Pastoralists in Modern World"
-    ],
-    Geography: [
+      "Forest Society & Colonialism", "Pastoralists in Modern World",
       "India – Size & Location", "Physical Features of India", "Drainage", "Climate", 
-      "Natural Vegetation & Wildlife", "Population"
-    ],
-    Civics: [
+      "Natural Vegetation & Wildlife", "Population",
       "What is Democracy? Why Democracy?", "Constitutional Design", "Electoral Politics", 
-      "Working of Institutions", "Democratic Rights"
-    ],
-    Economics: [
+      "Working of Institutions", "Democratic Rights",
       "Story of Village Palampur", "People as Resource", "Poverty as a Challenge", "Food Security in India"
     ]
   },
   boards_10: {
-    Maths: [
+    Mathematics: [
       "Real Numbers", "Polynomials", "Pair of Linear Equations in Two Variables",
       "Quadratic Equations", "Arithmetic Progressions", "Triangles", "Coordinate Geometry",
       "Introduction to Trigonometry", "Some Applications of Trigonometry", "Circles",
@@ -139,19 +135,13 @@ const SYLLABUS_DATA: Record<string, Record<string, string[]>> = {
       "The Human Eye and the Colourful World", "Electricity", "Magnetic Effects of Electric Current",
       "Our Environment"
     ],
-    History: [
+    "Social Science": [
       "Rise of Nationalism in Europe", "Nationalism in India", "The Making of a Global World",
-      "The Age of Industrialisation", "Print Culture & Modern World"
-    ],
-    Geography: [
+      "The Age of Industrialisation", "Print Culture & Modern World",
       "Resources & Development", "Forest & Wildlife Resources", "Water Resources", "Agriculture", 
-      "Minerals & Energy Resources", "Manufacturing Industries", "Lifelines of National Economy"
-    ],
-    Civics: [
+      "Minerals & Energy Resources", "Manufacturing Industries", "Lifelines of National Economy",
       "Power Sharing", "Federalism", "Gender, Religion & Caste", "Political Parties", 
-      "Outcomes of Democracy"
-    ],
-    Economics: [
+      "Outcomes of Democracy",
       "Development", "Sectors of Indian Economy", "Money & Credit", "Globalisation & Indian Economy", 
       "Consumer Rights"
     ]
@@ -171,8 +161,18 @@ const SYLLABUS_DATA: Record<string, Record<string, string[]>> = {
     ],
     Chemistry: [
       "Some Basic Concepts of Chemistry", "Structure of Atom", "Classification of Elements",
-      "Chemical Bonding", "Thermodynamics", "Equilibrium", "Redox Reactions",
-      "Organic Chemistry Basics", "Hydrocarbons"
+      "Chemical Bonding", "States of Matter", "Thermodynamics", "Equilibrium", "Redox Reactions",
+      "Hydrogen", "s-Block Elements", "p-Block Elements", "Organic Chemistry Basics", "Hydrocarbons",
+      "Environmental Chemistry"
+    ],
+    Biology: [
+      "The Living World", "Biological Classification", "Plant Kingdom", "Animal Kingdom",
+      "Morphology of Flowering Plants", "Anatomy of Flowering Plants", "Structural Organisation in Animals",
+      "Cell: The Unit of Life", "Biomolecules", "Cell Cycle & Cell Division", "Transport in Plants",
+      "Mineral Nutrition", "Photosynthesis in Higher Plants", "Respiration in Plants", "Plant Growth & Development",
+      "Digestion & Absorption", "Breathing & Exchange of Gases", "Body Fluids & Circulation",
+      "Excretory Products & Their Elimination", "Locomotion & Movement", "Neural Control & Coordination",
+      "Chemical Coordination & Integration"
     ]
   },
   boards_12: {
@@ -192,6 +192,13 @@ const SYLLABUS_DATA: Record<string, Record<string, string[]>> = {
       "Solutions", "Electrochemistry", "Chemical Kinetics", "The d-and f-Block Elements",
       "Coordination Compounds", "Haloalkanes and Haloarenes", "Alcohols, Phenols and Ethers",
       "Aldehydes, Ketones and Carboxylic Acids", "Amines", "Biomolecules"
+    ],
+    Biology: [
+      "Reproduction in Organisms", "Sexual Reproduction in Flowering Plants", "Human Reproduction",
+      "Reproductive Health", "Principles of Inheritance & Variation", "Molecular Basis of Inheritance",
+      "Evolution", "Human Health & Disease", "Strategies for Enhancement in Food Production",
+      "Microbes in Human Welfare", "Biotechnology: Principles & Processes", "Biotechnology & Its Applications",
+      "Organisms & Populations", "Ecosystem", "Biodiversity & Conservation", "Environmental Issues"
     ]
   }
 };
