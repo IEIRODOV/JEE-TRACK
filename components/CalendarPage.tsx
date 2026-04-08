@@ -522,7 +522,7 @@ const CalendarPage = () => {
     const dateStr = d.toDateString();
     return {
       name: d.toLocaleDateString('default', { weekday: 'short' }),
-      hours: Number((dailyStudySeconds[dateStr] || 0) / 3600),
+      hours: Number(((dailyStudySeconds[dateStr] || 0) / 3600).toFixed(1)),
       questions: dailyQuestionCounts[dateStr] || 0,
       fullDate: dateStr
     };
@@ -859,6 +859,7 @@ const CalendarPage = () => {
                       cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                       contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
                       itemStyle={{ color: '#10b981', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
+                      formatter={(value: number) => [`${value.toFixed(1)}h`, 'Hours']}
                     />
                     <Bar dataKey="hours" radius={[4, 4, 0, 0]}>
                       {barChartData.map((entry, index) => (

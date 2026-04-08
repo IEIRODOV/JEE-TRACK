@@ -25,7 +25,8 @@ import {
   ExternalLink,
   Trash2,
   Flag,
-  FlaskConical
+  FlaskConical,
+  ShieldCheck
 } from 'lucide-react';
 import PulseLoader from "@/components/ui/pulse-loader";
 import { 
@@ -217,6 +218,7 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
   const [activeReactionPicker, setActiveReactionPicker] = useState<string | null>(null);
   const [replyText, setReplyText] = useState<{ [postId: string]: string }>({});
   const [showWarning, setShowWarning] = useState(true);
+  const [reportingPostId, setReportingPostId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const REACTION_EMOJIS = ['👍', '❤️', '🔥', '😂', '👏'];
@@ -384,6 +386,13 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
       onAuthRequest?.();
       return;
     }
+    setReportingPostId(postId);
+  };
+
+  const confirmReport = async () => {
+    if (!reportingPostId || !user) return;
+    const postId = reportingPostId;
+    setReportingPostId(null);
 
     try {
       const postRef = doc(db, 'posts', postId);
@@ -1025,6 +1034,46 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
             </>
           )}
         </div>
+
+        <AnimatePresence>
+          {reportingPostId && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4"
+            >
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className="w-full max-w-md bg-[#1a1a1b] border border-[#343536] rounded-[24px] p-8 text-center shadow-[0_0_50px_rgba(0,0,0,0.5)]"
+              >
+                <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <ShieldCheck className="w-8 h-8 text-amber-500" />
+                </div>
+                <h2 className="text-2xl font-black text-white mb-2 uppercase tracking-tighter">Report Post?</h2>
+                <p className="text-white/40 text-xs mb-8 leading-relaxed uppercase tracking-widest font-bold">
+                  Are you sure you want to report this post? This action helps keep our community safe and focused.
+                </p>
+                <div className="flex flex-col gap-3">
+                  <button 
+                    onClick={confirmReport}
+                    className="w-full py-4 bg-amber-500 text-black rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-amber-400 transition-all shadow-[0_0_20px_rgba(245,158,11,0.2)]"
+                  >
+                    Confirm Report
+                  </button>
+                  <button 
+                    onClick={() => setReportingPostId(null)}
+                    className="w-full py-4 bg-white/5 text-white/40 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-white/10 transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   </div>
