@@ -109,7 +109,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
     { id: 'more', label: 'More', icon: <Sparkles className="w-4 h-4" /> },
   ];
 
-  const YEARS = ['2025', '2026', '2027'];
+  const YEARS = ['2026', '2027', '2028'];
   const CLASSES = ['9th', '10th', '11th', '12th'];
 
   if (loading) {

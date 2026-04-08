@@ -32,6 +32,8 @@ interface CompetePageProps {
   onAuthRequest?: () => void;
 }
 
+import { getRankInfo } from '@/src/lib/ranks';
+
 const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
@@ -237,8 +239,8 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
   }, []);
 
   const userStats = leaderboard.find(p => p.uid === user?.uid) || { totalQuestions: 0, totalHours: 0, streak: 0 };
-  const nextRankThreshold = 2000;
-  const progressToNext = Math.min((userStats.totalQuestions / nextRankThreshold) * 100, 100);
+  const rankInfo = getRankInfo(userStats.totalQuestions);
+  const progressToNext = Math.min((userStats.totalQuestions / rankInfo.nextThreshold) * 100, 100);
 
   const formatTimeAgo = (timestamp: Timestamp | null) => {
     if (!timestamp) return 'Just now';
@@ -288,7 +290,9 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
                       <div className="flex-1 min-w-0">
                         <span className="block text-[10px] font-black text-white uppercase tracking-wider truncate">{user.displayName || user.email?.split('@')[0]}</span>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[8px] font-bold text-emerald-400 uppercase tracking-widest">Rank #{leaderboard.findIndex(p => p.uid === user.uid) + 1 || '--'}</span>
+                          <span className={`text-[8px] font-black uppercase tracking-widest flex items-center gap-1 ${rankInfo.color}`}>
+                            {rankInfo.icon} {rankInfo.title}
+                          </span>
                           <div className="w-1 h-1 bg-white/20 rounded-full" />
                           <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest">{userStats.totalQuestions} Pts</span>
                         </div>
@@ -297,7 +301,7 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
                     
                     <div className="w-full mt-2">
                       <div className="flex justify-between items-center mb-1">
-                        <span className="text-[6px] font-black text-white/20 uppercase tracking-widest">Next Rank</span>
+                        <span className="text-[6px] font-black text-white/20 uppercase tracking-widest">Next: {getRankInfo(rankInfo.nextThreshold).title}</span>
                         <span className="text-[6px] font-black text-emerald-400">{Math.round(progressToNext)}%</span>
                       </div>
                       <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
@@ -443,7 +447,9 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
                           <div className="flex items-center gap-1.5">
                             <span className="text-[6px] font-bold text-white/40 uppercase tracking-widest">Streak: {player.streak}d</span>
                             <div className="w-0.5 h-0.5 bg-white/20 rounded-full" />
-                            <span className="text-[6px] font-bold text-white/40 uppercase tracking-widest">Lvl {Math.floor(player.totalQuestions / 100) + 1}</span>
+                            <span className={`text-[6px] font-black uppercase tracking-widest flex items-center gap-1 ${getRankInfo(player.totalQuestions).color}`}>
+                              {getRankInfo(player.totalQuestions).icon} {getRankInfo(player.totalQuestions).title}
+                            </span>
                           </div>
                         </div>
                       </div>

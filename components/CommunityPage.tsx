@@ -53,6 +53,8 @@ import {
   arrayRemove
 } from '@/src/firebase';
 
+import { getRankInfo } from '@/src/lib/ranks';
+
 interface Comment {
   id: string;
   text: string;
@@ -526,6 +528,7 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
   const [replyText, setReplyText] = useState<{ [postId: string]: string }>({});
   const [showWarning, setShowWarning] = useState(true);
   const [reportingPostId, setReportingPostId] = useState<string | null>(null);
+  const [userRanks, setUserRanks] = useState<Record<string, any>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const REACTION_EMOJIS = ['👍', '❤️', '🔥', '😂', '👏'];
@@ -580,6 +583,42 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
 
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    const fetchRanks = async () => {
+      const postUids = posts.map(p => p.uid);
+      const commentUids = posts.flatMap(p => p.comments?.map(c => c.uid) || []);
+      const uids = Array.from(new Set([...postUids, ...commentUids]));
+      const newRanks = { ...userRanks };
+      let changed = false;
+
+      for (const uid of uids) {
+        if (!uid) continue;
+        if (!newRanks[uid]) {
+          try {
+            const lbDoc = await getDoc(doc(db, 'leaderboard', uid));
+            if (lbDoc.exists()) {
+              newRanks[uid] = getRankInfo(lbDoc.data().totalQuestions || 0);
+              changed = true;
+            } else {
+              newRanks[uid] = getRankInfo(0);
+              changed = true;
+            }
+          } catch (e) {
+            console.error("Error fetching rank for", uid, e);
+          }
+        }
+      }
+
+      if (changed) {
+        setUserRanks(newRanks);
+      }
+    };
+
+    if (posts.length > 0) {
+      fetchRanks();
+    }
+  }, [posts]);
 
   const handleSendPost = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1209,7 +1248,13 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
                             <div className="flex items-center gap-1.5">
                               <span className="text-[11px] font-bold text-[#d7dadc]">r/{post.community}</span>
                               <span className="text-[10px] text-[#818384]">•</span>
-                              <span className="text-[10px] text-[#818384]">Posted by u/{post.displayName}</span>
+                              <span className="text-[10px] text-[#818384]">Posted by</span>
+                              {userRanks[post.uid] && (
+                                <span className={`text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded bg-white/5 border border-white/10 flex items-center gap-1 ${userRanks[post.uid].color}`}>
+                                  {userRanks[post.uid].icon} {userRanks[post.uid].title}
+                                </span>
+                              )}
+                              <span className="text-[10px] text-[#818384]">u/{post.displayName}</span>
                               <span className="text-[10px] text-[#818384]">•</span>
                               <span className="text-[10px] text-[#818384]">{formatTime(post.createdAt)}</span>
                             </div>
@@ -1328,11 +1373,16 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
                                           <img src={comment.photoURL} className="w-6 h-6 rounded-full border border-[#343536]" alt={comment.displayName} />
                                           <div className="w-0.5 flex-1 bg-[#343536] my-1 group-last/comment:hidden" />
                                         </div>
-                                        <div className="flex-1">
-                                          <div className="flex items-center gap-2 mb-1">
-                                            <span className="text-[11px] font-bold text-[#d7dadc]">{comment.displayName}</span>
-                                            <span className="text-[10px] text-[#818384]">{formatTime(comment.createdAt)}</span>
-                                          </div>
+                                          <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-1">
+                                              {userRanks[comment.uid] && (
+                                                <span className={`text-[8px] font-black uppercase tracking-tighter px-1 py-0.5 rounded bg-white/5 border border-white/10 flex items-center gap-1 ${userRanks[comment.uid].color}`}>
+                                                  {userRanks[comment.uid].icon} {userRanks[comment.uid].title}
+                                                </span>
+                                              )}
+                                              <span className="text-[11px] font-bold text-[#d7dadc]">{comment.displayName}</span>
+                                              <span className="text-[10px] text-[#818384]">{formatTime(comment.createdAt)}</span>
+                                            </div>
                                           <p className="text-[#d7dadc] text-xs leading-relaxed">{comment.text}</p>
                                           <div className="flex items-center gap-3 mt-2">
                                             <button className="text-[10px] font-bold text-[#818384] hover:text-[#d7dadc]">Reply</button>
