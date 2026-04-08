@@ -200,40 +200,16 @@ const RESOURCES = {
   ]
 };
 
-const RESOURCE_CHANNELS = [
-  { id: 'all', label: 'All Resources', icon: Sparkles },
-  { id: 'physics', label: 'Physics', icon: Zap },
-  { id: 'chemistry', label: 'Chemistry', icon: FlaskConical },
-  { id: 'maths', label: 'Mathematics', icon: Target },
-  { id: 'biology', label: 'Biology', icon: Heart },
-  { id: 'notes', label: 'Notes & PDFs', icon: BookOpen },
-  { id: 'pyqs', label: 'PYQs', icon: Clock },
-];
-
-interface Resource {
-  id: string;
-  title: string;
-  description: string;
-  type: string;
-  link: string;
-  category: string;
-  community: string;
-  votes: string[];
-  createdAt: Timestamp | null;
-}
-
 const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [userExam, setUserExam] = useState<string | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [dbResources, setDbResources] = useState<Resource[]>([]);
   const [inputText, setInputText] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('questions');
   const [filterCategory, setFilterCategory] = useState('all');
   const [selectedCommunity, setSelectedCommunity] = useState<'jee' | 'neet' | 'boards'>('jee');
   const [activeView, setActiveView] = useState<'feed' | 'resources'>('feed');
   const [sortMode, setSortMode] = useState<'new' | 'top'>('new');
-  const [resourceCategory, setResourceCategory] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
@@ -295,47 +271,6 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
 
     return () => unsubscribe();
   }, []);
-
-  useEffect(() => {
-    const q = query(
-      collection(db, 'resources'),
-      orderBy('createdAt', 'desc'),
-      limit(200)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const res: Resource[] = [];
-      snapshot.forEach((doc) => {
-        res.push({ id: doc.id, ...doc.data() } as Resource);
-      });
-      setDbResources(res);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'resources', false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const handleResourceVote = async (resourceId: string) => {
-    if (!user) {
-      onAuthRequest?.();
-      return;
-    }
-
-    const resourceRef = doc(db, 'resources', resourceId);
-    const resource = dbResources.find(r => r.id === resourceId);
-    if (!resource) return;
-
-    const hasVoted = resource.votes?.includes(user.uid);
-    
-    try {
-      await updateDoc(resourceRef, {
-        votes: hasVoted ? arrayRemove(user.uid) : arrayUnion(user.uid)
-      });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'resources', false);
-    }
-  };
 
   const handleSendPost = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -666,74 +601,28 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
             {activeView === 'resources' ? (
               <div className="space-y-8 relative">
                 <div className="relative z-10 space-y-8">
-                  {/* Resource Channels Horizontal Scroll */}
-                  <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
-                    {RESOURCE_CHANNELS.map((channel) => (
-                      <button
-                        key={channel.id}
-                        onClick={() => setResourceCategory(channel.id)}
-                        className={`flex items-center gap-2 px-6 py-3 rounded-2xl border transition-all whitespace-nowrap text-[10px] font-black uppercase tracking-widest
-                          ${resourceCategory === channel.id 
-                            ? 'bg-purple-600/20 border-purple-500/50 text-white' 
-                            : 'bg-black/40 border-white/5 text-white/40 hover:border-white/20 hover:text-white/60'}`}
-                      >
-                        <channel.icon className="w-4 h-4" />
-                        {channel.label}
-                      </button>
-                    ))}
-                  </div>
-
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="glass rounded-3xl p-8 border border-white/10 relative overflow-hidden group"
                   >
                     <div className="absolute -top-24 -right-24 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000" />
-                    <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                      <div>
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 mb-4">
-                          <Sparkles className="w-3 h-3 text-purple-400" />
-                          <span className="text-[8px] font-black uppercase tracking-widest text-white/70">Community Curated</span>
-                        </div>
-                        <h2 className="text-3xl font-black text-white mb-2 tracking-tight uppercase font-heading">
-                          {selectedCommunity.toUpperCase()} <span className="text-purple-500">Resource Hub</span>
-                        </h2>
-                        <p className="text-white/40 text-[10px] max-w-md uppercase tracking-widest font-bold leading-relaxed">
-                          The highest voted resources ranked by the community.
-                        </p>
+                    <div className="relative z-10">
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 mb-4">
+                        <Sparkles className="w-3 h-3 text-purple-400" />
+                        <span className="text-[8px] font-black uppercase tracking-widest text-white/70">Curated Hub</span>
                       </div>
-                      <button 
-                        onClick={() => {
-                          const title = prompt("Resource Title:");
-                          const desc = prompt("Description:");
-                          const link = prompt("Link (URL):");
-                          const type = prompt("Type (e.g. YouTube, PDF, Website):");
-                          const cat = prompt("Category (physics, chemistry, maths, biology, notes, pyqs):");
-                          
-                          if (title && link && cat) {
-                            addDoc(collection(db, 'resources'), {
-                              title,
-                              description: desc || '',
-                              link,
-                              type: type || 'Link',
-                              category: cat.toLowerCase(),
-                              community: selectedCommunity,
-                              votes: [],
-                              createdAt: serverTimestamp()
-                            });
-                          }
-                        }}
-                        className="px-6 py-3 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-purple-500 hover:text-white transition-all flex items-center gap-2"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Submit Resource
-                      </button>
+                      <h2 className="text-3xl font-black text-white mb-2 tracking-tight uppercase font-heading">
+                        {selectedCommunity.toUpperCase()} <span className="text-purple-500">Resources</span>
+                      </h2>
+                      <p className="text-white/40 text-[10px] max-w-md uppercase tracking-widest font-bold leading-relaxed">
+                        Top-tier learning materials to accelerate your {selectedCommunity.toUpperCase()} preparation.
+                      </p>
                     </div>
                   </motion.div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {/* Static Resources (Fallback) */}
-                    {resourceCategory === 'all' && RESOURCES[selectedCommunity].map((resource, index) => (
+                    {RESOURCES[selectedCommunity].map((resource, index) => (
                       <motion.a
                         key={resource.title}
                         href={resource.link}
@@ -763,66 +652,25 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
                         </div>
                       </motion.a>
                     ))}
-
-                    {/* Dynamic Resources from DB */}
-                    {dbResources
-                      .filter(r => r.community === selectedCommunity && (resourceCategory === 'all' || r.category === resourceCategory))
-                      .sort((a, b) => (b.votes?.length || 0) - (a.votes?.length || 0))
-                      .map((resource, index) => (
-                      <motion.div
-                        key={resource.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                        className="glass rounded-[32px] p-6 border border-white/10 hover:border-purple-500/30 transition-all group relative overflow-hidden flex flex-col"
-                      >
-                        <div className="absolute top-0 right-0 p-4 flex flex-col items-center gap-1 z-20">
-                          <button 
-                            onClick={(e) => {
-                              e.preventDefault();
-                              handleResourceVote(resource.id);
-                            }}
-                            className={`p-2 rounded-xl transition-all ${resource.votes?.includes(user?.uid || '') ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/20' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
-                          >
-                            <TrendingUp className="w-4 h-4" />
-                          </button>
-                          <span className="text-[10px] font-black text-white/60">{(resource.votes?.length || 0)}</span>
-                        </div>
-
-                        <div className="relative z-10 flex-1">
-                          <div className={`w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center mb-6 border border-white/5`}>
-                            <BookOpen className={`w-6 h-6 text-purple-400`} />
-                          </div>
-                          <h3 className="text-lg font-black text-white mb-2 tracking-tight uppercase pr-10">{resource.title}</h3>
-                          <p className="text-white/40 text-[10px] leading-relaxed mb-6 font-bold uppercase tracking-widest line-clamp-2">
-                            {resource.description}
-                          </p>
-                        </div>
-                        
-                        <a 
-                          href={resource.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          referrerPolicy="no-referrer"
-                          className="flex items-center justify-between mt-auto pt-4 border-t border-white/5 text-[10px] font-black uppercase tracking-widest text-white/20 group-hover:text-white/60 transition-colors"
-                        >
-                          <span>Visit Resource</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      </motion.div>
-                    ))}
                   </div>
 
-                  {dbResources.filter(r => r.community === selectedCommunity && (resourceCategory === 'all' || r.category === resourceCategory)).length === 0 && resourceCategory !== 'all' && (
-                    <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="text-center py-20"
-                    >
-                      <p className="text-white/20 text-xs font-black uppercase tracking-[0.3em]">No resources found in this channel yet.</p>
-                      <p className="text-white/10 text-[10px] mt-2 uppercase tracking-widest">Be the first to submit one!</p>
-                    </motion.div>
-                  )}
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                    className="p-8 rounded-[32px] border border-white/[0.01] bg-white/[0.005] backdrop-blur-sm text-center relative overflow-hidden group"
+                  >
+                    <div className="absolute -top-24 -right-24 w-64 h-64 bg-purple-500/[0.02] rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000" />
+                    <div className="relative z-10">
+                      <h2 className="text-xl font-black text-white mb-2 tracking-tight uppercase font-heading">Need more materials?</h2>
+                      <p className="text-white/30 text-[10px] mb-6 max-w-xs mx-auto leading-relaxed uppercase tracking-widest font-bold">
+                        Our AI Whobee is constantly indexing new resources. Check back daily for updated question banks and mock papers.
+                      </p>
+                      <button className="px-8 py-3 bg-white text-black font-black uppercase tracking-widest text-[10px] rounded-xl transition-all shadow-xl hover:scale-105 active:scale-95">
+                        Request Resource
+                      </button>
+                    </div>
+                  </motion.div>
                 </div>
               </div>
             ) : (
