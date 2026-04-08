@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Users, Target, Zap, ChevronRight, Globe, ShieldCheck, TrendingUp, Medal, Plus, Share2, Award, Clock, Trash2 } from 'lucide-react';
+import { Trophy, Users, Target, Zap, ChevronRight, Globe, ShieldCheck, TrendingUp, Medal, Plus, Share2, Award, Clock, Trash2, X } from 'lucide-react';
 import PulseLoader from "@/components/ui/pulse-loader";
 import { motion, AnimatePresence } from 'motion/react';
 import AnoAI from "@/components/ui/animated-shader-background";
@@ -47,6 +47,7 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
   const [isLinking, setIsLinking] = useState(false);
   const [removingFriendId, setRemovingFriendId] = useState<string | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [selectedProfile, setSelectedProfile] = useState<any>(null);
 
   useEffect(() => {
     if (user) {
@@ -314,20 +315,6 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
                     </div>
                   </div>
 
-                  <motion.button 
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => {
-                      const rank = leaderboard.findIndex(p => p.uid === user.uid) + 1;
-                      const text = `I'm ranked #${rank || '--'} on EXAM PULSE with ${userStats.totalQuestions} points! Join me: ${window.location.origin}`;
-                      navigator.clipboard.writeText(text);
-                      alert("Rank shared to clipboard!");
-                    }}
-                    className="p-3.5 rounded-2xl bg-white/5 border border-white/10 text-white/40 hover:text-blue-400 hover:bg-blue-500/10 transition-all"
-                    title="Share Rank"
-                  >
-                    <Share2 className="w-4 h-4" />
-                  </motion.button>
                 </div>
               )}
             </div>
@@ -411,7 +398,8 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
                     <motion.div 
                       key={idx} 
                       whileHover={{ backgroundColor: 'rgba(255,255,255,0.03)' }}
-                      className={`flex items-center justify-between p-2 transition-all group relative ${isCurrentUser ? 'bg-blue-500/5 border-l-2 border-blue-500' : ''}`}
+                      onClick={() => setSelectedProfile(player)}
+                      className={`flex items-center justify-between p-2 transition-all group relative cursor-pointer ${isCurrentUser ? 'bg-blue-500/5 border-l-2 border-blue-500' : ''}`}
                     >
                       {isCurrentUser && (
                         <div className="absolute top-1 right-3">
@@ -645,6 +633,83 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
                 >
                   Cancel
                 </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {selectedProfile && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4"
+            onClick={() => setSelectedProfile(null)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="w-full max-w-md bg-[#0a0a0b] border border-white/10 rounded-[40px] p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-blue-500/10 to-transparent" />
+              
+              <button 
+                onClick={() => setSelectedProfile(null)}
+                className="absolute top-6 right-6 p-2 rounded-full bg-white/5 border border-white/10 text-white/40 hover:text-white transition-all"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="relative z-10 flex flex-col items-center text-center">
+                <div className="relative mb-6">
+                  <img 
+                    src={selectedProfile.photoURL || `https://ui-avatars.com/api/?name=${selectedProfile.displayName}&background=random`} 
+                    className="w-24 h-24 rounded-[32px] border-2 border-blue-500 shadow-[0_0_30px_rgba(59,130,246,0.3)] object-cover" 
+                    alt="" 
+                  />
+                  <div className={`absolute -bottom-2 -right-2 p-2 rounded-xl border-2 border-[#0a0a0b] ${getRankInfo(selectedProfile.totalQuestions).bg} ${getRankInfo(selectedProfile.totalQuestions).color}`}>
+                    {getRankInfo(selectedProfile.totalQuestions).icon}
+                  </div>
+                </div>
+
+                <h2 className="text-2xl font-black text-white mb-1 uppercase tracking-tight">{selectedProfile.displayName}</h2>
+                <div className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] mb-8 ${getRankInfo(selectedProfile.totalQuestions).color}`}>
+                  {getRankInfo(selectedProfile.totalQuestions).title} • LEVEL {getRankInfo(selectedProfile.totalQuestions).level}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 w-full mb-8">
+                  <div className="p-4 rounded-3xl bg-white/5 border border-white/5">
+                    <span className="text-[8px] font-black text-white/20 uppercase tracking-widest block mb-1">Total Questions</span>
+                    <span className="text-xl font-mono font-bold text-white">{selectedProfile.totalQuestions}</span>
+                  </div>
+                  <div className="p-4 rounded-3xl bg-white/5 border border-white/5">
+                    <span className="text-[8px] font-black text-white/20 uppercase tracking-widest block mb-1">Daily Streak</span>
+                    <span className="text-xl font-mono font-bold text-orange-400">{selectedProfile.streak}d</span>
+                  </div>
+                </div>
+
+                <div className="w-full space-y-3">
+                  <div className="flex justify-between items-center px-1">
+                    <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Next Rank Progress</span>
+                    <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">
+                      {getRankInfo(selectedProfile.totalQuestions).nextThreshold - selectedProfile.totalQuestions} Qs Left
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min((selectedProfile.totalQuestions / getRankInfo(selectedProfile.totalQuestions).nextThreshold) * 100, 100)}%` }}
+                      className="h-full bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.5)]"
+                    />
+                  </div>
+                  <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">
+                    Next: {getRankInfo(getRankInfo(selectedProfile.totalQuestions).nextThreshold).title}
+                  </p>
+                </div>
               </div>
             </motion.div>
           </motion.div>

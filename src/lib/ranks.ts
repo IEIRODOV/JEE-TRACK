@@ -3,6 +3,7 @@ export interface RankInfo {
   level: number;
   title: string;
   color: string;
+  bg: string;
   icon: string;
   nextThreshold: number;
 }
@@ -73,6 +74,27 @@ export const getRankInfo = (questions: number): RankInfo => {
     return "text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]";
   };
 
+  const getBg = (lvl: number) => {
+    if (lvl <= 3) return "bg-zinc-500/10";
+    if (lvl <= 6) return "bg-emerald-500/10";
+    if (lvl <= 9) return "bg-blue-500/10";
+    if (lvl <= 12) return "bg-cyan-500/10";
+    if (lvl <= 15) return "bg-purple-500/10";
+    if (lvl <= 18) return "bg-pink-500/10";
+    if (lvl <= 21) return "bg-rose-500/10";
+    if (lvl <= 24) return "bg-orange-500/10";
+    if (lvl <= 27) return "bg-amber-500/10";
+    if (lvl <= 30) return "bg-yellow-500/10";
+    if (lvl <= 33) return "bg-lime-500/10";
+    if (lvl <= 36) return "bg-green-500/10";
+    if (lvl <= 39) return "bg-teal-500/10";
+    if (lvl <= 42) return "bg-sky-500/10";
+    if (lvl <= 45) return "bg-indigo-500/10";
+    if (lvl <= 48) return "bg-violet-500/10";
+    if (lvl <= 50) return "bg-fuchsia-500/10";
+    return "bg-white/10";
+  };
+
   const getIcon = (lvl: number) => {
     if (lvl <= 3) return "🔰";
     if (lvl <= 6) return "🎖️";
@@ -98,6 +120,7 @@ export const getRankInfo = (questions: number): RankInfo => {
     level,
     title: getTitle(level),
     color: getColor(level),
+    bg: getBg(level),
     icon: getIcon(level),
     nextThreshold: threshold
   };

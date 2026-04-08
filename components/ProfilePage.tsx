@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { auth, db, signOut } from '@/src/firebase';
 import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
-import { User, Target, BookOpen, Activity, Loader2, LogOut, Save, User as UserIcon, ChevronLeft, Sparkles } from 'lucide-react';
+import { User, Target, BookOpen, Activity, Loader2, LogOut, Save, User as UserIcon, ChevronLeft, Sparkles, Trophy, Medal } from 'lucide-react';
 import { playTickSound } from '@/src/lib/sounds';
 import AnoAI from "@/components/ui/animated-shader-background";
+import { getRankInfo } from '@/src/lib/ranks';
 
 interface ProfilePageProps {
   onBack: () => void;
@@ -21,6 +22,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
   const [selectedExam, setSelectedExam] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedSubExam, setSelectedSubExam] = useState('mains');
+  const [totalQuestions, setTotalQuestions] = useState(0);
   const [customExamName, setCustomExamName] = useState('');
   const [customExamDate, setCustomExamDate] = useState('');
 
@@ -35,13 +37,18 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
         if (userDoc.exists()) {
           const data = userDoc.data();
           const isCustom = !['jee', 'neet', 'boards'].includes(data.exam?.toLowerCase());
-          setSelectedExam(isCustom ? 'more' : (data.exam || 'jee'));
-          setSelectedYear(data.year || '2027');
+          setSelectedExam(isCustom ? 'more' : (data.exam || ''));
+          setSelectedYear(data.year || '');
           setSelectedSubExam(data.subExam || 'mains');
           if (isCustom) {
             setCustomExamName(data.exam);
             setCustomExamDate(data.customDate || '');
           }
+        }
+
+        const lbDoc = await getDoc(doc(db, 'leaderboard', currentUser.uid));
+        if (lbDoc.exists()) {
+          setTotalQuestions(lbDoc.data().totalQuestions || 0);
         }
       }
       setLoading(false);
@@ -56,6 +63,18 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
     setError('');
     setSuccess('');
     
+    if (!selectedExam) {
+      setError("Please select a primary objective");
+      setSaving(false);
+      return;
+    }
+
+    if (selectedExam !== 'more' && !selectedYear) {
+      setError(`Please select a target ${selectedExam === 'boards' ? 'class' : 'year'}`);
+      setSaving(false);
+      return;
+    }
+
     if (selectedExam === 'more' && (!customExamName || !customExamDate)) {
       setError("Please provide custom exam name and date");
       setSaving(false);
@@ -112,6 +131,9 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
   const YEARS = ['2026', '2027', '2028'];
   const CLASSES = ['9th', '10th', '11th', '12th'];
 
+  const rankInfo = getRankInfo(totalQuestions);
+  const questionsToNext = rankInfo.nextThreshold - totalQuestions;
+
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -143,7 +165,34 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
           </div>
           <div>
             <h1 className="text-3xl font-black tracking-tight mb-1">Commander Profile</h1>
-            <p className="text-white/40 text-[10px] font-black uppercase tracking-widest">ID: {user?.uid?.slice(0, 8)}...</p>
+            <div className="flex items-center gap-3">
+              <p className="text-white/40 text-[10px] font-black uppercase tracking-widest">ID: {user?.uid?.slice(0, 8)}...</p>
+              <div className="w-1 h-1 bg-white/10 rounded-full" />
+              <div className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ${rankInfo.color}`}>
+                {rankInfo.icon} {rankInfo.title} (Lvl {rankInfo.level})
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 mb-12">
+          <div className="p-6 rounded-3xl bg-white/5 border border-white/10 relative overflow-hidden group">
+            <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
+              <Trophy className="w-20 h-20" />
+            </div>
+            <div className="relative z-10">
+              <span className="text-[10px] font-black text-white/40 uppercase tracking-widest block mb-2">Total Questions</span>
+              <div className="text-2xl font-mono font-bold text-white">{totalQuestions}</div>
+            </div>
+          </div>
+          <div className="p-6 rounded-3xl bg-white/5 border border-white/10 relative overflow-hidden group">
+            <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
+              <Medal className="w-20 h-20" />
+            </div>
+            <div className="relative z-10">
+              <span className="text-[10px] font-black text-white/40 uppercase tracking-widest block mb-2">Next Promotion</span>
+              <div className="text-2xl font-mono font-bold text-emerald-400">-{questionsToNext} <span className="text-[10px] text-white/20">Ques</span></div>
+            </div>
           </div>
         </div>
 

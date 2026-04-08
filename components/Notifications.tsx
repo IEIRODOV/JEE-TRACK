@@ -71,14 +71,14 @@ const Notifications = () => {
         {isOpen && (
           <>
             <div 
-              className="fixed inset-0 z-[100]" 
+              className="fixed inset-0 z-[9998]" 
               onClick={() => setIsOpen(false)}
             />
             <motion.div
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
-              className="absolute right-0 mt-4 w-80 bg-[#0a0a0b] border border-white/10 rounded-[24px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-[101] overflow-hidden"
+              className="absolute right-0 mt-4 w-80 bg-[#0a0a0b] border border-white/10 rounded-[24px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-[9999] overflow-hidden"
             >
               <div className="p-5 border-b border-white/5 flex items-center justify-between bg-white/[0.03] backdrop-blur-md">
                 <div className="flex items-center gap-2">

@@ -158,7 +158,11 @@ const CalendarPage = () => {
       // Update current day's values
       const today = new Date().toDateString();
       setCurrentQuestions(newQuestionCounts[today] || 0);
-      setElapsedSeconds(newStudySeconds[today] || 0);
+      
+      // Only set elapsed seconds if the timer is not running to avoid flicker
+      if (!isTimerRunning) {
+        setElapsedSeconds(newStudySeconds[today] || 0);
+      }
 
       setIsSyncing(false);
       setLastSyncTime(new Date());
