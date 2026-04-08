@@ -904,9 +904,9 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
                           </div>
 
                           {/* Reactions Display */}
-                          {post.reactions && Object.keys(post.reactions).some(emoji => (post.reactions![emoji] as string[]).length > 0) && (
+                          {post.reactions && Object.entries(post.reactions).some(([emoji, uids]) => !['👍', '🔥'].includes(emoji) && (uids as string[]).length > 0) && (
                             <div className="flex flex-wrap gap-1.5 mb-3">
-                              {Object.entries(post.reactions).map(([emoji, uids]) => (uids as string[]).length > 0 && (
+                              {Object.entries(post.reactions).map(([emoji, uids]) => !['👍', '🔥'].includes(emoji) && (uids as string[]).length > 0 && (
                                 <button
                                   key={emoji}
                                   onClick={() => handleReaction(post.id, emoji)}

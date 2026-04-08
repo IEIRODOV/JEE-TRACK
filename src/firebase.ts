@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, User, signOut, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail, signInAnonymously, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
-import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, limit, Timestamp, setDoc, doc, getDoc, increment, where, getDocs, deleteDoc, updateDoc, arrayUnion, arrayRemove, getDocFromServer } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, limit, Timestamp, setDoc, doc, getDoc, increment, where, getDocs, deleteDoc, updateDoc, arrayUnion, arrayRemove, getDocFromServer, getCountFromServer } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase
@@ -111,6 +111,7 @@ export {
   deleteDoc,
   updateDoc,
   arrayUnion,
-  arrayRemove
+  arrayRemove,
+  getCountFromServer
 };
 export type { User };

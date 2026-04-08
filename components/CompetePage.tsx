@@ -3,7 +3,7 @@ import { Trophy, Users, Target, Zap, ChevronRight, Globe, ShieldCheck, TrendingU
 import PulseLoader from "@/components/ui/pulse-loader";
 import { motion, AnimatePresence } from 'motion/react';
 import AnoAI from "@/components/ui/animated-shader-background";
-import { auth, onAuthStateChanged, User, db, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, limit, Timestamp, setDoc, doc, getDoc, getDocs, where, arrayUnion, arrayRemove, increment, handleFirestoreError, OperationType } from '@/src/firebase';
+import { auth, onAuthStateChanged, User, db, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, limit, Timestamp, setDoc, doc, getDoc, getDocs, where, arrayUnion, arrayRemove, increment, handleFirestoreError, OperationType, getCountFromServer } from '@/src/firebase';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -194,9 +194,17 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
 
   // Global Stats Listener
   useEffect(() => {
-    const unsubscribe = onSnapshot(doc(db, 'stats', 'global'), (doc) => {
-      if (doc.exists()) {
-        setGlobalStats(doc.data() as any);
+    const unsubscribe = onSnapshot(doc(db, 'stats', 'global'), async (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data() as any;
+        try {
+          const userCountSnapshot = await getCountFromServer(collection(db, 'users'));
+          const totalStudents = userCountSnapshot.data().count;
+          setGlobalStats({ ...data, totalStudents });
+        } catch (error) {
+          console.error("Error fetching user count:", error);
+          setGlobalStats(data);
+        }
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'stats/global', false);
