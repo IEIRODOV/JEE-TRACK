@@ -16,7 +16,7 @@ interface Subject {
   chapters: Chapter[];
 }
 
-import { playTickSound } from '@/src/lib/sounds';
+import { playTickSound, playCheckSound } from '@/src/lib/sounds';
 
 const SubjectIcon = ({ name }: { name: string }) => {
   switch (name.toLowerCase()) {
@@ -99,7 +99,7 @@ const SYLLABUS_DATA: Record<string, Record<string, string[]>> = {
       "Aldehydes, Ketones & Carboxylic Acids", "Amines", "Biomolecules", "Polymers", "Chemistry in Everyday Life"
     ]
   },
-  boards_9: {
+  boards_9th: {
     Mathematics: [
       "Number Systems", "Polynomials", "Coordinate Geometry", "Linear Equations in Two Variables",
       "Introduction to Euclid’s Geometry", "Lines and Angles", "Triangles", "Quadrilaterals",
@@ -121,7 +121,7 @@ const SYLLABUS_DATA: Record<string, Record<string, string[]>> = {
       "Story of Village Palampur", "People as Resource", "Poverty as a Challenge", "Food Security in India"
     ]
   },
-  boards_10: {
+  boards_10th: {
     Mathematics: [
       "Real Numbers", "Polynomials", "Pair of Linear Equations in Two Variables",
       "Quadratic Equations", "Arithmetic Progressions", "Triangles", "Coordinate Geometry",
@@ -146,8 +146,8 @@ const SYLLABUS_DATA: Record<string, Record<string, string[]>> = {
       "Consumer Rights"
     ]
   },
-  boards_11: {
-    Maths: [
+  boards_11th: {
+    Mathematics: [
       "Sets", "Relations and Functions", "Trigonometric Functions", "Complex Numbers and Quadratic Equations",
       "Linear Inequalities", "Permutations and Combinations", "Binomial Theorem", "Sequences and Series",
       "Straight Lines", "Conic Sections", "Introduction to Three Dimensional Geometry",
@@ -160,23 +160,21 @@ const SYLLABUS_DATA: Record<string, Record<string, string[]>> = {
       "Thermodynamics", "Kinetic Theory", "Oscillations", "Waves"
     ],
     Chemistry: [
-      "Some Basic Concepts of Chemistry", "Structure of Atom", "Classification of Elements",
-      "Chemical Bonding", "States of Matter", "Thermodynamics", "Equilibrium", "Redox Reactions",
-      "Hydrogen", "s-Block Elements", "p-Block Elements", "Organic Chemistry Basics", "Hydrocarbons",
-      "Environmental Chemistry"
+      "Some Basic Concepts of Chemistry", "Structure of Atom", "Classification of Elements and Periodicity in Properties",
+      "Chemical Bonding and Molecular Structure", "Chemical Thermodynamics", "Equilibrium",
+      "Redox Reactions", "Organic Chemistry – Some Basic Principles and Techniques", "Hydrocarbons"
     ],
     Biology: [
       "The Living World", "Biological Classification", "Plant Kingdom", "Animal Kingdom",
       "Morphology of Flowering Plants", "Anatomy of Flowering Plants", "Structural Organisation in Animals",
-      "Cell: The Unit of Life", "Biomolecules", "Cell Cycle & Cell Division", "Transport in Plants",
-      "Mineral Nutrition", "Photosynthesis in Higher Plants", "Respiration in Plants", "Plant Growth & Development",
-      "Digestion & Absorption", "Breathing & Exchange of Gases", "Body Fluids & Circulation",
-      "Excretory Products & Their Elimination", "Locomotion & Movement", "Neural Control & Coordination",
-      "Chemical Coordination & Integration"
+      "Cell: The Unit of Life", "Biomolecules", "Cell Cycle and Cell Division", "Photosynthesis in Higher Plants",
+      "Respiration in Plants", "Plant Growth and Development", "Breathing and Exchange of Gases",
+      "Body Fluids and Circulation", "Excretory Products and Their Elimination", "Locomotion and Movement",
+      "Neural Control and Coordination", "Chemical Coordination and Integration"
     ]
   },
-  boards_12: {
-    Maths: [
+  boards_12th: {
+    Mathematics: [
       "Relations and Functions", "Inverse Trigonometric Functions", "Matrices", "Determinants",
       "Continuity and Differentiability", "Application of Derivatives", "Integrals",
       "Application of Integrals", "Differential Equations", "Vector Algebra",
@@ -185,8 +183,8 @@ const SYLLABUS_DATA: Record<string, Record<string, string[]>> = {
     Physics: [
       "Electric Charges and Fields", "Electrostatic Potential and Capacitance", "Current Electricity",
       "Moving Charges and Magnetism", "Magnetism and Matter", "Electromagnetic Induction",
-      "Alternating Current", "Electromagnetic Waves", "Ray Optics", "Wave Optics",
-      "Dual Nature of Radiation", "Atoms", "Nuclei", "Semiconductor Electronics"
+      "Alternating Current", "Electromagnetic Waves", "Ray Optics and Optical Instruments", "Wave Optics",
+      "Dual Nature of Radiation and Matter", "Atoms", "Nuclei", "Semiconductor Electronics: Materials, Devices and Simple Circuits"
     ],
     Chemistry: [
       "Solutions", "Electrochemistry", "Chemical Kinetics", "The d-and f-Block Elements",
@@ -194,11 +192,10 @@ const SYLLABUS_DATA: Record<string, Record<string, string[]>> = {
       "Aldehydes, Ketones and Carboxylic Acids", "Amines", "Biomolecules"
     ],
     Biology: [
-      "Reproduction in Organisms", "Sexual Reproduction in Flowering Plants", "Human Reproduction",
-      "Reproductive Health", "Principles of Inheritance & Variation", "Molecular Basis of Inheritance",
-      "Evolution", "Human Health & Disease", "Strategies for Enhancement in Food Production",
-      "Microbes in Human Welfare", "Biotechnology: Principles & Processes", "Biotechnology & Its Applications",
-      "Organisms & Populations", "Ecosystem", "Biodiversity & Conservation", "Environmental Issues"
+      "Sexual Reproduction in Flowering Plants", "Human Reproduction", "Reproductive Health",
+      "Principles of Inheritance and Variation", "Molecular Basis of Inheritance", "Evolution",
+      "Human Health and Disease", "Microbes in Human Welfare", "Biotechnology: Principles and Processes",
+      "Biotechnology and its Applications", "Organisms and Populations", "Ecosystem", "Biodiversity and Conservation"
     ]
   }
 };
@@ -247,7 +244,9 @@ const SubjectChecklist = ({ category, examId }: SubjectChecklistProps) => {
 
   const setInitialData = () => {
     // Check for specific board syllabus first, then category, then default to jee
-    const syllabus = SYLLABUS_DATA[examId] || SYLLABUS_DATA[category] || SYLLABUS_DATA.jee;
+    // Normalize keys: boards_9 -> boards_9th, etc.
+    const normalizedExamId = examId.includes('boards') && !examId.endsWith('th') ? `${examId}th` : examId;
+    const syllabus = SYLLABUS_DATA[normalizedExamId] || SYLLABUS_DATA[examId] || SYLLABUS_DATA[category] || SYLLABUS_DATA.jee;
     
     const colors = [
       "text-blue-400 border-blue-400/30 bg-blue-400/10",
@@ -270,9 +269,14 @@ const SubjectChecklist = ({ category, examId }: SubjectChecklistProps) => {
   };
 
   const toggleChapter = async (subjectIndex: number, chapterIndex: number) => {
-    playTickSound();
+    const isCompleting = !subjects[subjectIndex].chapters[chapterIndex].completed;
+    if (isCompleting) {
+      playCheckSound();
+    } else {
+      playTickSound();
+    }
     const newSubjects = [...subjects];
-    newSubjects[subjectIndex].chapters[chapterIndex].completed = !newSubjects[subjectIndex].chapters[chapterIndex].completed;
+    newSubjects[subjectIndex].chapters[chapterIndex].completed = isCompleting;
     setSubjects(newSubjects);
     
     if (user) {
@@ -292,6 +296,23 @@ const SubjectChecklist = ({ category, examId }: SubjectChecklistProps) => {
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4 py-12">
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-3">
+          <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
+          <h3 className="text-sm font-black text-white uppercase tracking-widest font-heading">Syllabus Tracker</h3>
+        </div>
+        <button 
+          onClick={() => {
+            if (window.confirm("Reset syllabus to default? All progress for this exam will be lost.")) {
+              setInitialData();
+            }
+          }}
+          className="text-[8px] font-black text-white/20 uppercase tracking-widest hover:text-rose-500 transition-colors"
+        >
+          Reset Progress
+        </button>
+      </div>
+
       {/* Total Progress Bar */}
       <div className="mb-12 p-8 rounded-3xl border border-white/10 backdrop-blur-xl bg-white/5 text-center">
         <div className="flex flex-col items-center mb-6">

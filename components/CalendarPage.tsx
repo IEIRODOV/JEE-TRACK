@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, TrendingUp, Zap, Trash2, Cloud, CloudOff, Loader2, Activity } from 'lucide-react';
-import { playTickSound } from '@/src/lib/sounds';
+import { playTickSound, playF1Sound } from '@/src/lib/sounds';
 import { motion, AnimatePresence } from 'motion/react';
 import AnoAI from "@/components/ui/animated-shader-background";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar, Cell, ReferenceLine } from 'recharts';
@@ -379,7 +379,7 @@ const CalendarPage = () => {
   };
 
   const toggleTimer = async () => {
-    playTickSound();
+    playF1Sound();
     const today = new Date().toDateString();
     if (!isTimerRunning) {
       const now = Date.now();

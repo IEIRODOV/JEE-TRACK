@@ -3,7 +3,7 @@ import { Trophy, Users, Target, Zap, ChevronRight, Globe, ShieldCheck, TrendingU
 import PulseLoader from "@/components/ui/pulse-loader";
 import { motion, AnimatePresence } from 'motion/react';
 import AnoAI from "@/components/ui/animated-shader-background";
-import { auth, onAuthStateChanged, User, db, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, limit, Timestamp, setDoc, doc, getDoc, increment, handleFirestoreError, OperationType } from '@/src/firebase';
+import { auth, onAuthStateChanged, User, db, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, limit, Timestamp, setDoc, doc, getDoc, getDocs, where, arrayUnion, increment, handleFirestoreError, OperationType } from '@/src/firebase';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -39,6 +39,96 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
   const [globalStats, setGlobalStats] = useState({ totalStudents: 0, totalQuestions: 0, totalHours: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [friendCode, setFriendCode] = useState<string>('');
+  const [inputCode, setInputCode] = useState<string>('');
+  const [friends, setFriends] = useState<any[]>([]);
+  const [isLinking, setIsLinking] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      // Generate short code from UID if not exists
+      const shortCode = user.uid.substring(0, 6).toUpperCase();
+      setFriendCode(shortCode);
+      
+      // Save code to user profile for lookup
+      setDoc(doc(db, 'users', user.uid), { friendCode: shortCode }, { merge: true });
+    }
+  }, [user]);
+
+  // Friends Data Listener
+  useEffect(() => {
+    if (!user) return;
+
+    const unsubscribe = onSnapshot(doc(db, 'users', user.uid), async (userDoc) => {
+      if (userDoc.exists()) {
+        const friendIds = userDoc.data().friends || [];
+        if (friendIds.length > 0) {
+          // Listen to each friend's daily stats
+          const friendsData: any[] = [];
+          for (const fId of friendIds) {
+            const fDoc = await getDoc(doc(db, 'users', fId));
+            if (fDoc.exists()) {
+              const today = new Date().toDateString();
+              const statsDoc = await getDoc(doc(db, 'users', fId, 'dailyStats', today));
+              friendsData.push({
+                uid: fId,
+                displayName: fDoc.data().displayName || 'Friend',
+                photoURL: fDoc.data().photoURL,
+                stats: statsDoc.exists() ? statsDoc.data() : { studySeconds: 0, questionsSolved: 0 }
+              });
+            }
+          }
+          setFriends(friendsData);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  const handleLinkFriend = async () => {
+    if (!user || !inputCode.trim()) return;
+    setIsLinking(true);
+
+    try {
+      // Find user by friend code
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('friendCode', '==', inputCode.trim().toUpperCase()));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        alert("Invalid friend code!");
+        setIsLinking(false);
+        return;
+      }
+
+      const friendDoc = querySnapshot.docs[0];
+      const friendId = friendDoc.id;
+
+      if (friendId === user.uid) {
+        alert("You cannot add yourself!");
+        setIsLinking(false);
+        return;
+      }
+
+      // Mutual friendship
+      await setDoc(doc(db, 'users', user.uid), {
+        friends: arrayUnion(friendId)
+      }, { merge: true });
+
+      await setDoc(doc(db, 'users', friendId), {
+        friends: arrayUnion(user.uid)
+      }, { merge: true });
+
+      alert("Friend linked successfully!");
+      setInputCode('');
+    } catch (error) {
+      console.error("Error linking friend:", error);
+      alert("Failed to link friend.");
+    } finally {
+      setIsLinking(false);
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -364,24 +454,43 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
             </div>
             
             <div className="space-y-6">
-              <div className="p-6 rounded-3xl bg-white/5 border border-white/10">
-                <h4 className="text-[10px] font-black text-white/60 uppercase tracking-widest mb-4">Invite Friends</h4>
-                <div className="flex gap-3">
-                  <input 
-                    type="text" 
-                    readOnly 
-                    value={`${window.location.origin}/invite/${user?.uid || 'guest'}`}
-                    className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-mono text-white/40 outline-none"
-                  />
-                  <button 
-                    onClick={() => {
-                      navigator.clipboard.writeText(`${window.location.origin}/invite/${user?.uid || 'guest'}`);
-                      alert("Invite link copied!");
-                    }}
-                    className="px-4 py-2 bg-white text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/90 transition-all"
-                  >
-                    Copy
-                  </button>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="p-6 rounded-3xl bg-white/5 border border-white/10">
+                  <h4 className="text-[10px] font-black text-white/60 uppercase tracking-widest mb-4">Your Friend Code</h4>
+                  <div className="flex gap-3">
+                    <div className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-xl font-mono font-bold text-blue-400 flex items-center justify-center tracking-widest">
+                      {friendCode || '------'}
+                    </div>
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(friendCode);
+                        alert("Code copied!");
+                      }}
+                      className="px-4 py-2 bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-all border border-white/10"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-6 rounded-3xl bg-white/5 border border-white/10">
+                  <h4 className="text-[10px] font-black text-white/60 uppercase tracking-widest mb-4">Link Friend</h4>
+                  <div className="flex gap-3">
+                    <input 
+                      type="text" 
+                      placeholder="ENTER CODE"
+                      value={inputCode}
+                      onChange={(e) => setInputCode(e.target.value.toUpperCase())}
+                      className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-mono text-white outline-none focus:border-blue-500/50 transition-all"
+                    />
+                    <button 
+                      onClick={handleLinkFriend}
+                      disabled={isLinking}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 transition-all disabled:opacity-50"
+                    >
+                      {isLinking ? '...' : 'Link'}
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -389,18 +498,49 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
                 <div className="p-6 rounded-3xl bg-white/5 border border-white/10 flex flex-col items-center text-center">
                   <Users className="w-6 h-6 text-blue-400 mb-3" />
                   <span className="text-[10px] font-black text-white uppercase tracking-widest mb-1">Active Friends</span>
-                  <span className="text-2xl font-mono font-bold text-white">0</span>
+                  <span className="text-2xl font-mono font-bold text-white">{friends.length}</span>
                 </div>
                 <div className="p-6 rounded-3xl bg-white/5 border border-white/10 flex flex-col items-center text-center">
                   <Clock className="w-6 h-6 text-emerald-400 mb-3" />
                   <span className="text-[10px] font-black text-white uppercase tracking-widest mb-1">Group Study Hours</span>
-                  <span className="text-2xl font-mono font-bold text-white">0.0h</span>
+                  <span className="text-2xl font-mono font-bold text-white">
+                    {(friends.reduce((acc, f) => acc + (f.stats.studySeconds || 0), 0) / 3600).toFixed(1)}h
+                  </span>
                 </div>
               </div>
 
-              <p className="text-center text-[9px] font-bold text-white/20 uppercase tracking-widest">
-                Invite friends to see their live study hours and questions solved here.
-              </p>
+              {friends.length > 0 && (
+                <div className="space-y-3 mt-8">
+                  <h4 className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-4">Live Friend Activity</h4>
+                  {friends.map((friend) => (
+                    <div key={friend.uid} className="p-4 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <img src={friend.photoURL} className="w-8 h-8 rounded-full border border-white/10" alt="" />
+                        <div>
+                          <div className="text-xs font-bold text-white">{friend.displayName}</div>
+                          <div className="text-[8px] font-black text-white/20 uppercase tracking-widest">Online</div>
+                        </div>
+                      </div>
+                      <div className="flex gap-6">
+                        <div className="text-right">
+                          <div className="text-[8px] font-black text-white/40 uppercase tracking-widest">Study</div>
+                          <div className="text-xs font-mono font-bold text-emerald-400">{(friend.stats.studySeconds / 3600).toFixed(1)}h</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-[8px] font-black text-white/40 uppercase tracking-widest">Solved</div>
+                          <div className="text-xs font-mono font-bold text-blue-400">{friend.stats.questionsSolved}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {friends.length === 0 && (
+                <p className="text-center text-[9px] font-bold text-white/20 uppercase tracking-widest">
+                  Link with friends using their unique codes to see live study data.
+                </p>
+              )}
             </div>
           </motion.div>
 

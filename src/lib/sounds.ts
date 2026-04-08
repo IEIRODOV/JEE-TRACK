@@ -10,7 +10,6 @@ const loadSound = async () => {
   
   if (!tickBuffer) {
     try {
-      // Using a more reliable CDN or local asset if possible, but synthesis is the ultimate fallback
       const response = await fetch('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3');
       const arrayBuffer = await response.arrayBuffer();
       tickBuffer = await audioContext.decodeAudioData(arrayBuffer);
@@ -26,7 +25,6 @@ const playSynthesizedTick = (ctx: AudioContext) => {
   const gainNode = ctx.createGain();
 
   oscillator.type = 'sine';
-  // High frequency short burst for a "tick"
   oscillator.frequency.setValueAtTime(1200, ctx.currentTime);
   oscillator.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.05);
 
@@ -40,10 +38,97 @@ const playSynthesizedTick = (ctx: AudioContext) => {
   oscillator.stop(ctx.currentTime + 0.05);
 };
 
-// Pre-load the sound
+// Synthesized check sound for checklist
+const playSynthesizedCheck = (ctx: AudioContext) => {
+  const oscillator = ctx.createOscillator();
+  const gainNode = ctx.createGain();
+
+  oscillator.type = 'sine';
+  oscillator.frequency.setValueAtTime(400, ctx.currentTime);
+  oscillator.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.1);
+
+  gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+
+  oscillator.connect(gainNode);
+  gainNode.connect(ctx.destination);
+
+  oscillator.start();
+  oscillator.stop(ctx.currentTime + 0.1);
+};
+
 if (typeof window !== 'undefined') {
   loadSound();
 }
+
+// Synthesized F1 car sound
+const playSynthesizedF1 = (ctx: AudioContext) => {
+  const duration = 2.0;
+  const now = ctx.currentTime;
+
+  // Main engine sound (sawtooth for richness)
+  const osc1 = ctx.createOscillator();
+  const osc2 = ctx.createOscillator();
+  const gainNode = ctx.createGain();
+  const filter = ctx.createBiquadFilter();
+
+  osc1.type = 'sawtooth';
+  osc2.type = 'square'; // Add some square wave for grit
+
+  // Doppler effect simulation: high pitch to low pitch
+  osc1.frequency.setValueAtTime(1000, now);
+  osc1.frequency.exponentialRampToValueAtTime(150, now + duration);
+  
+  osc2.frequency.setValueAtTime(1010, now); // Slightly detuned
+  osc2.frequency.exponentialRampToValueAtTime(155, now + duration);
+
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(3000, now);
+  filter.frequency.exponentialRampToValueAtTime(400, now + duration);
+
+  // Volume envelope
+  gainNode.gain.setValueAtTime(0, now);
+  gainNode.gain.linearRampToValueAtTime(0.4, now + 0.1); // Quick fade in
+  gainNode.gain.exponentialRampToValueAtTime(0.01, now + duration);
+
+  osc1.connect(filter);
+  osc2.connect(filter);
+  filter.connect(gainNode);
+  gainNode.connect(ctx.destination);
+
+  osc1.start(now);
+  osc2.start(now);
+  osc1.stop(now + duration);
+  osc2.stop(now + duration);
+};
+
+export const playF1Sound = async () => {
+  if (typeof window === 'undefined') return;
+
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+  }
+
+  if (audioContext.state === 'suspended') {
+    await audioContext.resume();
+  }
+
+  playSynthesizedF1(audioContext);
+};
+
+export const playCheckSound = async () => {
+  if (typeof window === 'undefined') return;
+
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+  }
+
+  if (audioContext.state === 'suspended') {
+    await audioContext.resume();
+  }
+
+  playSynthesizedCheck(audioContext);
+};
 
 export const playTickSound = async () => {
   if (typeof window === 'undefined') return;
@@ -65,7 +150,6 @@ export const playTickSound = async () => {
     gainNode.connect(audioContext.destination);
     source.start(0);
   } else {
-    // If buffer isn't ready or failed to load, use synthesized sound
     if (audioContext) {
       playSynthesizedTick(audioContext);
     }

@@ -23,7 +23,8 @@ import {
   Zap,
   Coffee,
   ExternalLink,
-  Trash2
+  Trash2,
+  Flag
 } from 'lucide-react';
 import PulseLoader from "@/components/ui/pulse-loader";
 import { 
@@ -68,6 +69,7 @@ interface Post {
   community: 'jee' | 'neet' | 'boards';
   likes: string[];
   reactions?: { [emoji: string]: string[] };
+  reports?: string[];
   comments?: Comment[];
   createdAt: Timestamp | null;
 }
@@ -286,6 +288,7 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
         community: selectedCommunity,
         likes: [],
         reactions: {},
+        reports: [],
         createdAt: serverTimestamp(),
       });
       setIsCreatingPost(false);
@@ -371,6 +374,39 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, 'posts', false);
       setError("Failed to delete post.");
+    }
+  };
+
+  const handleReportPost = async (postId: string) => {
+    if (!user) {
+      onAuthRequest?.();
+      return;
+    }
+
+    try {
+      const postRef = doc(db, 'posts', postId);
+      const post = posts.find(p => p.id === postId);
+      if (!post) return;
+
+      const currentReports = post.reports || [];
+      if (currentReports.includes(user.uid)) {
+        alert("You have already reported this post.");
+        return;
+      }
+
+      const newReports = [...currentReports, user.uid];
+      
+      if (newReports.length >= 7) {
+        await deleteDoc(postRef);
+        alert("Post has been removed due to multiple reports.");
+      } else {
+        await updateDoc(postRef, {
+          reports: arrayUnion(user.uid)
+        });
+        alert("Post reported. Thank you for keeping the community safe.");
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'posts', false);
     }
   };
 
@@ -807,6 +843,15 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
                                   title="Delete Post"
                                 >
                                   <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                              {user?.uid !== post.uid && (
+                                <button 
+                                  onClick={() => handleReportPost(post.id)}
+                                  className={`transition-colors p-1 ${post.reports?.includes(user?.uid || '') ? 'text-amber-500' : 'text-white/20 hover:text-amber-500'}`}
+                                  title="Report Post"
+                                >
+                                  <Flag className="w-4 h-4" />
                                 </button>
                               )}
                               <button className="text-[#818384] hover:text-[#d7dadc] transition-colors">
