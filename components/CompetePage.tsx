@@ -324,14 +324,6 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
                   >
                     <Share2 className="w-4 h-4" />
                   </motion.button>
-
-                  <button 
-                    onClick={() => auth.signOut()}
-                    className="p-3.5 rounded-2xl bg-white/5 border border-white/10 text-white/40 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
-                    title="Sign Out"
-                  >
-                    <Zap className="w-4 h-4" />
-                  </button>
                 </div>
               )}
             </div>

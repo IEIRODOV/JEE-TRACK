@@ -80,57 +80,64 @@ const Notifications = () => {
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
               className="absolute right-0 mt-4 w-80 bg-[#0a0a0b] border border-white/10 rounded-[24px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-[101] overflow-hidden"
             >
-              <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-                <h3 className="text-[10px] font-black text-white/40 uppercase tracking-widest">Notifications</h3>
+              <div className="p-5 border-b border-white/5 flex items-center justify-between bg-white/[0.03] backdrop-blur-md">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" />
+                  <h3 className="text-[11px] font-black text-white uppercase tracking-[0.2em]">Inbox</h3>
+                </div>
                 {unreadCount > 0 && (
                   <button 
                     onClick={markAllAsRead}
-                    className="text-[8px] font-black text-purple-400 uppercase tracking-widest hover:text-purple-300 transition-colors"
+                    className="px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-[9px] font-black text-purple-400 uppercase tracking-widest hover:bg-purple-500 hover:text-white transition-all"
                   >
-                    Mark all read
+                    Clear All
                   </button>
                 )}
               </div>
 
-              <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+              <div className="max-h-[450px] overflow-y-auto custom-scrollbar">
                 {notifications.length === 0 ? (
-                  <div className="p-12 text-center">
-                    <Bell className="w-8 h-8 text-white/5 mx-auto mb-3" />
+                  <div className="p-16 text-center">
+                    <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/5">
+                      <Bell className="w-8 h-8 text-white/10" />
+                    </div>
                     <p className="text-[10px] font-black text-white/20 uppercase tracking-widest leading-relaxed">
-                      No notifications yet
+                      All caught up!
                     </p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-white/5">
+                  <div className="divide-y divide-white/[0.03]">
                     {notifications.map((notif) => (
                       <div 
                         key={notif.id}
-                        className={`p-4 flex gap-3 transition-colors hover:bg-white/[0.02] ${!notif.read ? 'bg-purple-500/[0.03]' : ''}`}
+                        className={`p-5 flex gap-4 transition-all hover:bg-white/[0.04] cursor-pointer group relative ${!notif.read ? 'bg-purple-500/[0.04]' : ''}`}
                         onClick={() => markAsRead(notif.id)}
                       >
+                        {!notif.read && (
+                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.5)]" />
+                        )}
                         <div className="relative shrink-0">
                           <img 
                             src={notif.fromPhoto || `https://ui-avatars.com/api/?name=${notif.fromName}&background=random`} 
-                            className="w-8 h-8 rounded-full border border-white/10" 
+                            className="w-10 h-10 rounded-2xl border border-white/10 object-cover" 
                             alt="" 
                           />
-                          <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center border-2 border-[#0a0a0b] ${notif.type === 'reaction' ? 'bg-rose-500' : 'bg-blue-500'}`}>
-                            {notif.type === 'reaction' ? <Heart className="w-2 h-2 text-white" /> : <MessageSquare className="w-2 h-2 text-white" />}
+                          <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-lg flex items-center justify-center border-2 border-[#0a0a0b] shadow-lg ${notif.type === 'reaction' ? 'bg-rose-500' : 'bg-blue-500'}`}>
+                            {notif.type === 'reaction' ? <Heart className="w-2.5 h-2.5 text-white" /> : <MessageSquare className="w-2.5 h-2.5 text-white" />}
                           </div>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[11px] text-white/80 leading-relaxed">
-                            <span className="font-black text-white">{notif.fromName}</span>
-                            {notif.type === 'reaction' ? ' reacted ' : ' replied to your post: '}
-                            <span className="text-white/40 italic">"{notif.content}"</span>
-                          </p>
-                          <p className="text-[8px] font-black text-white/20 uppercase tracking-widest mt-1">
-                            {notif.createdAt?.toDate ? new Date(notif.createdAt.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[12px] font-black text-white group-hover:text-purple-400 transition-colors">{notif.fromName}</span>
+                            <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">
+                              {notif.createdAt?.toDate ? new Date(notif.createdAt.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-white/50 leading-relaxed line-clamp-2">
+                            {notif.type === 'reaction' ? 'reacted to your post' : 'replied to your comment'}:
+                            <span className="text-white/80 font-medium ml-1 italic">"{notif.content}"</span>
                           </p>
                         </div>
-                        {!notif.read && (
-                          <div className="w-1.5 h-1.5 rounded-full bg-purple-500 mt-2 shrink-0 shadow-[0_0_5px_rgba(147,51,234,0.5)]" />
-                        )}
                       </div>
                     ))}
                   </div>

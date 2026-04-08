@@ -181,7 +181,9 @@ const WeeklyTargets = () => {
                   className={`flex flex-col items-center p-3 rounded-2xl border transition-all duration-300 relative
                     ${activeDay === idx 
                       ? 'bg-purple-500 border-purple-400 text-white shadow-[0_0_20px_rgba(168,85,247,0.3)] scale-105 z-10' 
-                      : 'bg-white/5 border-white/5 text-white/40 hover:bg-white/10 hover:border-white/10'}`}
+                      : allDone
+                        ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400'
+                        : 'bg-white/5 border-white/5 text-white/40 hover:bg-white/10 hover:border-white/10'}`}
                 >
                   <span className="text-[8px] font-black uppercase tracking-tighter mb-1">{day.substring(0, 3)}</span>
                   <span className="text-lg font-black font-heading">{dayDate.getDate()}</span>
@@ -191,7 +193,7 @@ const WeeklyTargets = () => {
                   )}
                   
                   {hasTargets && (
-                    <div className={`mt-2 w-1.5 h-1.5 rounded-full ${allDone ? 'bg-emerald-400' : 'bg-white/20'}`} />
+                    <div className={`mt-2 w-1.5 h-1.5 rounded-full ${allDone ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-white/20'}`} />
                   )}
                 </button>
               );
@@ -286,18 +288,19 @@ const WeeklyTargets = () => {
                     const targets = weeklyData[idx] || [];
                     const completed = targets.filter(t => t.completed).length;
                     const progress = targets.length > 0 ? (completed / targets.length) * 100 : 0;
+                    const allDone = targets.length > 0 && targets.every(t => t.completed);
                     
                     return (
                       <div key={day} className="space-y-1.5">
                         <div className="flex justify-between text-[9px] font-bold uppercase tracking-widest">
-                          <span className={activeDay === idx ? 'text-purple-400' : 'text-white/30'}>{day}</span>
+                          <span className={activeDay === idx ? 'text-purple-400' : allDone ? 'text-emerald-400' : 'text-white/30'}>{day}</span>
                           <span className="text-white/20">{completed}/{targets.length}</span>
                         </div>
                         <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
                           <motion.div 
                             initial={{ width: 0 }}
                             animate={{ width: `${progress}%` }}
-                            className={`h-full rounded-full ${activeDay === idx ? 'bg-purple-500' : 'bg-white/10'}`}
+                            className={`h-full rounded-full ${activeDay === idx ? 'bg-purple-500' : allDone ? 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]' : 'bg-white/10'}`}
                           />
                         </div>
                       </div>

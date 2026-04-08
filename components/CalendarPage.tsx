@@ -1011,13 +1011,20 @@ const CalendarPage = () => {
               <div className="h-px flex-1 bg-white/10" />
             </div>
 
-            <div className="mb-8 p-6 rounded-3xl bg-purple-500/5 border border-purple-500/20 backdrop-blur-xl flex items-center gap-4">
-              <div className="p-3 rounded-2xl bg-purple-500/20 text-purple-400">
-                <CalendarIcon className="w-5 h-5" />
+            <div className="mb-8 p-8 rounded-[32px] bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-transparent border border-purple-500/20 backdrop-blur-3xl flex flex-col md:flex-row items-center gap-6 relative overflow-hidden group">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(168,85,247,0.1),transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+              <div className="p-5 rounded-[24px] bg-purple-500/20 text-purple-400 shadow-[0_0_30px_rgba(168,85,247,0.2)] relative z-10">
+                <CalendarIcon className="w-8 h-8" />
               </div>
-              <div>
-                <h3 className="text-sm font-black text-white uppercase tracking-widest mb-1">Interactive Scheduling</h3>
-                <p className="text-xs text-white/40 font-medium">Simply click on any date in the calendar above to mark it as a mock test day.</p>
+              <div className="relative z-10 text-center md:text-left">
+                <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2">Interactive Scheduling</h3>
+                <p className="text-sm text-white/60 font-medium leading-relaxed max-w-lg">
+                  Plan your success visually. Simply <span className="text-purple-400 font-black">click any date</span> in the calendar above to instantly toggle a mock test session.
+                </p>
+              </div>
+              <div className="md:ml-auto flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-[10px] font-black text-white/40 uppercase tracking-widest relative z-10">
+                <Zap className="w-3 h-3 text-purple-400" />
+                Quick Action Enabled
               </div>
             </div>
             

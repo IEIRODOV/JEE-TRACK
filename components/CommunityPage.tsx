@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import Notifications from './Notifications';
 import { 
   Send, 
   MessageSquare, 
@@ -130,6 +131,105 @@ const RESOURCES = {
       color: "text-yellow-400",
       bg: "bg-yellow-500/10",
       link: "https://www.youtube.com/@physicsgalaxyworld"
+    },
+    {
+      title: "Unacademy JEE",
+      description: "Daily live sessions for JEE Main & Advanced by top educators.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-blue-500",
+      bg: "bg-blue-500/10",
+      link: "https://www.youtube.com/@UnacademyJEE"
+    },
+    {
+      title: "Vedantu JEE",
+      description: "Comprehensive JEE prep with focus on problem solving and strategy.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-orange-400",
+      bg: "bg-orange-500/10",
+      link: "https://www.youtube.com/@VedantuJEE"
+    },
+    {
+      title: "Mohit Tyagi",
+      description: "Legendary math and science lectures for JEE Advanced preparation.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-purple-400",
+      bg: "bg-purple-500/10",
+      link: "https://www.youtube.com/@MohitTyagi"
+    },
+    {
+      title: "JEE Nexus",
+      description: "Quick revisions and high-yield problem solving for JEE Main.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-cyan-400",
+      bg: "bg-cyan-500/10",
+      link: "https://www.youtube.com/@JEENexus"
+    },
+    {
+      title: "ATP STAR JEE",
+      description: "Effective strategy and concept-based learning for JEE aspirants.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-rose-400",
+      bg: "bg-rose-500/10",
+      link: "https://www.youtube.com/@ATPSTARJEE"
+    },
+    {
+      title: "Etoos Education",
+      description: "Video lectures from top Kota faculty for JEE preparation.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-indigo-400",
+      bg: "bg-indigo-500/10",
+      link: "https://www.youtube.com/@EtoosEducation"
+    },
+    {
+      title: "Competishun",
+      description: "Structured JEE preparation from basics to advanced level.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-emerald-500",
+      bg: "bg-emerald-500/10",
+      link: "https://www.youtube.com/@Competishun"
+    },
+    {
+      title: "Physics Wallah JEE",
+      description: "Alakh Pandey's dedicated channel for JEE Physics and Chemistry.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-blue-600",
+      bg: "bg-blue-600/10",
+      link: "https://www.youtube.com/@PhysicsWallah"
+    },
+    {
+      title: "Simply Concise",
+      description: "Short, effective revision videos for JEE Chemistry and Physics.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-amber-400",
+      bg: "bg-amber-500/10",
+      link: "https://www.youtube.com/@SimplyConcise"
+    },
+    {
+      title: "Vora Classes",
+      description: "JEE preparation by NV Sir and Sakshi Vora Ma'am.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-pink-400",
+      bg: "bg-pink-500/10",
+      link: "https://www.youtube.com/@VoraClasses"
+    },
+    {
+      title: "IITian Explains",
+      description: "Advanced problem solving and organic chemistry mechanisms.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-sky-400",
+      bg: "bg-sky-500/10",
+      link: "https://www.youtube.com/@IITianExplains"
     }
   ],
   neet: [
@@ -168,26 +268,125 @@ const RESOURCES = {
       color: "text-rose-400",
       bg: "bg-rose-500/10",
       link: "https://www.youtube.com/@CompetitionWallah"
+    },
+    {
+      title: "Vedantu Biotonic",
+      description: "Dedicated biology channel for NEET preparation by Vani Ma'am.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-pink-500",
+      bg: "bg-pink-500/10",
+      link: "https://www.youtube.com/@VedantuBiotonic"
+    },
+    {
+      title: "BeWise Classes",
+      description: "Chemistry specialist for NEET with focus on NCERT and tricks.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-orange-500",
+      bg: "bg-orange-500/10",
+      link: "https://www.youtube.com/@BeWiseClasses"
+    },
+    {
+      title: "Garima Goel Biology",
+      description: "Simplified biology concepts and NCERT decoding for NEET.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-purple-500",
+      bg: "bg-purple-500/10",
+      link: "https://www.youtube.com/@GarimaGoelBiology"
+    },
+    {
+      title: "Aakash BYJU'S NEET",
+      description: "Expert faculty lectures and strategy from Aakash Institute.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-sky-500",
+      bg: "bg-sky-500/10",
+      link: "https://www.youtube.com/@AakashBYJUSNEET"
+    },
+    {
+      title: "Darwin - NEET Prep",
+      description: "MCQ practice and high-yield topic discussions for NEET.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-indigo-500",
+      bg: "bg-indigo-500/10",
+      link: "https://www.youtube.com/@DarwinNEET"
+    },
+    {
+      title: "Seep Pahuja Biology",
+      description: "Biology lectures with focus on memory tricks and NCERT.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-rose-500",
+      bg: "bg-rose-500/10",
+      link: "https://www.youtube.com/@SeepPahuja"
+    },
+    {
+      title: "Biology at Ease",
+      description: "Mnemonics and easy ways to remember complex biology topics.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-teal-500",
+      bg: "bg-teal-500/10",
+      link: "https://www.youtube.com/@BiologyAtEase"
+    },
+    {
+      title: "NEET Prep by Dr. NK Sharma",
+      description: "Strategy and biology guidance for NEET aspirants.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-cyan-500",
+      bg: "bg-cyan-500/10",
+      link: "https://www.youtube.com/@NEETprep"
+    },
+    {
+      title: "Rakshita Singh",
+      description: "NEET preparation strategy and biology notes.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-violet-500",
+      bg: "bg-violet-500/10",
+      link: "https://www.youtube.com/@RakshitaSingh"
+    },
+    {
+      title: "Tamanna Chaudhary",
+      description: "Physics for NEET simplified with daily practice problems.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-amber-500",
+      bg: "bg-amber-500/10",
+      link: "https://www.youtube.com/@TamannaChaudhary"
+    },
+    {
+      title: "Physics Sir JEE (NEET)",
+      description: "Conceptual physics for NEET with focus on numericals.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-blue-400",
+      bg: "bg-blue-500/10",
+      link: "https://www.youtube.com/@PhysicsSirJEE"
     }
   ],
   boards: [
     {
-      title: "CBSE Class 12 Boards",
-      description: "Official sample papers, previous year questions, and marking schemes.",
-      type: "Official",
-      icon: BookOpen,
-      color: "text-blue-400",
-      bg: "bg-blue-500/10",
-      link: "https://cbseacademic.nic.in/SQP_CLASSXII_2023-24.html"
+      title: "LearnHub - Class 11, 12",
+      description: "Simplest explanations for Physics, Chemistry, and Math for Board exams.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-purple-400",
+      bg: "bg-purple-500/10",
+      link: "https://www.youtube.com/@LearnoHubClass1112"
     },
     {
-      title: "LearnCBSE",
-      description: "NCERT Solutions, sample papers, and notes for all subjects.",
-      type: "Website",
-      icon: BookOpen,
-      color: "text-emerald-400",
-      bg: "bg-emerald-500/10",
-      link: "https://www.learncbse.in/"
+      title: "Apni Kaksha",
+      description: "High-quality notes and lectures for CBSE Class 12 Boards.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-blue-400",
+      bg: "bg-blue-500/10",
+      link: "https://www.youtube.com/@ApniKaksha"
     },
     {
       title: "Magnet Brains",
@@ -197,6 +396,114 @@ const RESOURCES = {
       color: "text-red-400",
       bg: "bg-red-500/10",
       link: "https://www.youtube.com/@MagnetBrainsEducation"
+    },
+    {
+      title: "Bharat Panchal - Chemistry",
+      description: "Chemistry guru for CBSE Boards with amazing one-shot videos.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-emerald-400",
+      bg: "bg-emerald-500/10",
+      link: "https://www.youtube.com/@BharatPanchalChemistry"
+    },
+    {
+      title: "Arvind Academy",
+      description: "Physics and Math specialist for Class 12 Board exams.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-orange-400",
+      bg: "bg-orange-500/10",
+      link: "https://www.youtube.com/@ArvindAcademy"
+    },
+    {
+      title: "Shipra Mishra",
+      description: "English and Business Studies for CBSE Class 12.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-blue-500",
+      bg: "bg-blue-500/10",
+      link: "https://www.youtube.com/@ShipraMishra"
+    },
+    {
+      title: "Adda247 School",
+      description: "Comprehensive board preparation for all streams.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-yellow-500",
+      bg: "bg-yellow-500/10",
+      link: "https://www.youtube.com/@Adda247School"
+    },
+    {
+      title: "Physics Baba",
+      description: "Physics simplified for Board exams with focus on derivations.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-sky-500",
+      bg: "bg-sky-500/10",
+      link: "https://www.youtube.com/@PhysicsBaba"
+    },
+    {
+      title: "Sourabh Raina",
+      description: "Chemistry one-shots and important questions for Boards.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-teal-500",
+      bg: "bg-teal-500/10",
+      link: "https://www.youtube.com/@SourabhRaina"
+    },
+    {
+      title: "Zaki Saudagar",
+      description: "Physical Education and Physics for Class 12 Boards.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-indigo-500",
+      bg: "bg-indigo-500/10",
+      link: "https://www.youtube.com/@ZakiSaudagar"
+    },
+    {
+      title: "Shobhit Nirwan",
+      description: "Motivation and notes for Class 10 and 12 Board exams.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-amber-500",
+      bg: "bg-amber-500/10",
+      link: "https://www.youtube.com/@ShobhitNirwan"
+    },
+    {
+      title: "Sunil Panda",
+      description: "Commerce specialist for Class 12 Boards (Accounts, Eco, BST).",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-green-600",
+      bg: "bg-green-600/10",
+      link: "https://www.youtube.com/@SunilPandaCommerce"
+    },
+    {
+      title: "Gaurav Suthar",
+      description: "Science and Math for Class 10 Boards with handwritten notes.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-cyan-600",
+      bg: "bg-cyan-600/10",
+      link: "https://www.youtube.com/@GauravSuthar"
+    },
+    {
+      title: "Bhai Ki Padhai",
+      description: "Fun and engaging explanations for Class 9 and 10 subjects.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-rose-600",
+      bg: "bg-rose-600/10",
+      link: "https://www.youtube.com/@BhaiKiPadhai"
+    },
+    {
+      title: "Simran Sahni",
+      description: "Humanities and English specialist for Class 12 Boards.",
+      type: "YouTube",
+      icon: PlayCircle,
+      color: "text-pink-400",
+      bg: "bg-pink-500/10",
+      link: "https://www.youtube.com/@SimranSahni"
     }
   ]
 };
@@ -565,27 +872,33 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
             ))}
           </div>
 
-          <div className="flex bg-black/40 p-1.5 rounded-2xl border border-white/5">
-            <button
-              onClick={() => setActiveView('feed')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl transition-all text-xs font-black uppercase tracking-widest
-                ${activeView === 'feed' 
-                  ? 'bg-white/10 text-white border border-white/10' 
-                  : 'text-white/40 hover:text-white/60'}`}
-            >
-              <Users className="w-4 h-4" />
-              Community Feed
-            </button>
-            <button
-              onClick={() => setActiveView('resources')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl transition-all text-xs font-black uppercase tracking-widest
-                ${activeView === 'resources' 
-                  ? 'bg-white/10 text-white border border-white/10' 
-                  : 'text-white/40 hover:text-white/60'}`}
-            >
-              <Target className="w-4 h-4" />
-              Resource Hub
-            </button>
+          <div className="flex items-center gap-4">
+            <div className="flex bg-black/40 p-1.5 rounded-2xl border border-white/5">
+              <button
+                onClick={() => setActiveView('feed')}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl transition-all text-xs font-black uppercase tracking-widest
+                  ${activeView === 'feed' 
+                    ? 'bg-white/10 text-white border border-white/10' 
+                    : 'text-white/40 hover:text-white/60'}`}
+              >
+                <Users className="w-4 h-4" />
+                Community Feed
+              </button>
+              <button
+                onClick={() => setActiveView('resources')}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl transition-all text-xs font-black uppercase tracking-widest
+                  ${activeView === 'resources' 
+                    ? 'bg-white/10 text-white border border-white/10' 
+                    : 'text-white/40 hover:text-white/60'}`}
+              >
+                <Target className="w-4 h-4" />
+                Resource Hub
+              </button>
+            </div>
+            
+            <div className="hidden md:block h-8 w-px bg-white/5" />
+            
+            <Notifications />
           </div>
         </div>
 
@@ -870,17 +1183,17 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
                         {/* Vote Sidebar (Reddit Style) */}
                         <div className="w-10 bg-[#151516] flex flex-col items-center py-3 gap-1 border-r border-[#343536]">
                           <button 
-                            onClick={() => handleReaction(post.id, '👍')}
-                            className={`p-1 rounded hover:bg-white/5 transition-all ${post.reactions?.['👍']?.includes(user?.uid || '') ? 'text-orange-500' : 'text-[#818384]'}`}
+                            onClick={() => handleReaction(post.id, 'upvote')}
+                            className={`p-1 rounded hover:bg-white/5 transition-all ${post.reactions?.['upvote']?.includes(user?.uid || '') ? 'text-orange-500' : 'text-[#818384]'}`}
                           >
                             <TrendingUp className="w-5 h-5" />
                           </button>
-                          <span className={`text-[10px] font-black ${post.reactions?.['👍']?.includes(user?.uid || '') ? 'text-orange-500' : 'text-[#d7dadc]'}`}>
-                            {(post.reactions?.['👍']?.length || 0) + (post.reactions?.['❤️']?.length || 0) - (post.reactions?.['🔥']?.length || 0)}
+                          <span className={`text-[10px] font-black ${post.reactions?.['upvote']?.includes(user?.uid || '') ? 'text-orange-500' : 'text-[#d7dadc]'}`}>
+                            {(post.reactions?.['upvote']?.length || 0) - (post.reactions?.['downvote']?.length || 0)}
                           </span>
                           <button 
-                            onClick={() => handleReaction(post.id, '🔥')}
-                            className={`p-1 rounded hover:bg-white/5 transition-all ${post.reactions?.['🔥']?.includes(user?.uid || '') ? 'text-blue-500' : 'text-[#818384]'}`}
+                            onClick={() => handleReaction(post.id, 'downvote')}
+                            className={`p-1 rounded hover:bg-white/5 transition-all ${post.reactions?.['downvote']?.includes(user?.uid || '') ? 'text-blue-500' : 'text-[#818384]'}`}
                           >
                             <TrendingUp className="w-5 h-5 rotate-180" />
                           </button>
@@ -935,9 +1248,9 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
                           </div>
 
                           {/* Reactions Display */}
-                          {post.reactions && Object.entries(post.reactions).some(([emoji, uids]) => !['👍', '🔥'].includes(emoji) && (uids as string[]).length > 0) && (
+                          {post.reactions && Object.entries(post.reactions).some(([emoji, uids]) => !['upvote', 'downvote'].includes(emoji) && (uids as string[]).length > 0) && (
                             <div className="flex flex-wrap gap-1.5 mb-3">
-                              {Object.entries(post.reactions).map(([emoji, uids]) => !['👍', '🔥'].includes(emoji) && (uids as string[]).length > 0 && (
+                              {Object.entries(post.reactions).map(([emoji, uids]) => !['upvote', 'downvote'].includes(emoji) && (uids as string[]).length > 0 && (
                                 <button
                                   key={emoji}
                                   onClick={() => handleReaction(post.id, emoji)}

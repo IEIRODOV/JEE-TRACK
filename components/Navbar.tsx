@@ -2,7 +2,6 @@ import React from 'react';
 import { LayoutDashboard, Calendar as CalendarIcon, Trophy, MessageSquare } from 'lucide-react';
 import { motion } from 'motion/react';
 import { auth, signOut } from '@/src/firebase';
-import Notifications from './Notifications';
 
 interface NavbarProps {
   activeTab: 'dashboard' | 'calendar' | 'compete' | 'community' | 'profile';
@@ -41,10 +40,6 @@ const Navbar = ({ activeTab, setActiveTab }: NavbarProps) => {
             {idx < 3 && <div className="w-px h-4 bg-white/5 mx-0.5" />}
           </React.Fragment>
         ))}
-      </div>
-      
-      <div className="p-1.5 rounded-[24px] border border-white/10 backdrop-blur-3xl bg-black/40 shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-1 ring-white/5">
-        <Notifications />
       </div>
     </div>
   );
