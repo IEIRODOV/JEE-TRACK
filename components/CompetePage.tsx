@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Users, Target, Zap, ChevronRight, Globe, ShieldCheck, TrendingUp, Medal, Plus, Share2, Award, Clock } from 'lucide-react';
+import { Trophy, Users, Target, Zap, ChevronRight, Globe, ShieldCheck, TrendingUp, Medal, Plus, Share2, Award, Clock, Trash2 } from 'lucide-react';
 import PulseLoader from "@/components/ui/pulse-loader";
 import { motion, AnimatePresence } from 'motion/react';
 import AnoAI from "@/components/ui/animated-shader-background";
-import { auth, onAuthStateChanged, User, db, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, limit, Timestamp, setDoc, doc, getDoc, getDocs, where, arrayUnion, increment, handleFirestoreError, OperationType } from '@/src/firebase';
+import { auth, onAuthStateChanged, User, db, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, limit, Timestamp, setDoc, doc, getDoc, getDocs, where, arrayUnion, arrayRemove, increment, handleFirestoreError, OperationType } from '@/src/firebase';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -43,6 +43,8 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
   const [inputCode, setInputCode] = useState<string>('');
   const [friends, setFriends] = useState<any[]>([]);
   const [isLinking, setIsLinking] = useState(false);
+  const [removingFriendId, setRemovingFriendId] = useState<string | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -127,6 +129,32 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
       alert("Failed to link friend.");
     } finally {
       setIsLinking(false);
+    }
+  };
+
+  const handleRemoveFriend = async () => {
+    if (!user || !removingFriendId) return;
+    setIsRemoving(true);
+
+    try {
+      const friendId = removingFriendId;
+      
+      // Mutual removal
+      await setDoc(doc(db, 'users', user.uid), {
+        friends: arrayRemove(friendId)
+      }, { merge: true });
+
+      await setDoc(doc(db, 'users', friendId), {
+        friends: arrayRemove(user.uid)
+      }, { merge: true });
+
+      setRemovingFriendId(null);
+      alert("Friend removed.");
+    } catch (error) {
+      console.error("Error removing friend:", error);
+      alert("Failed to remove friend.");
+    } finally {
+      setIsRemoving(false);
     }
   };
 
@@ -530,15 +558,24 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
                           <div className="text-[8px] font-black text-white/20 uppercase tracking-widest">Online</div>
                         </div>
                       </div>
-                      <div className="flex gap-6">
-                        <div className="text-right">
-                          <div className="text-[8px] font-black text-white/40 uppercase tracking-widest">Study</div>
-                          <div className="text-xs font-mono font-bold text-emerald-400">{(friend.stats.studySeconds / 3600).toFixed(1)}h</div>
+                      <div className="flex gap-6 items-center">
+                        <div className="flex gap-6">
+                          <div className="text-right">
+                            <div className="text-[8px] font-black text-white/40 uppercase tracking-widest">Study</div>
+                            <div className="text-xs font-mono font-bold text-emerald-400">{(friend.stats.studySeconds / 3600).toFixed(1)}h</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-[8px] font-black text-white/40 uppercase tracking-widest">Solved</div>
+                            <div className="text-xs font-mono font-bold text-blue-400">{friend.stats.questionsSolved}</div>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-[8px] font-black text-white/40 uppercase tracking-widest">Solved</div>
-                          <div className="text-xs font-mono font-bold text-blue-400">{friend.stats.questionsSolved}</div>
-                        </div>
+                        <button 
+                          onClick={() => setRemovingFriendId(friend.uid)}
+                          className="p-2 rounded-lg bg-white/5 border border-white/10 text-white/20 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
+                          title="Remove Friend"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -568,6 +605,47 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
           </motion.div>
         </motion.div>
       </div>
+
+      <AnimatePresence>
+        {removingFriendId && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="w-full max-w-md bg-[#0a0a0b] border border-white/10 rounded-[32px] p-8 text-center shadow-[0_0_50px_rgba(0,0,0,0.5)]"
+            >
+              <div className="w-16 h-16 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Trash2 className="w-8 h-8 text-rose-500" />
+              </div>
+              <h2 className="text-2xl font-black text-white mb-2 uppercase tracking-tighter">Remove Friend?</h2>
+              <p className="text-white/40 text-[10px] mb-8 leading-relaxed uppercase tracking-widest font-bold">
+                Are you sure you want to remove this friend? You will no longer see their live study progress.
+              </p>
+              <div className="flex flex-col gap-3">
+                <button 
+                  onClick={handleRemoveFriend}
+                  disabled={isRemoving}
+                  className="w-full py-4 bg-rose-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-rose-500 transition-all shadow-[0_0_20px_rgba(225,29,72,0.2)] disabled:opacity-50"
+                >
+                  {isRemoving ? 'Removing...' : 'Confirm Removal'}
+                </button>
+                <button 
+                  onClick={() => setRemovingFriendId(null)}
+                  className="w-full py-4 bg-white/5 text-white/40 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-white/10 transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
