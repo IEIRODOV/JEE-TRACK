@@ -27,7 +27,9 @@ import {
   Trash2,
   Flag,
   FlaskConical,
-  ShieldCheck
+  ShieldCheck,
+  Pencil,
+  ThumbsUp
 } from 'lucide-react';
 import PulseLoader from "@/components/ui/pulse-loader";
 import { 
@@ -528,6 +530,11 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
   const [replyText, setReplyText] = useState<{ [postId: string]: string }>({});
   const [showWarning, setShowWarning] = useState(true);
   const [reportingPostId, setReportingPostId] = useState<string | null>(null);
+  const [editingPostId, setEditingPostId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
+  const [editingCommentId, setEditingCommentId] = useState<{ postId: string, commentId: string } | null>(null);
+  const [editCommentText, setEditCommentText] = useState('');
+  const [showCommentInput, setShowCommentInput] = useState<string | null>(null);
   const [userRanks, setUserRanks] = useState<Record<string, any>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -699,6 +706,57 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
       }
 
       await updateDoc(postRef, updates);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'posts', false);
+    }
+  };
+
+  const handleEditPost = async (postId: string) => {
+    if (!user || !editText.trim()) return;
+    try {
+      await updateDoc(doc(db, 'posts', postId), {
+        text: editText.trim(),
+        lastEdited: serverTimestamp()
+      });
+      setEditingPostId(null);
+      setEditText('');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'posts', false);
+    }
+  };
+
+  const handleDeleteComment = async (postId: string, commentId: string) => {
+    if (!user) return;
+    if (!window.confirm("Delete this comment?")) return;
+
+    try {
+      const post = posts.find(p => p.id === postId);
+      if (!post || !post.comments) return;
+
+      const newComments = post.comments.filter(c => c.id !== commentId);
+      await updateDoc(doc(db, 'posts', postId), {
+        comments: newComments
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'posts', false);
+    }
+  };
+
+  const handleEditComment = async (postId: string, commentId: string) => {
+    if (!user || !editCommentText.trim()) return;
+    try {
+      const post = posts.find(p => p.id === postId);
+      if (!post || !post.comments) return;
+
+      const newComments = post.comments.map(c => 
+        c.id === commentId ? { ...c, text: editCommentText.trim(), lastEdited: Timestamp.now() } : c
+      );
+
+      await updateDoc(doc(db, 'posts', postId), {
+        comments: newComments
+      });
+      setEditingCommentId(null);
+      setEditCommentText('');
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, 'posts', false);
     }
@@ -1217,91 +1275,104 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95 }}
                         transition={{ delay: index * 0.05 }}
-                        className="bg-[#1a1a1b] rounded-xl border border-[#343536] hover:border-[#818384] transition-all group shadow-lg relative overflow-hidden flex"
+                        className="bg-[#1a1a1b] rounded-2xl border border-[#343536] hover:border-[#474849] transition-all group shadow-xl relative overflow-hidden flex flex-col"
                       >
-                        {/* Vote Sidebar (Reddit Style) */}
-                        <div className="w-10 bg-[#151516] flex flex-col items-center py-3 gap-1 border-r border-[#343536]">
-                          <button 
-                            onClick={() => handleReaction(post.id, 'upvote')}
-                            className={`p-1 rounded hover:bg-white/5 transition-all ${post.reactions?.['upvote']?.includes(user?.uid || '') ? 'text-orange-500' : 'text-[#818384]'}`}
-                          >
-                            <TrendingUp className="w-5 h-5" />
-                          </button>
-                          <span className={`text-[10px] font-black ${post.reactions?.['upvote']?.includes(user?.uid || '') ? 'text-orange-500' : 'text-[#d7dadc]'}`}>
-                            {(post.reactions?.['upvote']?.length || 0) - (post.reactions?.['downvote']?.length || 0)}
-                          </span>
-                          <button 
-                            onClick={() => handleReaction(post.id, 'downvote')}
-                            className={`p-1 rounded hover:bg-white/5 transition-all ${post.reactions?.['downvote']?.includes(user?.uid || '') ? 'text-blue-500' : 'text-[#818384]'}`}
-                          >
-                            <TrendingUp className="w-5 h-5 rotate-180" />
-                          </button>
-                        </div>
-
-                        <div className="flex-1 p-3">
-                          <div className="flex items-center gap-2 mb-2">
+                        <div className="p-4">
+                          <div className="flex items-center gap-3 mb-4">
                             <img 
                               src={post.photoURL} 
-                              className="w-6 h-6 rounded-full border border-[#343536]"
+                              className="w-10 h-10 rounded-full border border-[#343536] shadow-lg"
                               alt={post.displayName}
                             />
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[11px] font-bold text-[#d7dadc]">r/{post.community}</span>
-                              <span className="text-[10px] text-[#818384]">•</span>
-                              <span className="text-[10px] text-[#818384]">Posted by</span>
-                              {userRanks[post.uid] && (
-                                <span className={`text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded bg-white/5 border border-white/10 flex items-center gap-1 ${userRanks[post.uid].color}`}>
-                                  {userRanks[post.uid].icon} {userRanks[post.uid].title}
-                                </span>
-                              )}
-                              <span className="text-[10px] text-[#818384]">u/{post.displayName}</span>
-                              <span className="text-[10px] text-[#818384]">•</span>
-                              <span className="text-[10px] text-[#818384]">{formatTime(post.createdAt)}</span>
+                            <div className="flex flex-col">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-black text-white">u/{post.displayName}</span>
+                                {userRanks[post.uid] && (
+                                  <span className={`text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded bg-white/5 border border-white/10 flex items-center gap-1 ${userRanks[post.uid].color}`}>
+                                    {userRanks[post.uid].icon} {userRanks[post.uid].title}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-bold text-purple-400">r/{post.community}</span>
+                                <span className="text-[10px] text-[#818384]">•</span>
+                                <span className="text-[10px] text-[#818384]">{formatTime(post.createdAt)}</span>
+                              </div>
                             </div>
                             <div className="ml-auto flex items-center gap-2">
-                              <span className="px-1.5 py-0.5 rounded bg-[#272729] border border-[#343536] text-[8px] font-black text-purple-400 uppercase tracking-widest">
-                                {post.category}
-                              </span>
                               {user?.uid === post.uid && (
-                                <button 
-                                  onClick={() => handleDeletePost(post.id)}
-                                  className="text-rose-500/40 hover:text-rose-500 transition-colors p-1"
-                                  title="Delete Post"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
+                                <div className="flex items-center gap-1">
+                                  <button 
+                                    onClick={() => {
+                                      setEditingPostId(post.id);
+                                      setEditText(post.text);
+                                    }}
+                                    className="text-blue-400/60 hover:text-blue-400 transition-colors p-2 hover:bg-white/5 rounded-xl"
+                                    title="Edit Post"
+                                  >
+                                    <Pencil className="w-4 h-4" />
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDeletePost(post.id)}
+                                    className="text-rose-500/60 hover:text-rose-500 transition-colors p-2 hover:bg-white/5 rounded-xl"
+                                    title="Delete Post"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
                               )}
                               {user?.uid !== post.uid && (
                                 <button 
                                   onClick={() => handleReportPost(post.id)}
-                                  className={`transition-colors p-1 ${post.reports?.includes(user?.uid || '') ? 'text-amber-500' : 'text-white/20 hover:text-amber-500'}`}
+                                  className={`transition-colors p-2 hover:bg-white/5 rounded-xl ${post.reports?.includes(user?.uid || '') ? 'text-amber-500' : 'text-white/20 hover:text-amber-500'}`}
                                   title="Report Post"
                                 >
                                   <Flag className="w-4 h-4" />
                                 </button>
                               )}
-                              <button className="text-[#818384] hover:text-[#d7dadc] transition-colors">
-                                <MoreVertical className="w-4 h-4" />
-                              </button>
                             </div>
                           </div>
                           
-                          <div className="mb-3">
-                            <p className="text-[#d7dadc] text-sm leading-relaxed font-medium whitespace-pre-wrap break-words">
-                              {post.text}
-                            </p>
+                          <div className="mb-4">
+                            {editingPostId === post.id ? (
+                              <div className="space-y-3">
+                                <textarea
+                                  value={editText}
+                                  onChange={(e) => setEditText(e.target.value)}
+                                  className="w-full bg-black/40 border border-[#343536] rounded-xl p-4 text-sm text-white focus:outline-none focus:border-purple-500/50 resize-none min-h-[120px]"
+                                />
+                                <div className="flex justify-end gap-2">
+                                  <button 
+                                    onClick={() => setEditingPostId(null)}
+                                    className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-[#818384] hover:bg-white/5"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button 
+                                    onClick={() => handleEditPost(post.id)}
+                                    className="px-6 py-2 bg-purple-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-purple-500 shadow-lg shadow-purple-500/20"
+                                  >
+                                    Save Changes
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-[#d7dadc] text-sm leading-relaxed font-medium whitespace-pre-wrap break-words">
+                                {post.text}
+                              </p>
+                            )}
                           </div>
 
                           {/* Reactions Display */}
-                          {post.reactions && Object.entries(post.reactions).some(([emoji, uids]) => !['upvote', 'downvote'].includes(emoji) && (uids as string[]).length > 0) && (
-                            <div className="flex flex-wrap gap-1.5 mb-3">
-                              {Object.entries(post.reactions).map(([emoji, uids]) => !['upvote', 'downvote'].includes(emoji) && (uids as string[]).length > 0 && (
+                          {post.reactions && Object.entries(post.reactions).some(([emoji, uids]) => (uids as string[]).length > 0) && (
+                            <div className="flex flex-wrap gap-1.5 mb-4">
+                              {Object.entries(post.reactions).map(([emoji, uids]) => (uids as string[]).length > 0 && (
                                 <button
                                   key={emoji}
                                   onClick={() => handleReaction(post.id, emoji)}
-                                  className={`flex items-center gap-1.5 px-2 py-1 rounded bg-[#272729] border transition-all
+                                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#272729] border transition-all
                                     ${(uids as string[]).includes(user?.uid || '') 
-                                      ? 'border-purple-500/50 text-white' 
+                                      ? 'border-purple-500/50 text-white bg-purple-500/10' 
                                       : 'border-[#343536] text-[#818384] hover:border-[#818384]'}`}
                                 >
                                   <span className="text-xs">{emoji}</span>
@@ -1311,14 +1382,43 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
                             </div>
                           )}
 
-                          <div className="flex items-center gap-1 pt-1">
-                            <div className="relative">
+                          <div className="flex items-center gap-4 pt-4 border-t border-[#343536]">
+                            <button 
+                              onClick={() => handleReaction(post.id, '👍')}
+                              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-black uppercase tracking-widest text-[10px]
+                                ${post.reactions?.['👍']?.includes(user?.uid || '') 
+                                  ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' 
+                                  : 'text-[#818384] hover:bg-white/5 hover:text-[#d7dadc]'}`}
+                            >
+                              <ThumbsUp className="w-4 h-4" />
+                              {post.reactions?.['👍']?.length || 0}
+                            </button>
+
+                            <button 
+                              onClick={() => setReplyingTo(replyingTo === post.id ? null : post.id)}
+                              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-black uppercase tracking-widest text-[10px]
+                                ${replyingTo === post.id 
+                                  ? 'bg-white/10 text-white border border-white/10' 
+                                  : 'text-[#818384] hover:bg-white/5 hover:text-[#d7dadc]'}`}
+                            >
+                              <MessageSquare className="w-4 h-4" />
+                              {post.comments?.length || 0}
+                            </button>
+
+                            <button 
+                              className="flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-black uppercase tracking-widest text-[10px] text-[#818384] hover:bg-white/5 hover:text-[#d7dadc]"
+                            >
+                              <Share2 className="w-4 h-4" />
+                              Share
+                            </button>
+
+                            <div className="relative ml-auto">
                               <button 
                                 onClick={() => setActiveReactionPicker(activeReactionPicker === post.id ? null : post.id)}
-                                className={`flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-[#272729] transition-all text-[#818384] hover:text-[#d7dadc]`}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-black uppercase tracking-widest text-[10px] text-[#818384] hover:bg-white/5 hover:text-[#d7dadc]`}
                               >
                                 <Plus className="w-4 h-4" />
-                                <span className="text-[11px] font-bold">React</span>
+                                React
                               </button>
                               <AnimatePresence>
                                 {activeReactionPicker === post.id && (
@@ -1326,7 +1426,7 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
                                     initial={{ opacity: 0, scale: 0.9, y: 10 }}
                                     animate={{ opacity: 1, scale: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.9, y: 10 }}
-                                    className="absolute bottom-full left-0 mb-2 flex bg-[#1a1a1b] border border-[#343536] rounded-full p-1 shadow-2xl z-50"
+                                    className="absolute bottom-full right-0 mb-2 flex bg-[#1a1a1b] border border-[#343536] rounded-full p-1.5 shadow-2xl z-50"
                                   >
                                     {REACTION_EMOJIS.map(emoji => (
                                       <button
@@ -1335,7 +1435,7 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
                                           handleReaction(post.id, emoji);
                                           setActiveReactionPicker(null);
                                         }}
-                                        className="p-2 hover:bg-white/5 rounded-full transition-all text-base"
+                                        className="p-2 hover:bg-white/5 rounded-full transition-all text-lg"
                                       >
                                         {emoji}
                                       </button>
@@ -1344,16 +1444,6 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
                                 )}
                               </AnimatePresence>
                             </div>
-
-                            <button 
-                              onClick={() => setReplyingTo(replyingTo === post.id ? null : post.id)}
-                              className="flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-[#272729] transition-all text-[#818384] hover:text-[#d7dadc]"
-                            >
-                              <MessageSquare className="w-4 h-4" />
-                              <span className="text-[11px] font-bold">
-                                {post.comments?.length || 0} Comments
-                              </span>
-                            </button>
                           </div>
 
                           {/* Comments Section */}
@@ -1363,59 +1453,125 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 exit={{ opacity: 0, height: 0 }}
-                                className="mt-4 space-y-4 overflow-hidden border-t border-[#343536] pt-4"
+                                className="mt-2.5 space-y-2.5 overflow-hidden border-t border-[#343536] pt-2.5"
                               >
+                                {/* Comment Input Trigger */}
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Comments</span>
+                                  <button 
+                                    onClick={() => setShowCommentInput(showCommentInput === post.id ? null : post.id)}
+                                    className="flex items-center gap-1.5 px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-[9px] font-black text-white/60 uppercase tracking-widest hover:bg-white/10 transition-all"
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                    Post Comment
+                                  </button>
+                                </div>
+
+                                <AnimatePresence>
+                                  {showCommentInput === post.id && (
+                                    <motion.div 
+                                      initial={{ opacity: 0, y: -10 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      exit={{ opacity: 0, y: -10 }}
+                                      className="flex flex-col gap-2 bg-[#151516] p-2.5 rounded-lg border border-[#343536]"
+                                    >
+                                      <textarea
+                                        value={replyText[post.id] || ''}
+                                        onChange={(e) => setReplyText(prev => ({ ...prev, [post.id]: e.target.value }))}
+                                        placeholder="What are your thoughts?"
+                                        className="w-full bg-transparent text-[11px] text-[#d7dadc] focus:outline-none resize-none min-h-[50px] placeholder:text-[#818384]"
+                                      />
+                                      <div className="flex justify-end gap-2">
+                                        <button 
+                                          onClick={() => setShowCommentInput(null)}
+                                          className="px-2.5 py-1 rounded-lg text-[9px] font-bold text-[#818384] hover:bg-white/5"
+                                        >
+                                          Cancel
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            handleSendReply(post.id);
+                                            setShowCommentInput(null);
+                                          }}
+                                          disabled={!replyText[post.id]?.trim()}
+                                          className="px-3.5 py-1 bg-[#d7dadc] text-black rounded-lg text-[9px] font-bold hover:bg-white transition-all disabled:opacity-50"
+                                        >
+                                          Comment
+                                        </button>
+                                      </div>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+
                                 {post.comments && post.comments.length > 0 && (
-                                  <div className="space-y-4 pl-2">
+                                  <div className="space-y-2.5 pl-1.5">
                                     {post.comments.map(comment => (
-                                      <div key={comment.id} className="flex gap-3 group/comment">
+                                      <div key={comment.id} className="flex gap-2.5 group/comment">
                                         <div className="flex flex-col items-center">
-                                          <img src={comment.photoURL} className="w-6 h-6 rounded-full border border-[#343536]" alt={comment.displayName} />
-                                          <div className="w-0.5 flex-1 bg-[#343536] my-1 group-last/comment:hidden" />
+                                          <img src={comment.photoURL} className="w-5 h-5 rounded-full border border-[#343536]" alt={comment.displayName} />
+                                          <div className="w-px flex-1 bg-[#343536] my-1 group-last/comment:hidden" />
                                         </div>
-                                          <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-1">
-                                              {userRanks[comment.uid] && (
-                                                <span className={`text-[8px] font-black uppercase tracking-tighter px-1 py-0.5 rounded bg-white/5 border border-white/10 flex items-center gap-1 ${userRanks[comment.uid].color}`}>
-                                                  {userRanks[comment.uid].icon} {userRanks[comment.uid].title}
-                                                </span>
-                                              )}
-                                              <span className="text-[11px] font-bold text-[#d7dadc]">{comment.displayName}</span>
-                                              <span className="text-[10px] text-[#818384]">{formatTime(comment.createdAt)}</span>
-                                            </div>
-                                          <p className="text-[#d7dadc] text-xs leading-relaxed">{comment.text}</p>
-                                          <div className="flex items-center gap-3 mt-2">
-                                            <button className="text-[10px] font-bold text-[#818384] hover:text-[#d7dadc]">Reply</button>
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2 mb-0.5">
+                                            <span className="text-[10px] font-bold text-[#d7dadc]">{comment.displayName}</span>
+                                            {userRanks[comment.uid] && (
+                                              <span className={`text-[7px] font-black uppercase tracking-tighter px-1 py-0.5 rounded bg-white/5 border border-white/10 flex items-center gap-0.5 ${userRanks[comment.uid].color}`}>
+                                                {userRanks[comment.uid].icon} {userRanks[comment.uid].title}
+                                              </span>
+                                            )}
+                                            <span className="text-[9px] text-[#818384]">{formatTime(comment.createdAt)}</span>
+                                            
+                                            {user?.uid === comment.uid && (
+                                              <div className="ml-auto flex items-center gap-1 opacity-0 group-hover/comment:opacity-100 transition-opacity">
+                                                <button 
+                                                  onClick={() => {
+                                                    setEditingCommentId({ postId: post.id, commentId: comment.id });
+                                                    setEditCommentText(comment.text);
+                                                  }}
+                                                  className="text-blue-400/40 hover:text-blue-400 p-1"
+                                                >
+                                                  <Pencil className="w-2.5 h-2.5" />
+                                                </button>
+                                                <button 
+                                                  onClick={() => handleDeleteComment(post.id, comment.id)}
+                                                  className="text-rose-500/40 hover:text-rose-500 p-1"
+                                                >
+                                                  <Trash2 className="w-2.5 h-2.5" />
+                                                </button>
+                                              </div>
+                                            )}
                                           </div>
+                                          
+                                          {editingCommentId?.commentId === comment.id ? (
+                                            <div className="space-y-2 mt-1">
+                                              <textarea
+                                                value={editCommentText}
+                                                onChange={(e) => setEditCommentText(e.target.value)}
+                                                className="w-full bg-black/40 border border-[#343536] rounded-lg p-2 text-[11px] text-white focus:outline-none focus:border-blue-500/50 resize-none min-h-[50px]"
+                                              />
+                                              <div className="flex justify-end gap-2">
+                                                <button 
+                                                  onClick={() => setEditingCommentId(null)}
+                                                  className="px-2 py-1 rounded-lg text-[8px] font-bold text-[#818384] hover:bg-white/5"
+                                                >
+                                                  Cancel
+                                                </button>
+                                                <button 
+                                                  onClick={() => handleEditComment(post.id, comment.id)}
+                                                  className="px-3 py-1 bg-blue-600 text-white rounded-lg text-[8px] font-bold hover:bg-blue-500"
+                                                >
+                                                  Save
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <p className="text-[#d7dadc] text-[11px] leading-relaxed break-words">{comment.text}</p>
+                                          )}
                                         </div>
                                       </div>
                                     ))}
                                   </div>
                                 )}
-
-                                <div className="flex flex-col gap-2 bg-[#151516] p-3 rounded-lg border border-[#343536]">
-                                  <textarea
-                                    value={replyText[post.id] || ''}
-                                    onChange={(e) => setReplyText(prev => ({ ...prev, [post.id]: e.target.value }))}
-                                    placeholder="What are your thoughts?"
-                                    className="w-full bg-transparent text-xs text-[#d7dadc] focus:outline-none resize-none min-h-[60px] placeholder:text-[#818384]"
-                                  />
-                                  <div className="flex justify-end gap-2">
-                                    <button 
-                                      onClick={() => setReplyingTo(null)}
-                                      className="px-3 py-1.5 rounded-full text-[10px] font-bold text-[#818384] hover:bg-white/5 transition-all"
-                                    >
-                                      Cancel
-                                    </button>
-                                    <button
-                                      onClick={() => handleSendReply(post.id)}
-                                      disabled={!replyText[post.id]?.trim()}
-                                      className="px-4 py-1.5 bg-[#d7dadc] text-black rounded-full text-[10px] font-bold hover:bg-white transition-all disabled:opacity-50"
-                                    >
-                                      Comment
-                                    </button>
-                                  </div>
-                                </div>
                               </motion.div>
                             )}
                           </AnimatePresence>

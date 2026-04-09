@@ -168,6 +168,10 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    console.log("Current selectedProfile state:", selectedProfile);
+  }, [selectedProfile]);
+
   // Leaderboard Listener
   useEffect(() => {
     const q = query(
@@ -604,13 +608,14 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
       <AnimatePresence mode="wait">
         {removingFriendId && (
           <motion.div 
-            key="remove-friend"
+            key="remove-friend-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4"
           >
             <motion.div 
+              key="remove-friend-modal"
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -641,21 +646,24 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
             </motion.div>
           </motion.div>
         )}
+      </AnimatePresence>
 
+      <AnimatePresence mode="wait">
         {selectedProfile && (
           <motion.div 
-            key="profile-modal"
+            key="profile-modal-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4"
+            className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/95 backdrop-blur-2xl p-4"
             onClick={() => setSelectedProfile(null)}
           >
             <motion.div 
+              key="profile-modal-content"
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="w-full max-w-md bg-[#0a0a0b] border border-white/10 rounded-[40px] p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden"
+              className="w-full max-w-md bg-[#0a0a0b] border border-white/10 rounded-[40px] p-8 shadow-[0_0_100px_rgba(0,0,0,0.8)] relative overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-blue-500/10 to-transparent" />

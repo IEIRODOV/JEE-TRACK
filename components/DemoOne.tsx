@@ -98,41 +98,46 @@ const DemoOne = ({ onProfileClick }: DemoOneProps) => {
   // Sync Settings from Firestore
   useEffect(() => {
     const fetchExamData = async () => {
-      let exam = 'jee';
-      let year = '2027';
-      let subExam = 'mains';
+      let exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
+      let year = localStorage.getItem('pulse_user_year') || '2027';
+      let subExam = localStorage.getItem('pulse_user_subexam') || 'mains';
+      const customDate = localStorage.getItem('pulse_custom_date');
 
       if (user) {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         if (userDoc.exists()) {
           const data = userDoc.data();
-          exam = (data.exam || 'jee').toLowerCase();
-          year = data.year || '2027';
-          subExam = data.subExam || 'mains';
+          exam = (data.exam || exam).toLowerCase();
+          year = data.year || year;
+          subExam = data.subExam || subExam;
           
+          // Sync to localStorage to prevent flicker on next load
+          localStorage.setItem('pulse_user_exam', exam);
+          localStorage.setItem('pulse_user_year', year);
+          localStorage.setItem('pulse_user_subexam', subExam);
           if (data.customDate) {
-            setSelectedExam({
-              id: 'custom',
-              label: data.exam.toUpperCase(),
-              date: data.customDate,
-              subExam: ''
-            });
+            localStorage.setItem('pulse_custom_date', data.customDate);
+            if (selectedExam.id !== 'custom' || selectedExam.date !== data.customDate) {
+              setSelectedExam({
+                id: 'custom',
+                label: data.exam.toUpperCase(),
+                date: data.customDate,
+                subExam: ''
+              });
+            }
             return;
           }
         }
       } else {
-        exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
-        year = localStorage.getItem('pulse_user_year') || '2027';
-        subExam = localStorage.getItem('pulse_user_subexam') || 'mains';
-        const customDate = localStorage.getItem('pulse_custom_date');
-        
         if (customDate && !['jee', 'neet', 'boards'].includes(exam)) {
-          setSelectedExam({
-            id: 'custom',
-            label: exam.toUpperCase(),
-            date: customDate,
-            subExam: ''
-          });
+          if (selectedExam.id !== 'custom' || selectedExam.date !== customDate) {
+            setSelectedExam({
+              id: 'custom',
+              label: exam.toUpperCase(),
+              date: customDate,
+              subExam: ''
+            });
+          }
           return;
         }
       }
@@ -144,12 +149,15 @@ const DemoOne = ({ onProfileClick }: DemoOneProps) => {
         targetDate = EXAM_DATES[exam]?.[year] || `${year}-05-01T09:00:00`;
       }
 
-      setSelectedExam({
-        id: `${exam}_${year}`,
-        label: `${exam.toUpperCase()} ${year}${exam === 'jee' ? ` (${subExam.toUpperCase()})` : ''}`,
-        date: targetDate,
-        subExam: subExam
-      });
+      const newId = `${exam}_${year}`;
+      if (selectedExam.id !== newId || selectedExam.date !== targetDate || selectedExam.subExam !== subExam) {
+        setSelectedExam({
+          id: newId,
+          label: `${exam.toUpperCase()} ${year}${exam === 'jee' ? ` (${subExam.toUpperCase()})` : ''}`,
+          date: targetDate,
+          subExam: subExam
+        });
+      }
     };
 
     fetchExamData();
