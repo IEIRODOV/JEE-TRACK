@@ -894,7 +894,7 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
 
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Top Navigation - Community Switcher & View Switcher */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6 glass rounded-3xl p-4 border border-white/10">
+        <div className="sticky top-0 z-[1000] flex flex-col md:flex-row items-center justify-between gap-6 glass rounded-3xl p-4 border border-white/10 backdrop-blur-3xl mb-12">
           <div className="flex bg-black/40 p-1.5 rounded-2xl border border-white/5">
             {COMMUNITIES.filter(comm => !userExam || userExam === comm.id).map((comm) => (
               <button

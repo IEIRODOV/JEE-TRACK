@@ -398,7 +398,10 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
                     <motion.div 
                       key={idx} 
                       whileHover={{ backgroundColor: 'rgba(255,255,255,0.03)' }}
-                      onClick={() => setSelectedProfile(player)}
+                      onClick={() => {
+                        console.log("Selected profile:", player);
+                        setSelectedProfile(player);
+                      }}
                       className={`flex items-center justify-between p-2 transition-all group relative cursor-pointer ${isCurrentUser ? 'bg-blue-500/5 border-l-2 border-blue-500' : ''}`}
                     >
                       {isCurrentUser && (
@@ -598,13 +601,14 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
         </motion.div>
       </div>
 
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {removingFriendId && (
           <motion.div 
+            key="remove-friend"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4"
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4"
           >
             <motion.div 
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -637,15 +641,14 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
 
-      <AnimatePresence>
         {selectedProfile && (
           <motion.div 
+            key="profile-modal"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4"
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4"
             onClick={() => setSelectedProfile(null)}
           >
             <motion.div 

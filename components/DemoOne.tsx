@@ -12,10 +12,41 @@ interface DemoOneProps {
   onProfileClick: () => void;
 }
 
+const EXAM_DATES: Record<string, any> = {
+  jee: {
+    mains: {
+      '2026': '2026-01-20T09:00:00',
+      '2027': '2027-01-21T09:00:00',
+      '2028': '2028-01-20T09:00:00',
+    },
+    advanced: {
+      '2026': '2026-05-17T09:00:00',
+      '2027': '2027-05-23T09:00:00',
+      '2028': '2028-05-21T09:00:00',
+    }
+  },
+  neet: {
+    '2026': '2026-05-03T09:00:00',
+    '2027': '2027-05-02T09:00:00',
+    '2028': '2028-05-07T09:00:00',
+  },
+  boards: {
+    '2026': '2026-02-15T09:00:00',
+    '2027': '2027-02-15T09:00:00',
+    '2028': '2028-02-15T09:00:00',
+    '9th': '2027-03-01T09:00:00',
+    '10th': '2027-02-15T09:00:00',
+    '11th': '2027-03-01T09:00:00',
+    '12th': '2027-02-15T09:00:00',
+  }
+};
+
 const DemoOne = ({ onProfileClick }: DemoOneProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [globalRank, setGlobalRank] = useState<number | string>('--');
   const [timerState, setTimerState] = useState({ isRunning: false, startTime: null as number | null, accumulatedSeconds: 0 });
+  const [showSettings, setShowSettings] = useState(false);
+  const [showExamCounter, setShowExamCounter] = useState(true);
   const [dailyStudySeconds, setDailyStudySeconds] = useState<Record<string, number>>({});
   const [dailyQuestions, setDailyQuestions] = useState<Record<string, number>>({});
   const [stats, setStats] = useState([
@@ -25,38 +56,37 @@ const DemoOne = ({ onProfileClick }: DemoOneProps) => {
     { label: "Questions Solved", value: "--", icon: <Target className="w-3 h-3" />, color: "text-purple-400" },
   ]);
 
-  const [selectedExam, setSelectedExam] = useState({ id: 'jee_2027', label: 'JEE 2027', date: '2027-01-21T09:00:00', subExam: 'mains' });
-  const [targetHours, setTargetHours] = useState(6);
+  const [selectedExam, setSelectedExam] = useState(() => {
+    // Try to get initial state from localStorage to prevent flicker
+    const exam = (typeof window !== 'undefined' ? localStorage.getItem('pulse_user_exam') || 'jee' : 'jee').toLowerCase();
+    const year = typeof window !== 'undefined' ? localStorage.getItem('pulse_user_year') || '2027' : '2027';
+    const subExam = typeof window !== 'undefined' ? localStorage.getItem('pulse_user_subexam') || 'mains' : 'mains';
+    const customDate = typeof window !== 'undefined' ? localStorage.getItem('pulse_custom_date') : null;
 
-  // Exam Dates Mapping
-  const EXAM_DATES: Record<string, any> = {
-    jee: {
-      mains: {
-        '2025': '2025-01-24T09:00:00',
-        '2026': '2026-01-20T09:00:00',
-        '2027': '2027-01-21T09:00:00',
-      },
-      advanced: {
-        '2025': '2025-05-25T09:00:00',
-        '2026': '2026-05-17T09:00:00',
-        '2027': '2027-05-23T09:00:00',
-      }
-    },
-    neet: {
-      '2025': '2025-05-04T09:00:00',
-      '2026': '2026-05-03T09:00:00',
-      '2027': '2027-05-02T09:00:00',
-    },
-    boards: {
-      '2025': '2025-02-15T09:00:00',
-      '2026': '2026-02-15T09:00:00',
-      '2027': '2027-02-15T09:00:00',
-      '9th': '2027-03-01T09:00:00',
-      '10th': '2027-02-15T09:00:00',
-      '11th': '2027-03-01T09:00:00',
-      '12th': '2027-02-15T09:00:00',
+    if (customDate && !['jee', 'neet', 'boards'].includes(exam)) {
+      return {
+        id: 'custom',
+        label: exam.toUpperCase(),
+        date: customDate,
+        subExam: ''
+      };
     }
-  };
+
+    let targetDate = '';
+    if (exam === 'jee') {
+      targetDate = EXAM_DATES.jee[subExam]?.[year] || `${year}-01-20T09:00:00`;
+    } else {
+      targetDate = EXAM_DATES[exam]?.[year] || `${year}-05-01T09:00:00`;
+    }
+
+    return {
+      id: `${exam}_${year}`,
+      label: `${exam.toUpperCase()} ${year}${exam === 'jee' ? ` (${subExam.toUpperCase()})` : ''}`,
+      date: targetDate,
+      subExam: subExam
+    };
+  });
+  const [targetHours, setTargetHours] = useState(6);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -134,6 +164,7 @@ const DemoOne = ({ onProfileClick }: DemoOneProps) => {
       if (doc.exists()) {
         const data = doc.data();
         if (data.targetHours) setTargetHours(data.targetHours);
+        if (data.showExamCounter !== undefined) setShowExamCounter(data.showExamCounter);
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, `users/${user.uid}/settings/dashboard`, false);
@@ -185,6 +216,13 @@ const DemoOne = ({ onProfileClick }: DemoOneProps) => {
     });
     return () => unsubscribe();
   }, [user]);
+
+  useEffect(() => {
+    const savedCounter = localStorage.getItem('pulse_show_exam_counter');
+    if (savedCounter !== null) {
+      setShowExamCounter(savedCounter === 'true');
+    }
+  }, []);
 
   const updateTargetHours = async (newTarget: number) => {
     setTargetHours(newTarget);
@@ -377,6 +415,16 @@ const DemoOne = ({ onProfileClick }: DemoOneProps) => {
     }
   };
 
+  const toggleExamCounter = async () => {
+    playTickSound();
+    const newValue = !showExamCounter;
+    setShowExamCounter(newValue);
+    localStorage.setItem('pulse_show_exam_counter', newValue.toString());
+    if (user) {
+      await setDoc(doc(db, 'users', user.uid, 'settings', 'dashboard'), { showExamCounter: newValue }, { merge: true });
+    }
+  };
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -398,10 +446,10 @@ const DemoOne = ({ onProfileClick }: DemoOneProps) => {
       <AnoAI />
       
       {/* Top Bar with Profile */}
-      <div className="absolute top-0 left-0 right-0 z-50 flex justify-end p-6">
+      <div className="absolute top-0 left-0 right-0 z-[100] flex justify-end p-6">
         <div className="relative">
           <button 
-            onClick={() => { playTickSound(); onProfileClick(); }}
+            onClick={() => { playTickSound(); setShowSettings(!showSettings); }}
             className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all overflow-hidden"
           >
             {user?.photoURL ? (
@@ -410,6 +458,56 @@ const DemoOne = ({ onProfileClick }: DemoOneProps) => {
               <UserIcon className="w-5 h-5 text-white/40" />
             )}
           </button>
+
+          <AnimatePresence>
+            {showSettings && (
+              <>
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => setShowSettings(false)}
+                />
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  className="absolute right-0 mt-4 w-64 bg-[#0a0a0b] border border-white/10 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-50 overflow-hidden"
+                >
+                  <div className="p-4 border-b border-white/5 bg-white/[0.02]">
+                    <h3 className="text-[10px] font-black text-white/40 uppercase tracking-widest">Commander Menu</h3>
+                  </div>
+                  <div className="p-2">
+                    <button 
+                      onClick={() => { setShowSettings(false); onProfileClick(); }}
+                      className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-white/5 transition-all text-left group"
+                    >
+                      <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 group-hover:scale-110 transition-transform">
+                        <UserIcon className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs font-bold text-white">Profile Settings</span>
+                    </button>
+
+                    <div className="h-px bg-white/5 my-2 mx-2" />
+
+                    <div className="p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-bold text-white/60">Exam Counter</span>
+                        <button 
+                          onClick={toggleExamCounter}
+                          className={`w-10 h-5 rounded-full transition-all relative ${showExamCounter ? 'bg-emerald-500' : 'bg-white/10'}`}
+                        >
+                          <motion.div 
+                            animate={{ x: showExamCounter ? 20 : 2 }}
+                            className="absolute top-1 left-0 w-3 h-3 bg-white rounded-full shadow-lg"
+                          />
+                        </button>
+                      </div>
+                      <p className="text-[8px] text-white/20 uppercase tracking-widest">Toggle dashboard countdown</p>
+                    </div>
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -451,7 +549,27 @@ const DemoOne = ({ onProfileClick }: DemoOneProps) => {
           </div>
 
           <div className="scale-110 md:scale-125 mb-16">
-            <CountdownTimer targetDate={selectedExam.date} />
+            <AnimatePresence mode="wait">
+              {showExamCounter ? (
+                <motion.div
+                  key="counter"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                >
+                  <CountdownTimer targetDate={selectedExam.date} />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="placeholder"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="py-12"
+                >
+                  <div className="text-white/10 text-[10px] font-black uppercase tracking-[0.5em]">Counter Disabled</div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Quick Stats Bar */}
