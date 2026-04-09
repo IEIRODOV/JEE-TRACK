@@ -184,6 +184,22 @@ service cloud.firestore {
       allow create: if isAdmin();
     }
 
+    // Messages: Participants only
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      allow create: if isAuthenticated() && 
+                      request.resource.data.senderId == request.auth.uid &&
+                      hasRequiredFields(['chatId', 'participants', 'senderId', 'receiverId', 'text', 'type', 'createdAt']) &&
+                      request.resource.data.chatId is string &&
+                      request.resource.data.participants is list &&
+                      request.resource.data.participants.size() == 2 &&
+                      request.auth.uid in request.resource.data.participants &&
+                      request.resource.data.text is string &&
+                      request.resource.data.text.size() <= 2000 &&
+                      request.resource.data.type in ['text', 'doubt'] &&
+                      request.resource.data.createdAt == request.time;
+    }
+
     // Default deny
     match /{document=**} {
       allow read, write: if false;

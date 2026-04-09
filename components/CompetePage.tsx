@@ -123,11 +123,12 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
       return;
     }
 
+    const chatId = [user.uid, selectedFriend.uid].sort().join('_');
+
     const q = query(
       collection(db, 'messages'),
-      where('senderId', 'in', [user.uid, selectedFriend.uid]),
-      where('receiverId', 'in', [user.uid, selectedFriend.uid]),
-      orderBy('createdAt', 'asc'),
+      where('chatId', '==', chatId),
+      where('participants', 'array-contains', user.uid),
       limit(50)
     );
 
@@ -135,6 +136,12 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
       const msgs: Message[] = [];
       snapshot.forEach((doc) => {
         msgs.push({ id: doc.id, ...doc.data() } as Message);
+      });
+      // Sort client-side to avoid composite index requirement
+      msgs.sort((a, b) => {
+        const timeA = a.createdAt?.toMillis() || 0;
+        const timeB = b.createdAt?.toMillis() || 0;
+        return timeA - timeB;
       });
       setMessages(msgs);
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
@@ -216,11 +223,15 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
 
     const text = newMessage.trim();
     const type = messageType;
+    const chatId = [user.uid, selectedFriend.uid].sort().join('_');
+    const participants = [user.uid, selectedFriend.uid];
     setNewMessage('');
     setMessageType('text');
 
     try {
       await addDoc(collection(db, 'messages'), {
+        chatId,
+        participants,
         senderId: user.uid,
         receiverId: selectedFriend.uid,
         text,
@@ -659,9 +670,9 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
                               <img src={friend.photoURL} className="w-8 h-8 rounded-xl border border-white/10" alt="" />
                               <div className="text-left">
                                 <div className="text-[10px] font-bold text-white">{friend.displayName}</div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[7px] font-black text-emerald-400 uppercase tracking-widest">{(friend.stats.studySeconds / 3600).toFixed(1)}h</span>
-                                  <span className="text-[7px] font-black text-blue-400 uppercase tracking-widest">{friend.stats.questionsSolved} Qs</span>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest bg-emerald-500/10 px-1.5 py-0.5 rounded-md">{(friend.stats.studySeconds / 3600).toFixed(1)}h</span>
+                                  <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest bg-blue-500/10 px-1.5 py-0.5 rounded-md">{friend.stats.questionsSolved} Qs</span>
                                 </div>
                               </div>
                             </div>
@@ -689,7 +700,11 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
                             <img src={selectedFriend.photoURL} className="w-10 h-10 rounded-2xl border border-white/10" alt="" />
                             <div>
                               <h3 className="text-sm font-black text-white uppercase tracking-tight">{selectedFriend.displayName}</h3>
-                              <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Direct Message</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">{(selectedFriend.stats.studySeconds / 3600).toFixed(1)}h Study</span>
+                                <div className="w-1 h-1 bg-white/20 rounded-full" />
+                                <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest">{selectedFriend.stats.questionsSolved} Questions</span>
+                              </div>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
@@ -708,7 +723,44 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
                           </div>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-black/20">
+                        <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-black/40 scroll-smooth">
+                          {/* Friend Stats Big Boxes */}
+                          <div className="grid grid-cols-2 gap-4 mb-10">
+                            <motion.div 
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              className="p-8 rounded-[40px] glass border-t-4 border-t-emerald-500 border-x border-white/10 border-b border-white/10 flex flex-col items-center justify-center text-center shadow-[0_20px_50px_rgba(16,185,129,0.15)] relative overflow-hidden group"
+                            >
+                              <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                                <Clock className="w-24 h-24" />
+                              </div>
+                              <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-400 mb-4">
+                                <Clock className="w-6 h-6" />
+                              </div>
+                              <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-2">Study Time</span>
+                              <div className="text-4xl font-mono font-black text-white tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
+                                {(selectedFriend.stats.studySeconds / 3600).toFixed(1)}<span className="text-lg ml-1 text-emerald-500/50">h</span>
+                              </div>
+                            </motion.div>
+
+                            <motion.div 
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              className="p-8 rounded-[40px] glass border-t-4 border-t-blue-500 border-x border-white/10 border-b border-white/10 flex flex-col items-center justify-center text-center shadow-[0_20px_50px_rgba(59,130,246,0.15)] relative overflow-hidden group"
+                            >
+                              <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                                <Target className="w-24 h-24" />
+                              </div>
+                              <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-400 mb-4">
+                                <Target className="w-6 h-6" />
+                              </div>
+                              <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-2">Questions</span>
+                              <div className="text-4xl font-mono font-black text-white tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
+                                {selectedFriend.stats.questionsSolved}
+                              </div>
+                            </motion.div>
+                          </div>
+
                           {messages.map((msg) => {
                             const isMe = msg.senderId === user.uid;
                             return (

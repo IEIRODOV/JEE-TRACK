@@ -172,13 +172,15 @@
       "description": "A direct message or doubt sent between friends.",
       "type": "object",
       "properties": {
+        "chatId": { "type": "string" },
+        "participants": { "type": "array", "items": { "type": "string" } },
         "senderId": { "type": "string" },
         "receiverId": { "type": "string" },
         "text": { "type": "string" },
         "type": { "type": "string", "enum": ["text", "doubt"] },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["senderId", "receiverId", "text", "type"]
+      "required": ["chatId", "participants", "senderId", "receiverId", "text", "type"]
     }
   },
   "firestore": {
