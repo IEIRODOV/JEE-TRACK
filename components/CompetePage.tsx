@@ -100,7 +100,7 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
               friendsData.push({
                 uid: fId,
                 displayName: fDoc.data().displayName || 'Friend',
-                photoURL: fDoc.data().photoURL,
+                photoURL: fDoc.data().photoURL || `https://ui-avatars.com/api/?name=${fDoc.data().displayName || 'Friend'}&background=random`,
                 totalQuestions: lbDoc.exists() ? lbDoc.data().totalQuestions : 0,
                 stats: statsDoc.exists() ? statsDoc.data() : { studySeconds: 0, questionsSolved: 0 }
               });
@@ -655,29 +655,64 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
                       <span className="text-[10px] font-black text-white/20">{friends.length}</span>
                     </div>
 
-                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                       {friends.length === 0 ? (
-                        <p className="text-center py-8 text-[9px] font-bold text-white/20 uppercase tracking-widest">No friends linked.</p>
+                        <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                          <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/20 mb-4">
+                            <UserPlus className="w-6 h-6" />
+                          </div>
+                          <p className="text-[10px] font-black text-white/20 uppercase tracking-widest leading-relaxed">
+                            Your crew is empty.<br/>Link with friends to start!
+                          </p>
+                        </div>
                       ) : (
                         friends.map((friend) => (
-                          <button
+                          <motion.button
                             key={friend.uid}
+                            whileHover={{ scale: 1.02, x: 4 }}
+                            whileTap={{ scale: 0.98 }}
                             onClick={() => { playTickSound(); setSelectedFriend(friend); }}
-                            className={`w-full p-3 rounded-2xl border transition-all flex items-center justify-between group
-                              ${selectedFriend?.uid === friend.uid ? 'bg-purple-500/10 border-purple-500/30' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
+                            className={`w-full p-4 rounded-[24px] border transition-all flex items-center justify-between group relative overflow-hidden
+                              ${selectedFriend?.uid === friend.uid 
+                                ? 'bg-purple-500/10 border-purple-500/40 shadow-[0_0_20px_rgba(168,85,247,0.15)]' 
+                                : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'}`}
                           >
-                            <div className="flex items-center gap-3">
-                              <img src={friend.photoURL} className="w-8 h-8 rounded-xl border border-white/10" alt="" />
+                            {selectedFriend?.uid === friend.uid && (
+                              <motion.div 
+                                layoutId="active-friend-glow"
+                                className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-transparent pointer-events-none"
+                              />
+                            )}
+                            
+                            <div className="flex items-center gap-4 relative z-10">
+                              <div className="relative">
+                                <img 
+                                  src={friend.photoURL} 
+                                  className={`w-10 h-10 rounded-2xl border transition-all object-cover
+                                    ${selectedFriend?.uid === friend.uid ? 'border-purple-400' : 'border-white/10 group-hover:border-white/30'}`} 
+                                  alt="" 
+                                  referrerPolicy="no-referrer"
+                                />
+                                {friend.stats.studySeconds > 0 && (
+                                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 border-2 border-black rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                                )}
+                              </div>
                               <div className="text-left">
-                                <div className="text-[10px] font-bold text-white">{friend.displayName}</div>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest bg-emerald-500/10 px-1.5 py-0.5 rounded-md">{(friend.stats.studySeconds / 3600).toFixed(1)}h</span>
-                                  <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest bg-blue-500/10 px-1.5 py-0.5 rounded-md">{friend.stats.questionsSolved} Qs</span>
+                                <div className="text-[11px] font-black text-white uppercase tracking-tight mb-1">{friend.displayName}</div>
+                                <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                                    <Clock className="w-2.5 h-2.5 text-emerald-400" />
+                                    <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">{(friend.stats.studySeconds / 3600).toFixed(1)}h</span>
+                                  </div>
+                                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                                    <Target className="w-2.5 h-2.5 text-blue-400" />
+                                    <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest">{friend.stats.questionsSolved}</span>
+                                  </div>
                                 </div>
                               </div>
                             </div>
-                            <ChevronRight className={`w-3 h-3 transition-all ${selectedFriend?.uid === friend.uid ? 'text-purple-400 translate-x-0.5' : 'text-white/10 group-hover:text-white/40'}`} />
-                          </button>
+                            <ChevronRight className={`w-4 h-4 transition-all ${selectedFriend?.uid === friend.uid ? 'text-purple-400 translate-x-1' : 'text-white/10 group-hover:text-white/40'}`} />
+                          </motion.button>
                         ))
                       )}
                     </div>
@@ -697,9 +732,14 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
                       >
                         <div className="p-5 border-b border-white/10 bg-white/5 flex items-center justify-between">
                           <div className="flex items-center gap-4">
-                            <img src={selectedFriend.photoURL} className="w-10 h-10 rounded-2xl border border-white/10" alt="" />
+                            <img 
+                              src={selectedFriend.photoURL} 
+                              className="w-12 h-12 rounded-2xl border border-white/20 shadow-[0_0_20px_rgba(255,255,255,0.1)] object-cover" 
+                              alt="" 
+                              referrerPolicy="no-referrer"
+                            />
                             <div>
-                              <h3 className="text-sm font-black text-white uppercase tracking-tight">{selectedFriend.displayName}</h3>
+                              <h3 className="text-base font-black text-white uppercase tracking-tight">{selectedFriend.displayName}</h3>
                               <div className="flex items-center gap-2">
                                 <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">{(selectedFriend.stats.studySeconds / 3600).toFixed(1)}h Study</span>
                                 <div className="w-1 h-1 bg-white/20 rounded-full" />
