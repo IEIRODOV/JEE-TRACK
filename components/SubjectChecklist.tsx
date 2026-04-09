@@ -17,6 +17,7 @@ interface Subject {
 }
 
 import { playTickSound, playCheckSound } from '@/src/lib/sounds';
+import { SYLLABUS_DATA } from '@/src/constants/syllabus';
 
 const SubjectIcon = ({ name }: { name: string }) => {
   switch (name.toLowerCase()) {
@@ -40,169 +41,10 @@ interface SubjectChecklistProps {
   examId: string;
 }
 
-const SYLLABUS_DATA: Record<string, Record<string, string[]>> = {
-  jee: {
-    Maths: [
-      "Sets, Relations & Functions", "Complex Numbers", "Matrices & Determinants",
-      "Quadratic Equations", "Permutations & Combinations", "Binomial Theorem",
-      "Sequences & Series", "Limit, Continuity & Differentiability", "Integral Calculus",
-      "Differential Equations", "Coordinate Geometry", "Vector Algebra & 3D",
-      "Probability", "Trigonometry", "Mathematical Reasoning", "Statistics",
-      "Mathematical Induction", "Linear Inequalities"
-    ],
-    Physics: [
-      "Physical World & Measurement", "Kinematics", "Laws of Motion", "Work, Energy & Power",
-      "Rotational Motion", "Gravitation", "Properties of Solids & Liquids", "Thermodynamics",
-      "Kinetic Theory of Gases", "Oscillations & Waves", "Electrostatics", "Current Electricity",
-      "Magnetic Effects of Current & Magnetism", "Electromagnetic Induction & AC", "Electromagnetic Waves",
-      "Optics", "Dual Nature of Matter & Radiation", "Atoms & Nuclei", "Electronic Devices",
-      "Communication Systems", "Experimental Skills"
-    ],
-    Chemistry: [
-      "Some Basic Concepts of Chemistry", "Structure of Atom", "Classification of Elements",
-      "Chemical Bonding", "States of Matter", "Thermodynamics", "Equilibrium", "Redox Reactions",
-      "Hydrogen", "s-Block Elements", "p-Block Elements", "d & f Block Elements",
-      "Coordination Compounds", "Environmental Chemistry", "Purification & Characterisation of Organic Compounds",
-      "General Organic Chemistry", "Hydrocarbons", "Haloalkanes & Haloarenes", "Alcohols, Phenols & Ethers",
-      "Aldehydes, Ketones & Carboxylic Acids", "Amines", "Biomolecules", "Polymers", "Chemistry in Everyday Life",
-      "Principles Related to Practical Chemistry"
-    ]
-  },
-  neet: {
-    Biology: [
-      "The Living World", "Biological Classification", "Plant Kingdom", "Animal Kingdom",
-      "Morphology of Flowering Plants", "Anatomy of Flowering Plants", "Structural Organisation in Animals",
-      "Cell: The Unit of Life", "Biomolecules", "Cell Cycle & Cell Division", "Transport in Plants",
-      "Mineral Nutrition", "Photosynthesis in Higher Plants", "Respiration in Plants", "Plant Growth & Development",
-      "Digestion & Absorption", "Breathing & Exchange of Gases", "Body Fluids & Circulation",
-      "Excretory Products & Their Elimination", "Locomotion & Movement", "Neural Control & Coordination",
-      "Chemical Coordination & Integration", "Reproduction in Organisms", "Sexual Reproduction in Flowering Plants",
-      "Human Reproduction", "Reproductive Health", "Principles of Inheritance & Variation",
-      "Molecular Basis of Inheritance", "Evolution", "Human Health & Disease", "Strategies for Enhancement in Food Production",
-      "Microbes in Human Welfare", "Biotechnology: Principles & Processes", "Biotechnology & Its Applications",
-      "Organisms & Populations", "Ecosystem", "Biodiversity & Conservation", "Environmental Issues"
-    ],
-    Physics: [
-      "Physical World & Measurement", "Kinematics", "Laws of Motion", "Work, Energy & Power",
-      "Motion of System of Particles & Rigid Body", "Gravitation", "Properties of Bulk Matter",
-      "Thermodynamics", "Behavior of Perfect Gas & Kinetic Theory", "Oscillations & Waves",
-      "Electrostatics", "Current Electricity", "Magnetic Effects of Current & Magnetism",
-      "Electromagnetic Induction & AC", "Electromagnetic Waves", "Optics", "Dual Nature of Matter & Radiation",
-      "Atoms & Nuclei", "Electronic Devices"
-    ],
-    Chemistry: [
-      "Some Basic Concepts of Chemistry", "Structure of Atom", "Classification of Elements",
-      "Chemical Bonding", "States of Matter", "Thermodynamics", "Equilibrium", "Redox Reactions",
-      "Hydrogen", "s-Block Elements", "p-Block Elements", "d & f Block Elements",
-      "Coordination Compounds", "Environmental Chemistry", "General Organic Chemistry",
-      "Hydrocarbons", "Haloalkanes & Haloarenes", "Alcohols, Phenols & Ethers",
-      "Aldehydes, Ketones & Carboxylic Acids", "Amines", "Biomolecules", "Polymers", "Chemistry in Everyday Life"
-    ]
-  },
-  boards_9th: {
-    Mathematics: [
-      "Number Systems", "Polynomials", "Coordinate Geometry", "Linear Equations in Two Variables",
-      "Introduction to Euclid’s Geometry", "Lines and Angles", "Triangles", "Quadrilaterals",
-      "Circles", "Heron’s Formula", "Surface Areas and Volumes", "Statistics"
-    ],
-    Science: [
-      "Matter in Our Surroundings", "Is Matter Around Us Pure", "Atoms and Molecules",
-      "Structure of the Atom", "The Fundamental Unit of Life", "Tissues", "Motion",
-      "Force and Laws of Motion", "Gravitation", "Work and Energy", "Sound",
-      "Improvement in Food Resources"
-    ],
-    "Social Science": [
-      "The French Revolution", "Socialism in Europe & Russian Revolution", "Nazism & Rise of Hitler",
-      "Forest Society & Colonialism", "Pastoralists in Modern World",
-      "India – Size & Location", "Physical Features of India", "Drainage", "Climate", 
-      "Natural Vegetation & Wildlife", "Population",
-      "What is Democracy? Why Democracy?", "Constitutional Design", "Electoral Politics", 
-      "Working of Institutions", "Democratic Rights",
-      "Story of Village Palampur", "People as Resource", "Poverty as a Challenge", "Food Security in India"
-    ]
-  },
-  boards_10th: {
-    Mathematics: [
-      "Real Numbers", "Polynomials", "Pair of Linear Equations in Two Variables",
-      "Quadratic Equations", "Arithmetic Progressions", "Triangles", "Coordinate Geometry",
-      "Introduction to Trigonometry", "Some Applications of Trigonometry", "Circles",
-      "Areas Related to Circles", "Surface Areas and Volumes", "Statistics", "Probability"
-    ],
-    Science: [
-      "Chemical Reactions and Equations", "Acids, Bases and Salts", "Metals and Non-metals",
-      "Carbon and its Compounds", "Life Processes", "Control and Coordination",
-      "How do Organisms Reproduce?", "Heredity", "Light – Reflection and Refraction",
-      "The Human Eye and the Colourful World", "Electricity", "Magnetic Effects of Electric Current",
-      "Our Environment"
-    ],
-    "Social Science": [
-      "Rise of Nationalism in Europe", "Nationalism in India", "The Making of a Global World",
-      "The Age of Industrialisation", "Print Culture & Modern World",
-      "Resources & Development", "Forest & Wildlife Resources", "Water Resources", "Agriculture", 
-      "Minerals & Energy Resources", "Manufacturing Industries", "Lifelines of National Economy",
-      "Power Sharing", "Federalism", "Gender, Religion & Caste", "Political Parties", 
-      "Outcomes of Democracy",
-      "Development", "Sectors of Indian Economy", "Money & Credit", "Globalisation & Indian Economy", 
-      "Consumer Rights"
-    ]
-  },
-  boards_11th: {
-    Mathematics: [
-      "Sets", "Relations and Functions", "Trigonometric Functions", "Complex Numbers and Quadratic Equations",
-      "Linear Inequalities", "Permutations and Combinations", "Binomial Theorem", "Sequences and Series",
-      "Straight Lines", "Conic Sections", "Introduction to Three Dimensional Geometry",
-      "Limits and Derivatives", "Statistics", "Probability"
-    ],
-    Physics: [
-      "Units and Measurements", "Motion in a Straight Line", "Motion in a Plane", "Laws of Motion",
-      "Work, Energy and Power", "System of Particles and Rotational Motion", "Gravitation",
-      "Mechanical Properties of Solids", "Mechanical Properties of Fluids", "Thermal Properties of Matter",
-      "Thermodynamics", "Kinetic Theory", "Oscillations", "Waves"
-    ],
-    Chemistry: [
-      "Some Basic Concepts of Chemistry", "Structure of Atom", "Classification of Elements and Periodicity in Properties",
-      "Chemical Bonding and Molecular Structure", "Chemical Thermodynamics", "Equilibrium",
-      "Redox Reactions", "Organic Chemistry – Some Basic Principles and Techniques", "Hydrocarbons"
-    ],
-    Biology: [
-      "The Living World", "Biological Classification", "Plant Kingdom", "Animal Kingdom",
-      "Morphology of Flowering Plants", "Anatomy of Flowering Plants", "Structural Organisation in Animals",
-      "Cell: The Unit of Life", "Biomolecules", "Cell Cycle and Cell Division", "Photosynthesis in Higher Plants",
-      "Respiration in Plants", "Plant Growth and Development", "Breathing and Exchange of Gases",
-      "Body Fluids and Circulation", "Excretory Products and Their Elimination", "Locomotion and Movement",
-      "Neural Control and Coordination", "Chemical Coordination and Integration"
-    ]
-  },
-  boards_12th: {
-    Mathematics: [
-      "Relations and Functions", "Inverse Trigonometric Functions", "Matrices", "Determinants",
-      "Continuity and Differentiability", "Application of Derivatives", "Integrals",
-      "Application of Integrals", "Differential Equations", "Vector Algebra",
-      "Three Dimensional Geometry", "Linear Programming", "Probability"
-    ],
-    Physics: [
-      "Electric Charges and Fields", "Electrostatic Potential and Capacitance", "Current Electricity",
-      "Moving Charges and Magnetism", "Magnetism and Matter", "Electromagnetic Induction",
-      "Alternating Current", "Electromagnetic Waves", "Ray Optics and Optical Instruments", "Wave Optics",
-      "Dual Nature of Radiation and Matter", "Atoms", "Nuclei", "Semiconductor Electronics: Materials, Devices and Simple Circuits"
-    ],
-    Chemistry: [
-      "Solutions", "Electrochemistry", "Chemical Kinetics", "The d-and f-Block Elements",
-      "Coordination Compounds", "Haloalkanes and Haloarenes", "Alcohols, Phenols and Ethers",
-      "Aldehydes, Ketones and Carboxylic Acids", "Amines", "Biomolecules"
-    ],
-    Biology: [
-      "Sexual Reproduction in Flowering Plants", "Human Reproduction", "Reproductive Health",
-      "Principles of Inheritance and Variation", "Molecular Basis of Inheritance", "Evolution",
-      "Human Health and Disease", "Microbes in Human Welfare", "Biotechnology: Principles and Processes",
-      "Biotechnology and its Applications", "Organisms and Populations", "Ecosystem", "Biodiversity and Conservation"
-    ]
-  }
-};
-
 const SubjectChecklist = ({ category, examId }: SubjectChecklistProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [progressData, setProgressData] = useState<Record<string, any>>({});
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -211,40 +53,23 @@ const SubjectChecklist = ({ category, examId }: SubjectChecklistProps) => {
     return () => unsubscribe();
   }, []);
 
+  // Listen to Progress Data instead of Checklist Data
   useEffect(() => {
-    const storageKey = `track-data-${category}-${examId}`;
-    const firestorePath = `users/${user?.uid}/data/checklist-${category}-${examId}`;
+    if (!user) return;
 
-    if (!user) {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        try {
-          setSubjects(JSON.parse(saved));
-        } catch (e) {
-          setInitialData();
-        }
-      } else {
-        setInitialData();
-      }
-      return;
-    }
-
-    const unsubscribe = onSnapshot(doc(db, 'users', user.uid, 'data', `checklist-${category}-${examId}`), (doc) => {
+    const docRef = doc(db, 'users', user.uid, 'data', `progress-${examId}`);
+    const unsubscribe = onSnapshot(docRef, (doc) => {
       if (doc.exists()) {
-        setSubjects(doc.data().subjects || []);
-      } else {
-        setInitialData();
+        setProgressData(doc.data().progress || {});
       }
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, firestorePath, false);
+      handleFirestoreError(error, OperationType.GET, `users/${user.uid}/data/progress-${examId}`, false);
     });
 
     return () => unsubscribe();
-  }, [user, category, examId]);
+  }, [user, examId]);
 
-  const setInitialData = () => {
-    // Check for specific board syllabus first, then category, then default to jee
-    // Normalize keys: boards_9 -> boards_9th, etc.
+  useEffect(() => {
     const normalizedExamId = examId.includes('boards') && !examId.endsWith('th') ? `${examId}th` : examId;
     const syllabus = SYLLABUS_DATA[normalizedExamId] || SYLLABUS_DATA[examId] || SYLLABUS_DATA[category] || SYLLABUS_DATA.jee;
     
@@ -259,57 +84,56 @@ const SubjectChecklist = ({ category, examId }: SubjectChecklistProps) => {
 
     const fonts = ["font-mono", "font-sans", "font-serif"];
 
-    const initial: Subject[] = Object.entries(syllabus).map(([name, chapters], idx) => ({
-      name,
-      color: colors[idx % colors.length],
-      font: fonts[idx % fonts.length],
-      chapters: chapters.map(chName => ({ id: `${category}-${examId}-${name}-${chName}`, name: chName, completed: false }))
-    }));
-    setSubjects(initial);
-  };
+    const initial: Subject[] = Object.entries(syllabus).map(([name, chapters], idx) => {
+      const subjectData = progressData[name] || {};
+      
+      // Get default chapters
+      const defaultChapters = chapters.map(chName => {
+        const prog = subjectData[chName];
+        const completed = prog ? (prog.ncert && prog.module && prog.pyq) : false;
+        const displayName = prog?.customName || chName;
+        return { 
+          id: chName, 
+          name: displayName, 
+          completed 
+        };
+      });
 
-  const toggleChapter = async (subjectIndex: number, chapterIndex: number) => {
-    const isCompleting = !subjects[subjectIndex].chapters[chapterIndex].completed;
-    if (isCompleting) {
-      playCheckSound();
-    } else {
-      playTickSound();
-    }
-    const newSubjects = [...subjects];
-    newSubjects[subjectIndex].chapters[chapterIndex].completed = isCompleting;
-    setSubjects(newSubjects);
-    
-    if (user) {
-      try {
-        await setDoc(doc(db, 'users', user.uid, 'data', `checklist-${category}-${examId}`), { subjects: newSubjects });
-      } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/data/checklist-${category}-${examId}`);
-      }
-    } else {
-      localStorage.setItem(`track-data-${category}-${examId}`, JSON.stringify(newSubjects));
-    }
-  };
+      // Get custom chapters for this subject
+      const customChapters = Object.entries(subjectData)
+        .filter(([_, data]: [string, any]) => data.isCustom)
+        .map(([id, data]: [string, any]) => ({
+          id,
+          name: data.customName || id,
+          completed: data.ncert && data.module && data.pyq
+        }));
+
+      return {
+        name,
+        color: colors[idx % colors.length],
+        font: fonts[idx % fonts.length],
+        chapters: [...defaultChapters, ...customChapters]
+      };
+    });
+    setSubjects(initial);
+  }, [progressData, category, examId]);
 
   const totalChapters = subjects.reduce((acc, s) => acc + s.chapters.length, 0);
   const completedChapters = subjects.reduce((acc, s) => acc + s.chapters.filter(c => c.completed).length, 0);
   const totalProgress = totalChapters > 0 ? Math.round((completedChapters / totalChapters) * 100) : 0;
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 py-12">
+    <div className="w-full max-w-6xl mx-auto px-4 py-12 select-none">
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
           <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
           <h3 className="text-sm font-black text-white uppercase tracking-widest font-heading">Syllabus Tracker</h3>
+          <span className="text-[8px] font-black text-white/20 uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded-full">Read Only</span>
         </div>
         <button 
-          onClick={() => {
-            if (window.confirm("Reset syllabus to default? All progress for this exam will be lost.")) {
-              setInitialData();
-            }
-          }}
-          className="text-[8px] font-black text-white/20 uppercase tracking-widest hover:text-rose-500 transition-colors"
+          className="text-[8px] font-black text-white/20 uppercase tracking-widest cursor-default"
         >
-          Reset Progress
+          Syncing with Progress Page
         </button>
       </div>
 
@@ -355,22 +179,19 @@ const SubjectChecklist = ({ category, examId }: SubjectChecklistProps) => {
           
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
             <div className="space-y-3">
-              {subject.chapters.map((chapter, cIdx) => (
-                <button
+              {subject.chapters.map((chapter) => (
+                <div
                   key={chapter.id}
-                  onClick={() => toggleChapter(sIdx, cIdx)}
-                  className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group text-left
-                    ${chapter.completed ? 'bg-white/10 text-white' : 'hover:bg-white/5 text-white/60'}`}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group
+                    ${chapter.completed ? 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-400' : 'text-white/60 bg-white/5 border border-white/10'}`}
                 >
-                  {chapter.completed ? (
-                    <CheckCircle2 className="w-5 h-5 shrink-0 text-current" />
-                  ) : (
-                    <Circle className="w-5 h-5 shrink-0 opacity-40 group-hover:opacity-100" />
+                  {chapter.completed && (
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
                   )}
-                  <span className={`text-sm font-medium leading-tight ${chapter.completed ? 'line-through opacity-50' : ''}`}>
+                  <span className={`text-sm font-bold leading-tight ${chapter.completed ? '' : ''}`}>
                     {chapter.name}
                   </span>
-                </button>
+                </div>
               ))}
             </div>
           </div>
@@ -392,6 +213,11 @@ const SubjectChecklist = ({ category, examId }: SubjectChecklistProps) => {
           </div>
         </div>
       ))}
+      </div>
+      <div className="mt-12 p-4 rounded-2xl border border-white/5 bg-white/5 text-center">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">
+          Note: Completion of <span className="text-emerald-400">NCERT</span>, <span className="text-emerald-400">Module</span>, and <span className="text-emerald-400">PYQ</span> on the Progress Page will automatically tick mark chapters here.
+        </p>
       </div>
     </div>
   );
