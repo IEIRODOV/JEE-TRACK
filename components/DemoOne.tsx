@@ -329,9 +329,27 @@ const DemoOne = ({ onProfileClick }: DemoOneProps) => {
           photoURL: user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=random`,
           totalQuestions: increment(questions),
           totalHours: increment(hours),
-          streak: increment(1),
           lastUpdated: serverTimestamp()
         }, { merge: true });
+
+        // Update streak only if goal met and not already updated today
+        const today = new Date().toDateString();
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        const lastStreakUpdate = userDoc.data()?.lastStreakUpdate;
+        
+        if (lastStreakUpdate !== today) {
+          const currentSecondsMap = { ...dailyStudySeconds, [today]: (dailyStudySeconds[today] || 0) + (hours * 3600) };
+          const currentStreak = calculateStreak(currentSecondsMap, targetHours);
+          
+          if (currentStreak > 0) {
+            await setDoc(leaderboardRef, {
+              streak: currentStreak
+            }, { merge: true });
+            await setDoc(doc(db, 'users', user.uid), {
+              lastStreakUpdate: today
+            }, { merge: true });
+          }
+        }
 
         // Update Global Stats
         const globalStatsRef = doc(db, 'stats', 'global');

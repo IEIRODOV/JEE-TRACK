@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { auth, db, signOut } from '@/src/firebase';
 import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
-import { User, Target, BookOpen, Activity, Loader2, LogOut, Save, User as UserIcon, ChevronLeft, Sparkles, Trophy, Medal } from 'lucide-react';
+import { User, Target, BookOpen, Activity, Loader2, LogOut, Save, User as UserIcon, ChevronLeft, Sparkles, Trophy, Medal, Info, X } from 'lucide-react';
 import { playTickSound } from '@/src/lib/sounds';
 import AnoAI from "@/components/ui/animated-shader-background";
 import { getRankInfo } from '@/src/lib/ranks';
@@ -131,6 +131,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
   const YEARS = ['2026', '2027', '2028'];
   const CLASSES = ['9th', '10th', '11th', '12th'];
 
+  const [showRankInfo, setShowRankInfo] = useState(false);
   const rankInfo = getRankInfo(totalQuestions);
   const questionsToNext = rankInfo.nextThreshold - totalQuestions;
 
@@ -170,10 +171,103 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
               <div className="w-1 h-1 bg-white/10 rounded-full" />
               <div className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ${rankInfo.color}`}>
                 {rankInfo.icon} {rankInfo.title} (Lvl {rankInfo.level})
+                <button 
+                  onClick={() => { playTickSound(); setShowRankInfo(true); }}
+                  className="ml-1 p-1 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
+                >
+                  <Info className="w-3 h-3 text-white/40" />
+                </button>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Rank Info Modal */}
+        <AnimatePresence>
+          {showRankInfo && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4"
+            >
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className="w-full max-w-md bg-[#0a0a0b] border border-white/10 rounded-[32px] p-8 shadow-2xl relative overflow-hidden"
+              >
+                <button 
+                  onClick={() => setShowRankInfo(false)}
+                  className="absolute top-6 right-6 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
+                >
+                  <X className="w-4 h-4 text-white/40" />
+                </button>
+
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center">
+                    <Trophy className="w-6 h-6 text-purple-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-white uppercase tracking-tight">Rank Progression</h2>
+                    <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">How to climb the leaderboard</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Level 1-3</span>
+                      <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Newbie</span>
+                    </div>
+                    <p className="text-xs text-white/60 font-medium">0 - 300 Questions</p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-[10px] font-black text-emerald-400/40 uppercase tracking-widest">Level 4-6</span>
+                      <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Sergeant</span>
+                    </div>
+                    <p className="text-xs text-white/60 font-medium">1000 - 1600 Questions</p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-[10px] font-black text-blue-400/40 uppercase tracking-widest">Level 7-9</span>
+                      <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Lieutenant</span>
+                    </div>
+                    <p className="text-xs text-white/60 font-medium">1900 - 2500 Questions</p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-purple-500/5 border border-purple-500/10">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-[10px] font-black text-purple-400/40 uppercase tracking-widest">Level 10-15</span>
+                      <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest">Captain / Major</span>
+                    </div>
+                    <p className="text-xs text-white/60 font-medium">2800 - 4300 Questions</p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-yellow-500/5 border border-yellow-500/10">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-[10px] font-black text-yellow-400/40 uppercase tracking-widest">Level 30+</span>
+                      <span className="text-[10px] font-black text-yellow-400 uppercase tracking-widest">Commander</span>
+                    </div>
+                    <p className="text-xs text-white/60 font-medium">8800+ Questions</p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-white/10 border border-white/20">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Level 51</span>
+                      <span className="text-[10px] font-black text-white uppercase tracking-widest">Immortal</span>
+                    </div>
+                    <p className="text-xs text-white/60 font-medium">15000+ Questions</p>
+                  </div>
+                </div>
+
+                <div className="mt-8 p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20">
+                  <p className="text-[10px] text-purple-400 font-bold uppercase tracking-widest leading-relaxed">
+                    Promotion Logic: After Level 3, you gain 1 level for every 300 questions solved.
+                  </p>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div className="grid grid-cols-2 gap-4 mb-12">
           <div className="p-6 rounded-3xl bg-white/5 border border-white/10 relative overflow-hidden group">
