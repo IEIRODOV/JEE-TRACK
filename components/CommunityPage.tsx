@@ -5,7 +5,6 @@ import {
   Send, 
   MessageSquare, 
   Heart, 
-  Share2, 
   MoreVertical, 
   Search, 
   TrendingUp, 
@@ -28,8 +27,7 @@ import {
   Flag,
   FlaskConical,
   ShieldCheck,
-  Pencil,
-  ThumbsUp
+  Pencil
 } from 'lucide-react';
 import PulseLoader from "@/components/ui/pulse-loader";
 import { 
@@ -1390,17 +1388,6 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
 
                           <div className="flex items-center gap-4 pt-4 border-t border-[#343536]">
                             <button 
-                              onClick={() => handleReaction(post.id, '👍')}
-                              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-black uppercase tracking-widest text-[10px]
-                                ${post.reactions?.['👍']?.includes(user?.uid || '') 
-                                  ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' 
-                                  : 'text-[#818384] hover:bg-white/5 hover:text-[#d7dadc]'}`}
-                            >
-                              <ThumbsUp className="w-4 h-4" />
-                              {post.reactions?.['👍']?.length || 0}
-                            </button>
-
-                            <button 
                               onClick={() => setReplyingTo(replyingTo === post.id ? null : post.id)}
                               className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-black uppercase tracking-widest text-[10px]
                                 ${replyingTo === post.id 
@@ -1409,13 +1396,6 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
                             >
                               <MessageSquare className="w-4 h-4" />
                               {post.comments?.length || 0}
-                            </button>
-
-                            <button 
-                              className="flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-black uppercase tracking-widest text-[10px] text-[#818384] hover:bg-white/5 hover:text-[#d7dadc]"
-                            >
-                              <Share2 className="w-4 h-4" />
-                              Share
                             </button>
 
                             <div className="relative ml-auto">

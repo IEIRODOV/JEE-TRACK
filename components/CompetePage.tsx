@@ -1,9 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Users, Target, Zap, ChevronRight, Globe, ShieldCheck, TrendingUp, Medal, Plus, Share2, Award, Clock, Trash2, X } from 'lucide-react';
+import { Trophy, Users, Target, Zap, ChevronRight, Globe, ShieldCheck, TrendingUp, Medal, Plus, Award, Clock, Trash2, X, UserPlus, HelpCircle, Send, MessageSquare, Copy } from 'lucide-react';
 import PulseLoader from "@/components/ui/pulse-loader";
 import { motion, AnimatePresence } from 'motion/react';
 import AnoAI from "@/components/ui/animated-shader-background";
 import { auth, onAuthStateChanged, User, db, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, limit, Timestamp, setDoc, doc, getDoc, getDocs, where, arrayUnion, arrayRemove, increment, handleFirestoreError, OperationType, getCountFromServer } from '@/src/firebase';
+import { playTickSound } from '@/src/lib/sounds';
+
+interface Message {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  text: string;
+  type: 'text' | 'doubt';
+  createdAt: Timestamp | null;
+}
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -41,21 +51,32 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
   const [globalStats, setGlobalStats] = useState({ totalStudents: 0, totalQuestions: 0, totalHours: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [selectedProfile, setSelectedProfile] = useState<any>(null);
+  
+  // Friends State
+  const [friends, setFriends] = useState<any[]>([]);
   const [friendCode, setFriendCode] = useState<string>('');
   const [inputCode, setInputCode] = useState<string>('');
-  const [friends, setFriends] = useState<any[]>([]);
   const [isLinking, setIsLinking] = useState(false);
+  const [selectedFriend, setSelectedFriend] = useState<any>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [messageType, setMessageType] = useState<'text' | 'doubt'>('text');
   const [removingFriendId, setRemovingFriendId] = useState<string | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
-  const [selectedProfile, setSelectedProfile] = useState<any>(null);
+  const chatEndRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (user) {
-      // Generate short code from UID if not exists
       const shortCode = user.uid.substring(0, 6).toUpperCase();
       setFriendCode(shortCode);
-      
-      // Save code to user profile for lookup
       setDoc(doc(db, 'users', user.uid), { friendCode: shortCode }, { merge: true });
     }
   }, [user]);
@@ -68,22 +89,26 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
       if (userDoc.exists()) {
         const friendIds = userDoc.data().friends || [];
         if (friendIds.length > 0) {
-          // Listen to each friend's daily stats
           const friendsData: any[] = [];
           for (const fId of friendIds) {
             const fDoc = await getDoc(doc(db, 'users', fId));
             if (fDoc.exists()) {
               const today = new Date().toDateString();
               const statsDoc = await getDoc(doc(db, 'users', fId, 'dailyStats', today));
+              const lbDoc = await getDoc(doc(db, 'leaderboard', fId));
+              
               friendsData.push({
                 uid: fId,
                 displayName: fDoc.data().displayName || 'Friend',
                 photoURL: fDoc.data().photoURL,
+                totalQuestions: lbDoc.exists() ? lbDoc.data().totalQuestions : 0,
                 stats: statsDoc.exists() ? statsDoc.data() : { studySeconds: 0, questionsSolved: 0 }
               });
             }
           }
           setFriends(friendsData);
+        } else {
+          setFriends([]);
         }
       }
     });
@@ -91,12 +116,41 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
     return () => unsubscribe();
   }, [user]);
 
+  // Messages Listener
+  useEffect(() => {
+    if (!user || !selectedFriend) {
+      setMessages([]);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'messages'),
+      where('senderId', 'in', [user.uid, selectedFriend.uid]),
+      where('receiverId', 'in', [user.uid, selectedFriend.uid]),
+      orderBy('createdAt', 'asc'),
+      limit(50)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const msgs: Message[] = [];
+      snapshot.forEach((doc) => {
+        msgs.push({ id: doc.id, ...doc.data() } as Message);
+      });
+      setMessages(msgs);
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'messages', false);
+    });
+
+    return () => unsubscribe();
+  }, [user, selectedFriend]);
+
   const handleLinkFriend = async () => {
     if (!user || !inputCode.trim()) return;
     setIsLinking(true);
+    playTickSound();
 
     try {
-      // Find user by friend code
       const usersRef = collection(db, 'users');
       const q = query(usersRef, where('friendCode', '==', inputCode.trim().toUpperCase()));
       const querySnapshot = await getDocs(q);
@@ -116,7 +170,6 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
         return;
       }
 
-      // Mutual friendship
       await setDoc(doc(db, 'users', user.uid), {
         friends: arrayUnion(friendId)
       }, { merge: true });
@@ -125,11 +178,9 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
         friends: arrayUnion(user.uid)
       }, { merge: true });
 
-      alert("Friend linked successfully!");
       setInputCode('');
     } catch (error) {
       console.error("Error linking friend:", error);
-      alert("Failed to link friend.");
     } finally {
       setIsLinking(false);
     }
@@ -138,11 +189,10 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
   const handleRemoveFriend = async () => {
     if (!user || !removingFriendId) return;
     setIsRemoving(true);
+    playTickSound();
 
     try {
       const friendId = removingFriendId;
-      
-      // Mutual removal
       await setDoc(doc(db, 'users', user.uid), {
         friends: arrayRemove(friendId)
       }, { merge: true });
@@ -152,21 +202,35 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
       }, { merge: true });
 
       setRemovingFriendId(null);
-      alert("Friend removed.");
+      if (selectedFriend?.uid === friendId) setSelectedFriend(null);
     } catch (error) {
       console.error("Error removing friend:", error);
-      alert("Failed to remove friend.");
     } finally {
       setIsRemoving(false);
     }
   };
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
-    return () => unsubscribe();
-  }, []);
+  const handleSendMessage = async () => {
+    if (!user || !selectedFriend || !newMessage.trim()) return;
+    playTickSound();
+
+    const text = newMessage.trim();
+    const type = messageType;
+    setNewMessage('');
+    setMessageType('text');
+
+    try {
+      await addDoc(collection(db, 'messages'), {
+        senderId: user.uid,
+        receiverId: selectedFriend.uid,
+        text,
+        type,
+        createdAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
+  };
 
   useEffect(() => {
     console.log("Current selectedProfile state:", selectedProfile);
@@ -479,118 +543,6 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
 
           <motion.div 
             variants={itemVariants}
-            className="mt-12 p-8 rounded-[40px] glass border border-white/10 relative overflow-hidden"
-          >
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-                <h3 className="text-sm font-black text-white uppercase tracking-widest font-heading">Study Groups</h3>
-              </div>
-              <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">Collaborative Focus</span>
-            </div>
-            
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="p-6 rounded-3xl bg-white/5 border border-white/10">
-                  <h4 className="text-[10px] font-black text-white/60 uppercase tracking-widest mb-4">Your Friend Code</h4>
-                  <div className="flex gap-3">
-                    <div className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-xl font-mono font-bold text-blue-400 flex items-center justify-center tracking-widest">
-                      {friendCode || '------'}
-                    </div>
-                    <button 
-                      onClick={() => {
-                        navigator.clipboard.writeText(friendCode);
-                        alert("Code copied!");
-                      }}
-                      className="px-4 py-2 bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-all border border-white/10"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                </div>
-
-                <div className="p-6 rounded-3xl bg-white/5 border border-white/10">
-                  <h4 className="text-[10px] font-black text-white/60 uppercase tracking-widest mb-4">Link Friend</h4>
-                  <div className="flex gap-3">
-                    <input 
-                      type="text" 
-                      placeholder="ENTER CODE"
-                      value={inputCode}
-                      onChange={(e) => setInputCode(e.target.value.toUpperCase())}
-                      className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-mono text-white outline-none focus:border-blue-500/50 transition-all"
-                    />
-                    <button 
-                      onClick={handleLinkFriend}
-                      disabled={isLinking}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 transition-all disabled:opacity-50"
-                    >
-                      {isLinking ? '...' : 'Link'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-6 rounded-3xl bg-white/5 border border-white/10 flex flex-col items-center text-center">
-                  <Users className="w-6 h-6 text-blue-400 mb-3" />
-                  <span className="text-[10px] font-black text-white uppercase tracking-widest mb-1">Active Friends</span>
-                  <span className="text-2xl font-mono font-bold text-white">{friends.length}</span>
-                </div>
-                <div className="p-6 rounded-3xl bg-white/5 border border-white/10 flex flex-col items-center text-center">
-                  <Clock className="w-6 h-6 text-emerald-400 mb-3" />
-                  <span className="text-[10px] font-black text-white uppercase tracking-widest mb-1">Group Study Hours</span>
-                  <span className="text-2xl font-mono font-bold text-white">
-                    {(friends.reduce((acc, f) => acc + (f.stats.studySeconds || 0), 0) / 3600).toFixed(1)}h
-                  </span>
-                </div>
-              </div>
-
-              {friends.length > 0 && (
-                <div className="space-y-3 mt-8">
-                  <h4 className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-4">Live Friend Activity</h4>
-                  {friends.map((friend) => (
-                    <div key={friend.uid} className="p-4 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <img src={friend.photoURL} className="w-8 h-8 rounded-full border border-white/10" alt="" />
-                        <div>
-                          <div className="text-xs font-bold text-white">{friend.displayName}</div>
-                          <div className="text-[8px] font-black text-white/20 uppercase tracking-widest">Online</div>
-                        </div>
-                      </div>
-                      <div className="flex gap-6 items-center">
-                        <div className="flex gap-6">
-                          <div className="text-right">
-                            <div className="text-[8px] font-black text-white/40 uppercase tracking-widest">Study</div>
-                            <div className="text-xs font-mono font-bold text-emerald-400">{(friend.stats.studySeconds / 3600).toFixed(1)}h</div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-[8px] font-black text-white/40 uppercase tracking-widest">Solved</div>
-                            <div className="text-xs font-mono font-bold text-blue-400">{friend.stats.questionsSolved}</div>
-                          </div>
-                        </div>
-                        <button 
-                          onClick={() => setRemovingFriendId(friend.uid)}
-                          className="p-2 rounded-lg bg-white/5 border border-white/10 text-white/20 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
-                          title="Remove Friend"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {friends.length === 0 && (
-                <p className="text-center text-[9px] font-bold text-white/20 uppercase tracking-widest">
-                  Link with friends using their unique codes to see live study data.
-                </p>
-              )}
-            </div>
-          </motion.div>
-
-          <motion.div 
-            variants={itemVariants}
             whileHover={{ scale: 1.01 }}
             className="mt-12 p-8 rounded-[40px] border border-blue-500/20 bg-blue-500/5 backdrop-blur-xl relative overflow-hidden group"
           >
@@ -602,37 +554,265 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
               <p className="text-white/60 text-sm mb-8 max-w-md leading-relaxed">Join thousands of aspirants. Track your progress, earn badges, and see where you stand globally.</p>
             </div>
           </motion.div>
+
+          {/* Friends Section at the Bottom */}
+          {user && (
+            <motion.div id="social-hub" variants={itemVariants} className="mt-20">
+              <div className="flex items-center gap-2 mb-8">
+                <div className="w-8 h-px bg-purple-500" />
+                <span className="text-[10px] font-black text-purple-400 uppercase tracking-[0.3em]">Social Hub</span>
+              </div>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                {/* Friend Management */}
+                <div className="lg:col-span-4 space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Your Code Box */}
+                    <motion.div 
+                      whileHover={{ y: -5 }}
+                      className="p-6 rounded-[32px] glass border-t-4 border-t-purple-500 border-x border-white/10 border-b border-white/10 flex flex-col items-center justify-center text-center shadow-[0_10px_30px_rgba(168,85,247,0.1)]"
+                    >
+                      <span className="text-[9px] font-black text-white/40 uppercase tracking-widest mb-3">Your Code</span>
+                      <div className="text-xl font-mono font-bold text-purple-400 tracking-widest mb-4 drop-shadow-[0_0_10px_rgba(168,85,247,0.3)]">{friendCode || '------'}</div>
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText(friendCode);
+                          playTickSound();
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-purple-500/10 text-purple-400 rounded-xl hover:bg-purple-500 hover:text-white transition-all border border-purple-500/20 group"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        <span className="text-[8px] font-black uppercase tracking-widest">Copy</span>
+                      </button>
+                    </motion.div>
+
+                    {/* Paste Code Box */}
+                    <motion.div 
+                      whileHover={{ y: -5 }}
+                      className="p-6 rounded-[32px] glass border-t-4 border-t-blue-500 border-x border-white/10 border-b border-white/10 flex flex-col items-center justify-center text-center shadow-[0_10px_30px_rgba(59,130,246,0.1)]"
+                    >
+                      <span className="text-[9px] font-black text-white/40 uppercase tracking-widest mb-3">Link Friend</span>
+                      <input 
+                        type="text" 
+                        placeholder="CODE"
+                        value={inputCode}
+                        onChange={(e) => setInputCode(e.target.value.toUpperCase())}
+                        className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white text-center outline-none focus:border-blue-500/50 transition-all mb-3"
+                      />
+                      <button 
+                        onClick={handleLinkFriend}
+                        disabled={isLinking}
+                        className="w-full py-2.5 bg-blue-600 text-white rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-blue-500 transition-all disabled:opacity-50 shadow-[0_5px_15px_rgba(59,130,246,0.3)]"
+                      >
+                        {isLinking ? '...' : 'Link'}
+                      </button>
+                    </motion.div>
+
+                    {/* Questions Solved Box */}
+                    <motion.div 
+                      whileHover={{ y: -5 }}
+                      className="p-6 rounded-[32px] glass border-t-4 border-t-rose-500 border-x border-white/10 border-b border-white/10 flex flex-col items-center justify-center text-center shadow-[0_10px_30px_rgba(244,63,94,0.1)]"
+                    >
+                      <div className="p-2.5 rounded-2xl bg-rose-500/10 text-rose-400 mb-3">
+                        <Target className="w-5 h-5" />
+                      </div>
+                      <span className="text-[9px] font-black text-white/40 uppercase tracking-widest mb-1">Solved</span>
+                      <div className="text-2xl font-mono font-bold text-white tracking-tight">{userStats.totalQuestions}</div>
+                    </motion.div>
+
+                    {/* Hours Studied Box */}
+                    <motion.div 
+                      whileHover={{ y: -5 }}
+                      className="p-6 rounded-[32px] glass border-t-4 border-t-emerald-500 border-x border-white/10 border-b border-white/10 flex flex-col items-center justify-center text-center shadow-[0_10px_30px_rgba(16,185,129,0.1)]"
+                    >
+                      <div className="p-2.5 rounded-2xl bg-emerald-500/10 text-emerald-400 mb-3">
+                        <Clock className="w-5 h-5" />
+                      </div>
+                      <span className="text-[9px] font-black text-white/40 uppercase tracking-widest mb-1">Study</span>
+                      <div className="text-2xl font-mono font-bold text-white tracking-tight">{userStats.totalHours.toFixed(1)}h</div>
+                    </motion.div>
+                  </div>
+
+                  <div className="p-6 rounded-[32px] glass border border-white/10">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400">
+                          <Users className="w-4 h-4" />
+                        </div>
+                        <h3 className="text-xs font-black text-white uppercase tracking-widest">Your Crew</h3>
+                      </div>
+                      <span className="text-[10px] font-black text-white/20">{friends.length}</span>
+                    </div>
+
+                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                      {friends.length === 0 ? (
+                        <p className="text-center py-8 text-[9px] font-bold text-white/20 uppercase tracking-widest">No friends linked.</p>
+                      ) : (
+                        friends.map((friend) => (
+                          <button
+                            key={friend.uid}
+                            onClick={() => { playTickSound(); setSelectedFriend(friend); }}
+                            className={`w-full p-3 rounded-2xl border transition-all flex items-center justify-between group
+                              ${selectedFriend?.uid === friend.uid ? 'bg-purple-500/10 border-purple-500/30' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <img src={friend.photoURL} className="w-8 h-8 rounded-xl border border-white/10" alt="" />
+                              <div className="text-left">
+                                <div className="text-[10px] font-bold text-white">{friend.displayName}</div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[7px] font-black text-emerald-400 uppercase tracking-widest">{(friend.stats.studySeconds / 3600).toFixed(1)}h</span>
+                                  <span className="text-[7px] font-black text-blue-400 uppercase tracking-widest">{friend.stats.questionsSolved} Qs</span>
+                                </div>
+                              </div>
+                            </div>
+                            <ChevronRight className={`w-3 h-3 transition-all ${selectedFriend?.uid === friend.uid ? 'text-purple-400 translate-x-0.5' : 'text-white/10 group-hover:text-white/40'}`} />
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Chat / Doubts Section */}
+                <div className="lg:col-span-8">
+                  <AnimatePresence mode="wait">
+                    {selectedFriend ? (
+                      <motion.div 
+                        key={selectedFriend.uid}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        className="h-[500px] rounded-[40px] glass border border-white/10 flex flex-col overflow-hidden"
+                      >
+                        <div className="p-5 border-b border-white/10 bg-white/5 flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <img src={selectedFriend.photoURL} className="w-10 h-10 rounded-2xl border border-white/10" alt="" />
+                            <div>
+                              <h3 className="text-sm font-black text-white uppercase tracking-tight">{selectedFriend.displayName}</h3>
+                              <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Direct Message</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => setRemovingFriendId(selectedFriend.uid)}
+                              className="p-2 rounded-xl bg-white/5 border border-white/10 text-white/20 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => setSelectedFriend(null)}
+                              className="p-2 rounded-xl bg-white/5 border border-white/10 text-white/40 hover:text-white transition-all"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-black/20">
+                          {messages.map((msg) => {
+                            const isMe = msg.senderId === user.uid;
+                            return (
+                              <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                <div className={`max-w-[80%] rounded-2xl p-3 relative
+                                  ${isMe ? 'bg-purple-600 text-white rounded-tr-none' : 'bg-white/10 text-white rounded-tl-none border border-white/10'}
+                                  ${msg.type === 'doubt' ? 'ring-2 ring-amber-500/50 border-amber-500/30' : ''}`}
+                                >
+                                  {msg.type === 'doubt' && (
+                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                      <HelpCircle className="w-3 h-3 text-amber-400" />
+                                      <span className="text-[8px] font-black uppercase tracking-widest text-amber-400">Doubt</span>
+                                    </div>
+                                  )}
+                                  <p className="text-xs leading-relaxed">{msg.text}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          <div ref={chatEndRef} />
+                        </div>
+
+                        <div className="p-6 bg-white/5 border-t border-white/10">
+                          <div className="flex items-center gap-3 mb-4">
+                            <button 
+                              onClick={() => setMessageType('text')}
+                              className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all
+                                ${messageType === 'text' ? 'bg-purple-500 text-white' : 'bg-white/5 text-white/40'}`}
+                            >
+                              Message
+                            </button>
+                            <button 
+                              onClick={() => setMessageType('doubt')}
+                              className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5
+                                ${messageType === 'doubt' ? 'bg-amber-500 text-black' : 'bg-white/5 text-white/40'}`}
+                            >
+                              <HelpCircle className="w-3 h-3" />
+                              Ask Doubt
+                            </button>
+                          </div>
+                          <div className="flex gap-3">
+                            <input 
+                              type="text" 
+                              value={newMessage}
+                              onChange={(e) => setNewMessage(e.target.value)}
+                              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                              placeholder="Type something..."
+                              className="flex-1 bg-black/40 border border-white/10 rounded-2xl px-6 py-3 text-xs text-white outline-none focus:border-purple-500/50 transition-all"
+                            />
+                            <button 
+                              onClick={handleSendMessage}
+                              disabled={!newMessage.trim()}
+                              className="w-12 h-12 rounded-2xl bg-purple-600 text-white flex items-center justify-center hover:bg-purple-500 transition-all disabled:opacity-50"
+                            >
+                              <Send className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ) : (
+                      <div className="h-[500px] rounded-[40px] glass border border-white/10 flex flex-col items-center justify-center text-center p-12">
+                        <div className="w-20 h-20 rounded-[32px] bg-white/5 border border-white/10 flex items-center justify-center mb-6">
+                          <MessageSquare className="w-8 h-8 text-white/10" />
+                        </div>
+                        <h2 className="text-xl font-black text-white mb-2 uppercase tracking-tighter">Social Hub</h2>
+                        <p className="text-white/40 text-[10px] max-w-xs leading-relaxed uppercase tracking-widest font-bold">
+                          Select a friend to start chatting or ask a doubt.
+                        </p>
+                      </div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+            </motion.div>
+          )}
         </motion.div>
       </div>
 
       <AnimatePresence mode="wait">
         {removingFriendId && (
           <motion.div 
-            key="remove-friend-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4"
+            className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4"
           >
             <motion.div 
-              key="remove-friend-modal"
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="w-full max-w-md bg-[#0a0a0b] border border-white/10 rounded-[32px] p-8 text-center shadow-[0_0_50px_rgba(0,0,0,0.5)]"
+              className="w-full max-w-md bg-[#0a0a0b] border border-white/10 rounded-[32px] p-8 text-center shadow-2xl"
             >
               <div className="w-16 h-16 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Trash2 className="w-8 h-8 text-rose-500" />
               </div>
               <h2 className="text-2xl font-black text-white mb-2 uppercase tracking-tighter">Remove Friend?</h2>
               <p className="text-white/40 text-[10px] mb-8 leading-relaxed uppercase tracking-widest font-bold">
-                Are you sure you want to remove this friend? You will no longer see their live study progress.
+                This will disconnect your study streams.
               </p>
               <div className="flex flex-col gap-3">
                 <button 
                   onClick={handleRemoveFriend}
                   disabled={isRemoving}
-                  className="w-full py-4 bg-rose-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-rose-500 transition-all shadow-[0_0_20px_rgba(225,29,72,0.2)] disabled:opacity-50"
+                  className="w-full py-4 bg-rose-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-rose-500 transition-all disabled:opacity-50"
                 >
                   {isRemoving ? 'Removing...' : 'Confirm Removal'}
                 </button>
@@ -720,6 +900,27 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
                   <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">
                     Next: {getRankInfo(getRankInfo(selectedProfile.totalQuestions).nextThreshold).title}
                   </p>
+                </div>
+
+                {/* Personal Chat Option */}
+                <div className="w-full mt-8">
+                  <button 
+                    onClick={() => {
+                      const isFriend = friends.find(f => f.uid === selectedProfile.uid);
+                      if (isFriend) {
+                        setSelectedFriend(isFriend);
+                        setSelectedProfile(null);
+                        // Scroll to social hub
+                        document.getElementById('social-hub')?.scrollIntoView({ behavior: 'smooth' });
+                      } else {
+                        alert("You need to link with this student first using their friend code!");
+                      }
+                    }}
+                    className="w-full py-4 bg-white text-black rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-3 hover:bg-white/90 transition-all shadow-[0_0_30px_rgba(255,255,255,0.2)]"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    Personal Chat
+                  </button>
                 </div>
               </div>
             </motion.div>

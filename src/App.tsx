@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DemoOne } from "@/components/DemoOne";
-import CalendarPage from "@/components/CalendarPage";
+import TimerPage from "@/components/TimerPage";
 import ProgressPage from "@/components/ProgressPage";
 import CompetePage from "@/components/CompetePage";
 import CommunityPage from "@/components/CommunityPage";
@@ -17,7 +17,7 @@ import PulseLoader from "@/components/ui/pulse-loader";
 import { playTickSound } from '@/src/lib/sounds';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'progress' | 'calendar' | 'compete' | 'community' | 'profile'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'progress' | 'timer' | 'compete' | 'community' | 'profile'>('dashboard');
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
@@ -104,8 +104,8 @@ export default function App() {
               <DemoOne onProfileClick={() => handleTabChange('profile')} />
             ) : activeTab === 'progress' ? (
               <ProgressPage />
-            ) : activeTab === 'calendar' ? (
-              <CalendarPage />
+            ) : activeTab === 'timer' ? (
+              <TimerPage />
             ) : activeTab === 'compete' ? (
               <CompetePage onAuthRequest={() => setShowAuth(true)} />
             ) : activeTab === 'profile' ? (

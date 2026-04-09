@@ -166,6 +166,19 @@
         },
         "createdAt": { "type": "string", "format": "date-time" }
       }
+    },
+    "Message": {
+      "title": "Direct Message",
+      "description": "A direct message or doubt sent between friends.",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "text": { "type": "string" },
+        "type": { "type": "string", "enum": ["text", "doubt"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "receiverId", "text", "type"]
     }
   },
   "firestore": {
@@ -204,6 +217,10 @@
     "/posts/{id}": {
       "schema": "Post",
       "description": "Community post."
+    },
+    "/messages/{id}": {
+      "schema": "Message",
+      "description": "Direct message or doubt."
     }
   }
 }

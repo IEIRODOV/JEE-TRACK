@@ -1,11 +1,11 @@
 import React from 'react';
-import { LayoutDashboard, Calendar as CalendarIcon, Trophy, MessageSquare, Activity } from 'lucide-react';
+import { LayoutDashboard, Calendar as CalendarIcon, Trophy, MessageSquare, Activity, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
 import { auth, signOut } from '@/src/firebase';
 
 interface NavbarProps {
-  activeTab: 'dashboard' | 'progress' | 'calendar' | 'compete' | 'community' | 'profile';
-  setActiveTab: (tab: 'dashboard' | 'progress' | 'calendar' | 'compete' | 'community' | 'profile') => void;
+  activeTab: 'dashboard' | 'progress' | 'timer' | 'compete' | 'community' | 'profile';
+  setActiveTab: (tab: 'dashboard' | 'progress' | 'timer' | 'compete' | 'community' | 'profile') => void;
 }
 
 const Navbar = ({ activeTab, setActiveTab }: NavbarProps) => {
@@ -15,7 +15,7 @@ const Navbar = ({ activeTab, setActiveTab }: NavbarProps) => {
         {[
           { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
           { id: 'progress', icon: Activity, label: 'Progress' },
-          { id: 'calendar', icon: CalendarIcon, label: 'Calendar' },
+          { id: 'timer', icon: Clock, label: 'Timer' },
           { id: 'compete', icon: Trophy, label: 'Compete' },
           { id: 'community', icon: MessageSquare, label: 'Community' }
         ].map((tab, idx) => (

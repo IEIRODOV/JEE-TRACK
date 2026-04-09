@@ -22,7 +22,7 @@ import {
   addDoc
 } from 'firebase/firestore';
 
-const CalendarPage = () => {
+const TimerPage = () => {
   const [user, setUser] = useState<any>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -1092,4 +1092,4 @@ const CalendarPage = () => {
   );
 };
 
-export default CalendarPage;
+export default TimerPage;
