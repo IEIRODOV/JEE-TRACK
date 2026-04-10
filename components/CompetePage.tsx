@@ -64,7 +64,19 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
   const [messageType, setMessageType] = useState<'text' | 'doubt'>('text');
   const [removingFriendId, setRemovingFriendId] = useState<string | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [userDailyStats, setUserDailyStats] = useState({ studySeconds: 0, questionsSolved: 0 });
+  const [currentDate, setCurrentDate] = useState(new Date().toDateString());
   const chatEndRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date().toDateString();
+      if (now !== currentDate) {
+        setCurrentDate(now);
+      }
+    }, 60000);
+    return () => clearInterval(timer);
+  }, [currentDate]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -81,6 +93,19 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
     }
   }, [user]);
 
+  // User Daily Stats Listener
+  useEffect(() => {
+    if (!user) return;
+    const unsubscribe = onSnapshot(doc(db, 'users', user.uid, 'dailyStats', currentDate), (docSnap) => {
+      if (docSnap.exists()) {
+        setUserDailyStats(docSnap.data() as any);
+      } else {
+        setUserDailyStats({ studySeconds: 0, questionsSolved: 0 });
+      }
+    });
+    return () => unsubscribe();
+  }, [user, currentDate]);
+
   // Friends Data Listener
   useEffect(() => {
     if (!user) return;
@@ -93,8 +118,7 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
           for (const fId of friendIds) {
             const fDoc = await getDoc(doc(db, 'users', fId));
             if (fDoc.exists()) {
-              const today = new Date().toDateString();
-              const statsDoc = await getDoc(doc(db, 'users', fId, 'dailyStats', today));
+              const statsDoc = await getDoc(doc(db, 'users', fId, 'dailyStats', currentDate));
               const lbDoc = await getDoc(doc(db, 'leaderboard', fId));
               
               friendsData.push({
@@ -114,7 +138,29 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, currentDate]);
+
+  // Real-time Friends Stats Listener
+  useEffect(() => {
+    if (!user || friends.length === 0) return;
+
+    const unsubscribes = friends.map(friend => {
+      return onSnapshot(doc(db, 'users', friend.uid, 'dailyStats', currentDate), (docSnap) => {
+        if (docSnap.exists()) {
+          const newStats = docSnap.data();
+          setFriends(prev => prev.map(f => 
+            f.uid === friend.uid ? { ...f, stats: newStats } : f
+          ));
+        } else {
+          setFriends(prev => prev.map(f => 
+            f.uid === friend.uid ? { ...f, stats: { studySeconds: 0, questionsSolved: 0 } } : f
+          ));
+        }
+      });
+    });
+
+    return () => unsubscribes.forEach(unsub => unsub());
+  }, [user, currentDate, friends.map(f => f.uid).join(',')]);
 
   // Messages Listener
   useEffect(() => {
@@ -627,8 +673,8 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
                       <div className="p-2.5 rounded-2xl bg-rose-500/10 text-rose-400 mb-3">
                         <Target className="w-5 h-5" />
                       </div>
-                      <span className="text-[9px] font-black text-white/40 uppercase tracking-widest mb-1">Solved</span>
-                      <div className="text-2xl font-mono font-bold text-white tracking-tight">{userStats.totalQuestions}</div>
+                      <span className="text-[9px] font-black text-white/40 uppercase tracking-widest mb-1">Today's Solved</span>
+                      <div className="text-2xl font-mono font-bold text-white tracking-tight">{userDailyStats.questionsSolved}</div>
                     </motion.div>
 
                     {/* Hours Studied Box */}
@@ -639,8 +685,8 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
                       <div className="p-2.5 rounded-2xl bg-emerald-500/10 text-emerald-400 mb-3">
                         <Clock className="w-5 h-5" />
                       </div>
-                      <span className="text-[9px] font-black text-white/40 uppercase tracking-widest mb-1">Study</span>
-                      <div className="text-2xl font-mono font-bold text-white tracking-tight">{userStats.totalHours.toFixed(1)}h</div>
+                      <span className="text-[9px] font-black text-white/40 uppercase tracking-widest mb-1">Today's Study</span>
+                      <div className="text-2xl font-mono font-bold text-white tracking-tight">{(userDailyStats.studySeconds / 3600).toFixed(1)}h</div>
                     </motion.div>
                   </div>
 
