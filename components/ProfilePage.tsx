@@ -145,7 +145,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
 
   return (
     <div className="min-h-screen bg-black text-white relative overflow-hidden">
-      <AnoAI />
+      <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(17,24,39,1)_0%,rgba(0,0,0,1)_100%)] pointer-events-none" />
       
       <div className="relative z-10 max-w-2xl mx-auto px-6 pt-24 pb-32">
         <button 

@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo, memo } from 'react';
 import { Trophy, Users, Target, Zap, ChevronRight, Globe, ShieldCheck, TrendingUp, Medal, Plus, Award, Clock, Trash2, X, UserPlus, HelpCircle, Send, MessageSquare, Copy } from 'lucide-react';
 import PulseLoader from "@/components/ui/pulse-loader";
 import { motion, AnimatePresence } from 'motion/react';
-import AnoAI from "@/components/ui/animated-shader-background";
 import { auth, onAuthStateChanged, User, db, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, limit, Timestamp, setDoc, doc, getDoc, getDocs, where, arrayUnion, arrayRemove, increment, handleFirestoreError, OperationType, getCountFromServer } from '@/src/firebase';
 import { playTickSound } from '@/src/lib/sounds';
 
@@ -12,6 +11,7 @@ interface Message {
   receiverId: string;
   text: string;
   type: 'text' | 'doubt';
+  read: boolean;
   createdAt: Timestamp | null;
 }
 
@@ -37,6 +37,120 @@ const itemVariants = {
     }
   }
 };
+
+const FriendTimer = memo(({ timerState }: { timerState: any }) => {
+  const [displayTime, setDisplayTime] = useState('00:00:00');
+
+  useEffect(() => {
+    if (!timerState?.isRunning || !timerState?.startTime) {
+      const total = timerState?.accumulatedSeconds || 0;
+      const h = Math.floor(total / 3600);
+      const m = Math.floor((total % 3600) / 60);
+      const s = total % 60;
+      setDisplayTime(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const elapsed = Math.floor((now - timerState.startTime) / 1000) + timerState.accumulatedSeconds;
+      const h = Math.floor(elapsed / 3600);
+      const m = Math.floor((elapsed % 3600) / 60);
+      const s = elapsed % 60;
+      setDisplayTime(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [timerState]);
+
+  return (
+    <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border transition-all
+      ${timerState?.isRunning ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-white/5 border-white/10'}`}>
+      <div className={`w-1.5 h-1.5 rounded-full ${timerState?.isRunning ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-white/20'}`} />
+      <span className={`text-[9px] font-mono font-bold tracking-wider ${timerState?.isRunning ? 'text-emerald-400' : 'text-white/40'}`}>
+        {displayTime}
+      </span>
+    </div>
+  );
+});
+FriendTimer.displayName = 'FriendTimer';
+
+const FriendListItem = memo(({ 
+  friend, 
+  isSelected, 
+  unreadCount, 
+  timerState, 
+  onClick 
+}: { 
+  friend: any, 
+  isSelected: boolean, 
+  unreadCount: number, 
+  timerState: any, 
+  onClick: () => void 
+}) => {
+  return (
+    <motion.button
+      whileHover={{ scale: 1.02, x: 4 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={onClick}
+      className={`w-full p-4 rounded-[24px] border transition-all flex items-center justify-between group relative overflow-hidden
+        ${isSelected 
+          ? 'bg-purple-500/10 border-purple-500/40 shadow-[0_0_20px_rgba(168,85,247,0.15)]' 
+          : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'}`}
+    >
+      {isSelected && (
+        <motion.div 
+          layoutId="active-friend-glow"
+          className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-transparent pointer-events-none"
+        />
+      )}
+      
+      <div className="flex items-center gap-4 relative z-10">
+        <div className="relative">
+          <img 
+            src={friend.photoURL} 
+            className={`w-10 h-10 rounded-2xl border transition-all object-cover
+              ${isSelected ? 'border-purple-400' : 'border-white/10 group-hover:border-white/30'}`} 
+            alt="" 
+            referrerPolicy="no-referrer"
+          />
+          {unreadCount > 0 && (
+            <motion.div 
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-rose-500 border-2 border-black rounded-full flex items-center justify-center shadow-[0_0_10px_rgba(244,63,94,0.5)]"
+            >
+              <span className="text-[8px] font-black text-white">{unreadCount}</span>
+            </motion.div>
+          )}
+        </div>
+        <div className="text-left">
+          <div className="text-[11px] font-black text-white uppercase tracking-tight mb-1 flex items-center gap-2">
+            {friend.displayName}
+            {timerState?.isRunning && (
+              <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+            )}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                <Clock className="w-2.5 h-2.5 text-emerald-400" />
+                <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">{(friend.stats.studySeconds / 3600).toFixed(1)}h</span>
+              </div>
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                <Target className="w-2.5 h-2.5 text-blue-400" />
+                <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest">{friend.stats.questionsSolved}</span>
+              </div>
+            </div>
+            <FriendTimer timerState={timerState} />
+          </div>
+        </div>
+      </div>
+      <ChevronRight className={`w-4 h-4 transition-all ${isSelected ? 'text-purple-400 translate-x-1' : 'text-white/10 group-hover:text-white/40'}`} />
+    </motion.button>
+  );
+});
+FriendListItem.displayName = 'FriendListItem';
 
 interface CompetePageProps {
   onAuthRequest?: () => void;
@@ -65,6 +179,8 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
   const [removingFriendId, setRemovingFriendId] = useState<string | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
   const [userDailyStats, setUserDailyStats] = useState({ studySeconds: 0, questionsSolved: 0 });
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [friendsTimerStates, setFriendsTimerStates] = useState<Record<string, any>>({});
   const [currentDate, setCurrentDate] = useState(new Date().toDateString());
   const chatEndRef = React.useRef<HTMLDivElement>(null);
 
@@ -144,7 +260,7 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
   useEffect(() => {
     if (!user || friends.length === 0) return;
 
-    const unsubscribes = friends.map(friend => {
+    const unsubscribesStats = friends.map(friend => {
       return onSnapshot(doc(db, 'users', friend.uid, 'dailyStats', currentDate), (docSnap) => {
         if (docSnap.exists()) {
           const newStats = docSnap.data();
@@ -159,8 +275,70 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
       });
     });
 
-    return () => unsubscribes.forEach(unsub => unsub());
+    const unsubscribesTimer = friends.map(friend => {
+      return onSnapshot(doc(db, 'users', friend.uid, 'data', 'timer'), (docSnap) => {
+        if (docSnap.exists()) {
+          setFriendsTimerStates(prev => ({ ...prev, [friend.uid]: docSnap.data() }));
+        } else {
+          setFriendsTimerStates(prev => ({ ...prev, [friend.uid]: { isRunning: false, startTime: null, accumulatedSeconds: 0 } }));
+        }
+      });
+    });
+
+    return () => {
+      unsubscribesStats.forEach(unsub => unsub());
+      unsubscribesTimer.forEach(unsub => unsub());
+    };
   }, [user, currentDate, friends.map(f => f.uid).join(',')]);
+
+  // Unread Messages Listener
+  useEffect(() => {
+    if (!user || friends.length === 0) return;
+
+    const q = query(
+      collection(db, 'messages'),
+      where('receiverId', '==', user.uid),
+      where('read', '==', false)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const counts: Record<string, number> = {};
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        const senderId = data.senderId;
+        counts[senderId] = (counts[senderId] || 0) + 1;
+      });
+      setUnreadCounts(counts);
+    });
+
+    return () => unsubscribe();
+  }, [user, friends.length]);
+
+  // Mark messages as read when chat is opened
+  useEffect(() => {
+    if (!user || !selectedFriend) return;
+
+    const markAsRead = async () => {
+      const q = query(
+        collection(db, 'messages'),
+        where('receiverId', '==', user.uid),
+        where('senderId', '==', selectedFriend.uid),
+        where('read', '==', false)
+      );
+
+      try {
+        const snapshot = await getDocs(q);
+        const batch = snapshot.docs.map(docSnap => 
+          setDoc(doc(db, 'messages', docSnap.id), { read: true }, { merge: true })
+        );
+        await Promise.all(batch);
+      } catch (error) {
+        console.error("Error marking messages as read:", error);
+      }
+    };
+
+    markAsRead();
+  }, [user, selectedFriend]);
 
   // Messages Listener
   useEffect(() => {
@@ -282,6 +460,7 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
         receiverId: selectedFriend.uid,
         text,
         type,
+        read: false,
         createdAt: serverTimestamp()
       });
     } catch (error) {
@@ -379,7 +558,7 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
 
   return (
     <div className="w-full min-h-screen bg-black overflow-x-hidden relative">
-      <AnoAI />
+      <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(17,24,39,1)_0%,rgba(0,0,0,1)_100%)] pointer-events-none" />
       
       <div className="relative z-10 flex flex-col items-center pt-16 pb-32 px-4">
         <motion.div 
@@ -620,10 +799,9 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
                 <span className="text-[10px] font-black text-purple-400 uppercase tracking-[0.3em]">Social Hub</span>
               </div>
               
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* Friend Management */}
-                <div className="lg:col-span-4 space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-8">
+                {/* Top Stats & Code Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Your Code Box */}
                     <motion.div 
                       whileHover={{ y: -5 }}
@@ -690,7 +868,9 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
                     </motion.div>
                   </div>
 
-                  <div className="p-6 rounded-[32px] glass border border-white/10">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                  {/* Friend List */}
+                  <div className="lg:col-span-4 space-y-6">
                     <div className="flex items-center justify-between mb-6">
                       <div className="flex items-center gap-3">
                         <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400">
@@ -713,57 +893,18 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
                         </div>
                       ) : (
                         friends.map((friend) => (
-                          <motion.button
+                          <FriendListItem 
                             key={friend.uid}
-                            whileHover={{ scale: 1.02, x: 4 }}
-                            whileTap={{ scale: 0.98 }}
+                            friend={friend}
+                            isSelected={selectedFriend?.uid === friend.uid}
+                            unreadCount={unreadCounts[friend.uid] || 0}
+                            timerState={friendsTimerStates[friend.uid]}
                             onClick={() => { playTickSound(); setSelectedFriend(friend); }}
-                            className={`w-full p-4 rounded-[24px] border transition-all flex items-center justify-between group relative overflow-hidden
-                              ${selectedFriend?.uid === friend.uid 
-                                ? 'bg-purple-500/10 border-purple-500/40 shadow-[0_0_20px_rgba(168,85,247,0.15)]' 
-                                : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'}`}
-                          >
-                            {selectedFriend?.uid === friend.uid && (
-                              <motion.div 
-                                layoutId="active-friend-glow"
-                                className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-transparent pointer-events-none"
-                              />
-                            )}
-                            
-                            <div className="flex items-center gap-4 relative z-10">
-                              <div className="relative">
-                                <img 
-                                  src={friend.photoURL} 
-                                  className={`w-10 h-10 rounded-2xl border transition-all object-cover
-                                    ${selectedFriend?.uid === friend.uid ? 'border-purple-400' : 'border-white/10 group-hover:border-white/30'}`} 
-                                  alt="" 
-                                  referrerPolicy="no-referrer"
-                                />
-                                {friend.stats.studySeconds > 0 && (
-                                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 border-2 border-black rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
-                                )}
-                              </div>
-                              <div className="text-left">
-                                <div className="text-[11px] font-black text-white uppercase tracking-tight mb-1">{friend.displayName}</div>
-                                <div className="flex items-center gap-2">
-                                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                                    <Clock className="w-2.5 h-2.5 text-emerald-400" />
-                                    <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">{(friend.stats.studySeconds / 3600).toFixed(1)}h</span>
-                                  </div>
-                                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                                    <Target className="w-2.5 h-2.5 text-blue-400" />
-                                    <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest">{friend.stats.questionsSolved}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                            <ChevronRight className={`w-4 h-4 transition-all ${selectedFriend?.uid === friend.uid ? 'text-purple-400 translate-x-1' : 'text-white/10 group-hover:text-white/40'}`} />
-                          </motion.button>
+                          />
                         ))
                       )}
                     </div>
                   </div>
-                </div>
 
                 {/* Chat / Doubts Section */}
                 <div className="lg:col-span-8">
@@ -786,10 +927,13 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
                             />
                             <div>
                               <h3 className="text-base font-black text-white uppercase tracking-tight">{selectedFriend.displayName}</h3>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">{(selectedFriend.stats.studySeconds / 3600).toFixed(1)}h Study</span>
-                                <div className="w-1 h-1 bg-white/20 rounded-full" />
-                                <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest">{selectedFriend.stats.questionsSolved} Questions</span>
+                              <div className="flex items-center gap-3 mt-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">{(selectedFriend.stats.studySeconds / 3600).toFixed(1)}h Study</span>
+                                  <div className="w-1 h-1 bg-white/20 rounded-full" />
+                                  <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest">{selectedFriend.stats.questionsSolved} Questions</span>
+                                </div>
+                                <FriendTimer timerState={friendsTimerStates[selectedFriend.uid]} />
                               </div>
                             </div>
                           </div>
@@ -920,10 +1064,11 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
                   </AnimatePresence>
                 </div>
               </div>
-            </motion.div>
-          )}
-        </motion.div>
-      </div>
+            </div>
+          </motion.div>
+        )}
+      </motion.div>
+    </div>
 
       <AnimatePresence mode="wait">
         {removingFriendId && (

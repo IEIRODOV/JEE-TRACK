@@ -469,7 +469,7 @@ const DemoOne = ({ onProfileClick }: DemoOneProps) => {
 
   return (
     <div className="w-full min-h-screen bg-black overflow-x-hidden relative">
-      <AnoAI />
+      <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(17,24,39,1)_0%,rgba(0,0,0,1)_100%)] pointer-events-none" />
       
       {/* Top Bar with Profile */}
       <div className="absolute top-0 left-0 right-0 z-[100] flex justify-end p-6">

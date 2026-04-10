@@ -178,9 +178,10 @@
         "receiverId": { "type": "string" },
         "text": { "type": "string" },
         "type": { "type": "string", "enum": ["text", "doubt"] },
+        "read": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["chatId", "participants", "senderId", "receiverId", "text", "type"]
+      "required": ["chatId", "participants", "senderId", "receiverId", "text", "type", "read"]
     }
   },
   "firestore": {

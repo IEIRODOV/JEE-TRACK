@@ -644,7 +644,7 @@ const TimerPage = () => {
 
   return (
     <div className="w-full min-h-screen bg-black overflow-x-hidden relative">
-      <AnoAI />
+      <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(17,24,39,1)_0%,rgba(0,0,0,1)_100%)] pointer-events-none" />
       
       <div className="relative z-10 flex flex-col items-center pt-16 pb-24 px-4">
         <div className="w-full max-w-4xl">
