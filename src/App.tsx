@@ -7,8 +7,7 @@ import CommunityPage from "@/components/CommunityPage";
 import Navbar from "@/components/Navbar";
 import AuthPage from "@/components/AuthPage";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import { auth, onAuthStateChanged, User, db } from '@/src/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { auth, onAuthStateChanged, User, db, setDoc, doc, getDoc } from '@/src/firebase';
 import { AnimatePresence, motion } from 'motion/react';
 
 import ProfilePage from "@/components/ProfilePage";
@@ -22,6 +21,24 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
   const [settings, setSettings] = useState({ activateChat: true, activateCommunity: true, streakGoal: 7 });
+
+  const updateSettings = async (newSettings: Partial<typeof settings>) => {
+    const updated = { ...settings, ...newSettings };
+    setSettings(updated);
+    
+    if (user) {
+      try {
+        await setDoc(doc(db, 'users', user.uid), newSettings, { merge: true });
+      } catch (error) {
+        console.error("Error updating settings:", error);
+      }
+    }
+    
+    // Update local storage for immediate effect if needed
+    if (newSettings.activateChat !== undefined) localStorage.setItem('pulse_activate_chat', String(newSettings.activateChat));
+    if (newSettings.activateCommunity !== undefined) localStorage.setItem('pulse_activate_community', String(newSettings.activateCommunity));
+    if (newSettings.streakGoal !== undefined) localStorage.setItem('pulse_streak_goal', String(newSettings.streakGoal));
+  };
 
   useEffect(() => {
     // Global safety timeout to ensure loading screen eventually disappears
@@ -110,7 +127,7 @@ export default function App() {
             className="w-full"
           >
             {activeTab === 'dashboard' ? (
-              <DemoOne onProfileClick={() => handleTabChange('profile')} settings={settings} />
+              <DemoOne onProfileClick={() => handleTabChange('profile')} settings={settings} updateSettings={updateSettings} />
             ) : activeTab === 'progress' ? (
               <ProgressPage />
             ) : activeTab === 'timer' ? (

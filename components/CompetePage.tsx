@@ -219,6 +219,8 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
       } else {
         setUserDailyStats({ studySeconds: 0, questionsSolved: 0 });
       }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, `users/${user.uid}/dailyStats/${currentDate}`, false);
     });
     return () => unsubscribe();
   }, [user, currentDate]);
@@ -252,6 +254,8 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
           setFriends([]);
         }
       }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, `users/${user.uid}`, false);
     });
 
     return () => unsubscribe();
@@ -273,6 +277,8 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
             f.uid === friend.uid ? { ...f, stats: { studySeconds: 0, questionsSolved: 0 } } : f
           ));
         }
+      }, (error) => {
+        handleFirestoreError(error, OperationType.GET, `users/${friend.uid}/dailyStats/${currentDate}`, false);
       });
     });
 
@@ -283,6 +289,8 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
         } else {
           setFriendsTimerStates(prev => ({ ...prev, [friend.uid]: { isRunning: false, startTime: null, accumulatedSeconds: 0 } }));
         }
+      }, (error) => {
+        handleFirestoreError(error, OperationType.GET, `users/${friend.uid}/data/timer`, false);
       });
     });
 
@@ -310,6 +318,8 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
         counts[senderId] = (counts[senderId] || 0) + 1;
       });
       setUnreadCounts(counts);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'messages', false);
     });
 
     return () => unsubscribe();

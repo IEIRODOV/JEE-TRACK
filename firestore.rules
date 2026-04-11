@@ -171,7 +171,11 @@ service cloud.firestore {
       );
 
       match /{allPaths=**} {
-        allow read: if isOwner(userId) || isAdmin() || (isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/users/$(userId)).data.friends);
+        allow read: if isOwner(userId) || isAdmin() || (
+          isAuthenticated() && 
+          exists(/databases/$(database)/documents/users/$(userId)) &&
+          request.auth.uid in get(/databases/$(database)/documents/users/$(userId)).data.get('friends', [])
+        );
         allow write: if isOwner(userId) || isAdmin();
       }
     }
@@ -186,7 +190,11 @@ service cloud.firestore {
 
     // Messages: Participants only
     match /messages/{messageId} {
-      allow read: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      allow read: if isAuthenticated() && (
+        request.auth.uid in resource.data.participants ||
+        request.auth.uid == resource.data.receiverId ||
+        request.auth.uid == resource.data.senderId
+      );
       allow update: if isAuthenticated() && 
                       request.auth.uid == resource.data.receiverId &&
                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);

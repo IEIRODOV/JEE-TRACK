@@ -29,6 +29,8 @@ const Notifications = () => {
       });
       setNotifications(notifs);
       setUnreadCount(unread);
+    }, (error) => {
+      console.error("Error in notifications listener:", error);
     });
 
     return () => unsubscribe();

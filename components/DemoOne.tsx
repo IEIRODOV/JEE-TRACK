@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Target, Zap, Clock, Trophy, CheckCircle2, Activity, User as UserIcon } from 'lucide-react';
+import { Target, Zap, Clock, Trophy, CheckCircle2, Activity, User as UserIcon, Check } from 'lucide-react';
 import AnoAI from "@/components/ui/animated-shader-background";
 import CountdownTimer from "@/components/ui/countdown-timer";
 import SubjectChecklist from "@/components/SubjectChecklist";
@@ -11,6 +11,7 @@ import { playTickSound } from '@/src/lib/sounds';
 interface DemoOneProps {
   onProfileClick: () => void;
   settings?: { activateChat: boolean; activateCommunity: boolean; streakGoal: number };
+  updateSettings?: (newSettings: any) => void;
 }
 
 const EXAM_DATES: Record<string, any> = {
@@ -42,7 +43,7 @@ const EXAM_DATES: Record<string, any> = {
   }
 };
 
-const DemoOne = ({ onProfileClick, settings }: DemoOneProps) => {
+const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [globalRank, setGlobalRank] = useState<number | string>('--');
   const [timerState, setTimerState] = useState({ isRunning: false, startTime: null as number | null, accumulatedSeconds: 0 });
@@ -533,6 +534,53 @@ const DemoOne = ({ onProfileClick, settings }: DemoOneProps) => {
                         </button>
                       </div>
                       <p className="text-[8px] text-white/20 uppercase tracking-widest">Toggle dashboard countdown</p>
+                    </div>
+
+                    <div className="h-px bg-white/5 my-2 mx-2" />
+
+                    {/* App Settings in Dropdown */}
+                    <div className="p-3 space-y-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-white/60">Activate Chat</span>
+                          <button 
+                            onClick={() => { playTickSound(); updateSettings?.({ activateChat: !settings?.activateChat }); }}
+                            className={`w-10 h-5 rounded-full transition-all relative ${settings?.activateChat ? 'bg-emerald-500' : 'bg-white/10'}`}
+                          >
+                            <motion.div 
+                              animate={{ x: settings?.activateChat ? 20 : 2 }}
+                              className="absolute top-1 left-0 w-3 h-3 bg-white rounded-full shadow-lg"
+                            />
+                          </button>
+                        </div>
+                        <p className="text-[8px] text-white/20 uppercase tracking-widest">Enable friend messaging</p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-white/60">Activate Community</span>
+                          <button 
+                            onClick={() => { playTickSound(); updateSettings?.({ activateCommunity: !settings?.activateCommunity }); }}
+                            className={`w-10 h-5 rounded-full transition-all relative ${settings?.activateCommunity ? 'bg-emerald-500' : 'bg-white/10'}`}
+                          >
+                            <motion.div 
+                              animate={{ x: settings?.activateCommunity ? 20 : 2 }}
+                              className="absolute top-1 left-0 w-3 h-3 bg-white rounded-full shadow-lg"
+                            />
+                          </button>
+                        </div>
+                        <p className="text-[8px] text-white/20 uppercase tracking-widest">Enable global feed</p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-white/60">Streak Goal</span>
+                          <div className="px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                            <span className="text-[10px] font-black text-emerald-400">{settings?.streakGoal || 7}H</span>
+                          </div>
+                        </div>
+                        <p className="text-[8px] text-white/20 uppercase tracking-widest">Daily target study hours</p>
+                      </div>
                     </div>
                   </div>
                 </motion.div>

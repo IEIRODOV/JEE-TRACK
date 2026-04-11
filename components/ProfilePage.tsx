@@ -25,9 +25,6 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [customExamName, setCustomExamName] = useState('');
   const [customExamDate, setCustomExamDate] = useState('');
-  const [activateChat, setActivateChat] = useState(true);
-  const [activateCommunity, setActivateCommunity] = useState(true);
-  const [streakGoal, setStreakGoal] = useState(7);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -43,9 +40,6 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
           setSelectedExam(isCustom ? 'more' : (data.exam || ''));
           setSelectedYear(data.year || '');
           setSelectedSubExam(data.subExam || 'mains');
-          setActivateChat(data.activateChat !== undefined ? data.activateChat : (data.deactivateChat !== undefined ? !data.deactivateChat : true));
-          setActivateCommunity(data.activateCommunity !== undefined ? data.activateCommunity : (data.deactivateCommunity !== undefined ? !data.deactivateCommunity : true));
-          setStreakGoal(data.streakGoal || 7);
           if (isCustom) {
             setCustomExamName(data.exam);
             setCustomExamDate(data.customDate || '');
@@ -98,9 +92,6 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
           year: selectedYear,
           subExam: selectedExam === 'jee' ? selectedSubExam : null,
           customDate: selectedExam === 'more' ? customExamDate : null,
-          activateChat,
-          activateCommunity,
-          streakGoal,
           updatedAt: new Date()
         }, { merge: true });
 
@@ -112,9 +103,6 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
         localStorage.setItem('pulse_user_exam', examName);
         localStorage.setItem('pulse_user_year', selectedYear);
         localStorage.setItem('pulse_user_subexam', selectedSubExam);
-        localStorage.setItem('pulse_activate_chat', String(activateChat));
-        localStorage.setItem('pulse_activate_community', String(activateCommunity));
-        localStorage.setItem('pulse_streak_goal', String(streakGoal));
         if (selectedExam === 'more') localStorage.setItem('pulse_custom_date', customExamDate);
 
         setSuccess('Profile updated successfully');
@@ -437,75 +425,6 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
               <LogOut className="w-4 h-4" />
               Terminate Session
             </button>
-          </div>
-        </div>
-
-        {/* App Settings - Moved below profile settings */}
-        <div className="mt-8 bg-white/5 border border-white/10 rounded-[40px] p-8 md:p-12 backdrop-blur-xl">
-          <div className="flex items-center gap-4 mb-8">
-            <div className="p-3 rounded-2xl bg-purple-500/10 text-purple-400">
-              <Activity className="w-6 h-6" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-black text-white uppercase tracking-tighter">App Settings</h2>
-              <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">Configure your experience</p>
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <button
-                onClick={() => { playTickSound(); setActivateChat(!activateChat); }}
-                className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
-                  activateChat 
-                    ? 'bg-purple-500/10 border-purple-500/50 text-purple-400' 
-                    : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${activateChat ? 'bg-purple-500 border-purple-500' : 'border-white/20'}`}>
-                    {activateChat && <Check className="w-3 h-3 text-white" />}
-                  </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest">Activate Friend Chat</span>
-                </div>
-                <span className="text-[8px] font-bold uppercase opacity-40">{activateChat ? 'Active' : 'Deactivated'}</span>
-              </button>
-
-              <button
-                onClick={() => { playTickSound(); setActivateCommunity(!activateCommunity); }}
-                className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
-                  activateCommunity 
-                    ? 'bg-purple-500/10 border-purple-500/50 text-purple-400' 
-                    : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${activateCommunity ? 'bg-purple-500 border-purple-500' : 'border-white/20'}`}>
-                    {activateCommunity && <Check className="w-3 h-3 text-white" />}
-                  </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest">Activate Community</span>
-                </div>
-                <span className="text-[8px] font-bold uppercase opacity-40">{activateCommunity ? 'Active' : 'Deactivated'}</span>
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <label className="text-[10px] font-black text-white/40 uppercase tracking-widest block">Daily Streak Goal (Hours)</label>
-              <div className="flex items-center gap-4">
-                <input 
-                  type="range"
-                  min="1"
-                  max="18"
-                  value={streakGoal}
-                  onChange={(e) => setStreakGoal(parseInt(e.target.value))}
-                  className="flex-1 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-purple-500"
-                />
-                <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-lg font-black text-white">
-                  {streakGoal}
-                </div>
-              </div>
-              <p className="text-[8px] font-bold text-white/20 uppercase tracking-[0.2em]">Target study hours per day to maintain your streak</p>
-            </div>
           </div>
         </div>
       </div>
