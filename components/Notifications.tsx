@@ -134,7 +134,10 @@ const Notifications = () => {
                             </span>
                           </div>
                           <p className="text-[11px] text-white/50 leading-relaxed line-clamp-2">
-                            {notif.type === 'reaction' ? 'reacted to your post' : 'replied to your comment'}:
+                            {notif.type === 'reaction' ? 'reacted to your post' : 
+                             notif.type === 'post_reply' ? 'replied to your post' :
+                             notif.type === 'comment_reply' ? 'replied to your comment' :
+                             'sent you a notification'}:
                             <span className="text-white/80 font-medium ml-1 italic">"{notif.content}"</span>
                           </p>
                         </div>

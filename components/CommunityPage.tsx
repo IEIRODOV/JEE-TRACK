@@ -27,7 +27,8 @@ import {
   Flag,
   FlaskConical,
   ShieldCheck,
-  Pencil
+  Pencil,
+  Share2
 } from 'lucide-react';
 import PulseLoader from "@/components/ui/pulse-loader";
 import { 
@@ -62,6 +63,7 @@ interface Comment {
   displayName: string;
   photoURL: string;
   replyTo?: string; // Name of the person being replied to
+  parentId?: string; // ID of the parent comment
   createdAt: Timestamp | null;
 }
 
@@ -523,7 +525,7 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
   const [sortMode, setSortMode] = useState<'new' | 'top'>('new');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [expandedCommentsPostId, setExpandedCommentsPostId] = useState<string | null>(null);
   const [isCreatingPost, setIsCreatingPost] = useState(false);
   const [activeReactionPicker, setActiveReactionPicker] = useState<string | null>(null);
   const [replyText, setReplyText] = useState<{ [postId: string]: string }>({});
@@ -646,6 +648,7 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
         likes: [],
         reactions: {},
         reports: [],
+        comments: [],
         createdAt: serverTimestamp(),
       });
       setIsCreatingPost(false);
@@ -763,24 +766,33 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
   };
 
   const handleSendReply = async (postId: string) => {
-    if (!user || !replyText[postId]?.trim()) return;
+    if (!user) {
+      onAuthRequest?.();
+      return;
+    }
+    if (!replyText[postId]?.trim()) return;
 
     const text = replyText[postId].trim();
-    const replyTo = replyToComment?.postId === postId ? replyToComment.name : undefined;
+    const replyTo = replyToComment?.postId === postId ? replyToComment.name : null;
+    const parentId = replyToComment?.postId === postId ? replyToComment.commentId : null;
     
+    // Optimistic UI update could be here, but we'll wait for Firestore
+    const currentReplyText = replyText[postId];
     setReplyText(prev => ({ ...prev, [postId]: '' }));
     setReplyToComment(null);
+    setShowCommentInput(null);
 
     try {
       const postRef = doc(db, 'posts', postId);
       const newComment: Comment = {
-        id: Math.random().toString(36).substring(7),
+        id: Math.random().toString(36).substring(7) + Date.now().toString(36),
         text,
         uid: user.uid,
         displayName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
         photoURL: user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=random`,
-        replyTo,
         createdAt: Timestamp.now(),
+        ...(replyTo && { replyTo }),
+        ...(parentId && { parentId }),
       };
 
       await updateDoc(postRef, {
@@ -795,14 +807,35 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
           fromUid: user.uid,
           fromName: user.displayName || 'Someone',
           fromPhoto: user.photoURL || '',
-          type: 'reply',
+          type: parentId ? 'comment_reply' : 'post_reply',
           postId: postId,
-          content: text,
+          content: text.substring(0, 50) + (text.length > 50 ? '...' : ''),
           read: false,
           createdAt: serverTimestamp()
         });
       }
+
+      // Also notify the comment author if it's a reply to a specific comment
+      if (parentId) {
+        const parentComment = post?.comments?.find(c => c.id === parentId);
+        if (parentComment && parentComment.uid !== user.uid && parentComment.uid !== post?.uid) {
+          await addDoc(collection(db, 'notifications'), {
+            toUid: parentComment.uid,
+            fromUid: user.uid,
+            fromName: user.displayName || 'Someone',
+            fromPhoto: user.photoURL || '',
+            type: 'comment_reply',
+            postId: postId,
+            content: text.substring(0, 50) + (text.length > 50 ? '...' : ''),
+            read: false,
+            createdAt: serverTimestamp()
+          });
+        }
+      }
     } catch (error) {
+      console.error("Error sending reply:", error);
+      // Restore text on error
+      setReplyText(prev => ({ ...prev, [postId]: currentReplyText }));
       handleFirestoreError(error, OperationType.UPDATE, 'posts', false);
     }
   };
@@ -860,7 +893,12 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
     }
   };
 
-  const formatTime = (timestamp: Timestamp | null) => {
+  const handleShare = (postId: string) => {
+    const url = `${window.location.origin}/community?post=${postId}`;
+    navigator.clipboard.writeText(url).catch(err => console.error("Failed to copy:", err));
+  };
+
+  const formatTime = (timestamp: any) => {
     if (!timestamp) return 'Just now';
     const date = timestamp.toDate();
     const now = new Date();
@@ -1128,7 +1166,7 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
                 </div>
               </div>
             ) : (
-            <>
+            <React.Fragment>
               {/* Mobile Category Selector */}
               <div className="lg:hidden flex gap-2 overflow-x-auto scrollbar-hide pb-2">
                 {CATEGORIES.map((cat) => (
@@ -1195,60 +1233,72 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Create New Post</span>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" />
+                            <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">New Transmission</span>
+                          </div>
                           <button 
                             onClick={() => setIsCreatingPost(false)}
-                            className="p-1 hover:bg-white/5 rounded-lg transition-all"
+                            className="p-2 hover:bg-white/5 rounded-xl transition-all text-white/20 hover:text-white"
                           >
-                            <Plus className="w-4 h-4 text-white/20 rotate-45" />
+                            <Plus className="w-5 h-5 rotate-45" />
                           </button>
                         </div>
-                        <div className="flex gap-3">
+                        <div className="flex gap-4">
                           <img 
                             src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=random`} 
-                            className="w-10 h-10 rounded-xl border border-white/20 shadow-xl"
+                            className="w-12 h-12 rounded-2xl border border-white/10 shadow-2xl"
                             alt="Me"
                           />
                           <div className="flex-1">
                             <textarea
+                              autoFocus
                               value={inputText}
                               onChange={(e) => setInputText(e.target.value)}
                               placeholder={`What's on your mind, ${selectedCommunity.toUpperCase()} scholar?`}
-                              className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-white text-xs focus:outline-none focus:border-purple-500/30 transition-all resize-none min-h-[80px] placeholder:text-white/20"
+                              className="w-full bg-white/[0.02] border border-white/10 rounded-2xl p-4 text-sm text-white focus:outline-none focus:border-purple-500/50 transition-all resize-none min-h-[120px] placeholder:text-white/10"
                             />
                           </div>
                         </div>
-                        <div className="flex items-center justify-between pt-2 border-t border-white/10">
-                          <div className="flex gap-1.5 overflow-x-auto scrollbar-hide py-1">
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-white/5">
+                          <div className="flex gap-2 overflow-x-auto scrollbar-hide w-full sm:w-auto py-1">
                             {CATEGORIES.slice(1).map((cat) => (
                               <button
                                 key={cat.id}
                                 type="button"
                                 onClick={() => setSelectedCategory(cat.id)}
-                                className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all border
+                                className={`flex-shrink-0 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border
                                   ${selectedCategory === cat.id 
-                                    ? 'bg-purple-500/20 border-purple-500/40 text-purple-400' 
+                                    ? 'bg-purple-500/20 border-purple-500/40 text-purple-400 shadow-[0_0_20px_rgba(168,85,247,0.2)]' 
                                     : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`}
                               >
                                 {cat.label}
                               </button>
                             ))}
                           </div>
-                          <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={handleSendPost}
-                            disabled={!inputText.trim()}
-                            className={`flex items-center gap-2 px-5 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all
-                              ${!inputText.trim() 
-                                ? 'bg-white/5 text-white/20 cursor-not-allowed' 
-                                : 'bg-gradient-to-r from-purple-500 to-blue-600 text-white shadow-lg shadow-purple-500/20'}`}
-                          >
-                            <Send className="w-3.5 h-3.5" />
-                            Post
-                          </motion.button>
+                          <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <button 
+                              onClick={() => setIsCreatingPost(false)}
+                              className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white hover:bg-white/5 transition-all"
+                            >
+                              Discard
+                            </button>
+                            <motion.button
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              onClick={handleSendPost}
+                              disabled={!inputText.trim()}
+                              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-8 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all
+                                ${!inputText.trim() 
+                                  ? 'bg-white/5 text-white/20 cursor-not-allowed' 
+                                  : 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-xl shadow-purple-500/20'}`}
+                            >
+                              <Send className="w-4 h-4" />
+                              Broadcast
+                            </motion.button>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -1388,14 +1438,22 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
 
                           <div className="flex items-center gap-4 pt-4 border-t border-[#343536]">
                             <button 
-                              onClick={() => setReplyingTo(replyingTo === post.id ? null : post.id)}
-                              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-black uppercase tracking-widest text-[10px]
-                                ${replyingTo === post.id 
-                                  ? 'bg-white/10 text-white border border-white/10' 
+                              onClick={() => setExpandedCommentsPostId(expandedCommentsPostId === post.id ? null : post.id)}
+                              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl transition-all font-black uppercase tracking-widest text-[9px] sm:text-[10px]
+                                ${expandedCommentsPostId === post.id 
+                                  ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' 
                                   : 'text-[#818384] hover:bg-white/5 hover:text-[#d7dadc]'}`}
                             >
-                              <MessageSquare className="w-4 h-4" />
-                              {post.comments?.length || 0}
+                              <MessageSquare className="w-3.5 h-3.5 sm:w-4 h-4" />
+                              {post.comments?.length || 0} <span className="hidden sm:inline">Comments</span>
+                            </button>
+
+                            <button 
+                              onClick={() => handleShare(post.id)}
+                              className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl transition-all font-black uppercase tracking-widest text-[9px] sm:text-[10px] text-[#818384] hover:bg-white/5 hover:text-[#d7dadc]"
+                            >
+                              <Share2 className="w-3.5 h-3.5 sm:w-4 h-4" />
+                              Share
                             </button>
 
                             <div className="relative ml-auto">
@@ -1434,155 +1492,285 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
 
                           {/* Comments Section */}
                           <AnimatePresence>
-                            {replyingTo === post.id && (
+                            {expandedCommentsPostId === post.id && (
                               <motion.div
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 exit={{ opacity: 0, height: 0 }}
-                                className="mt-2.5 space-y-2.5 overflow-hidden border-t border-[#343536] pt-2.5"
+                                className="mt-4 space-y-4 overflow-hidden border-t border-[#343536] pt-4"
                               >
                                 {/* Comment Input Trigger */}
-                                <div className="flex items-center justify-between mb-1">
-                                  <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Comments</span>
-                                  <button 
-                                    onClick={() => setShowCommentInput(showCommentInput === post.id ? null : post.id)}
-                                    className="flex items-center gap-1.5 px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-[9px] font-black text-white/60 uppercase tracking-widest hover:bg-white/10 transition-all"
-                                  >
-                                    <Plus className="w-3 h-3" />
-                                    Post Comment
-                                  </button>
+                                <div className="flex items-center justify-between px-2">
+                                  <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Discussion</span>
+                                  {!showCommentInput && (
+                                    <button 
+                                      onClick={() => {
+                                        if (!user) {
+                                          onAuthRequest?.();
+                                          return;
+                                        }
+                                        setShowCommentInput(post.id);
+                                      }}
+                                      className="flex items-center gap-2 px-4 py-2 bg-purple-600/20 border border-purple-500/30 rounded-xl text-[10px] font-black text-purple-400 uppercase tracking-widest hover:bg-purple-600/30 transition-all active:scale-95"
+                                    >
+                                      <Plus className="w-3.5 h-3.5" />
+                                      Add Comment
+                                    </button>
+                                  )}
                                 </div>
 
-                                  <AnimatePresence>
-                                    {showCommentInput === post.id && (
-                                      <motion.div 
-                                        initial={{ opacity: 0, y: -10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: -10 }}
-                                        className="flex flex-col gap-2 bg-[#151516] p-3 rounded-xl border border-[#343536] shadow-inner"
-                                      >
-                                        {replyToComment?.postId === post.id && (
-                                          <div className="flex items-center justify-between px-2 py-1 bg-purple-500/10 rounded-lg border border-purple-500/20">
-                                            <span className="text-[9px] font-bold text-purple-400 uppercase tracking-widest">Replying to @{replyToComment.name}</span>
-                                            <button onClick={() => setReplyToComment(null)} className="text-purple-400/60 hover:text-purple-400">
-                                              <Plus className="w-3 h-3 rotate-45" />
-                                            </button>
+                                <AnimatePresence>
+                                  {showCommentInput === post.id && (
+                                    <motion.div 
+                                      initial={{ opacity: 0, y: -10 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      exit={{ opacity: 0, y: -10 }}
+                                      className="flex flex-col gap-3 bg-[#151516] p-4 rounded-2xl border border-[#343536] shadow-2xl mx-2"
+                                    >
+                                      {replyToComment?.postId === post.id && (
+                                        <div className="flex items-center justify-between px-3 py-2 bg-purple-500/10 rounded-xl border border-purple-500/20">
+                                          <div className="flex items-center gap-2">
+                                            <div className="w-1 h-4 bg-purple-500 rounded-full" />
+                                            <span className="text-[10px] font-bold text-purple-400 uppercase tracking-widest">Replying to @{replyToComment.name}</span>
                                           </div>
+                                          <button onClick={() => setReplyToComment(null)} className="text-purple-400/60 hover:text-purple-400 p-1">
+                                            <Plus className="w-4 h-4 rotate-45" />
+                                          </button>
+                                        </div>
+                                      )}
+                                      <div className="flex gap-3">
+                                        {user && (
+                                          <img 
+                                            src={user.photoURL || ''} 
+                                            className="w-8 h-8 rounded-full border border-white/10 hidden sm:block" 
+                                            alt="" 
+                                          />
                                         )}
                                         <textarea
+                                          autoFocus
                                           value={replyText[post.id] || ''}
                                           onChange={(e) => setReplyText(prev => ({ ...prev, [post.id]: e.target.value }))}
                                           placeholder={replyToComment?.postId === post.id ? "Write your reply..." : "What are your thoughts?"}
-                                          className="w-full bg-transparent text-xs text-[#d7dadc] focus:outline-none resize-none min-h-[60px] placeholder:text-[#818384] p-1"
+                                          className="flex-1 bg-transparent text-sm text-[#d7dadc] focus:outline-none resize-none min-h-[80px] placeholder:text-[#818384] py-1"
                                         />
-                                        <div className="flex justify-end gap-2 pt-2 border-t border-white/5">
-                                          <button 
-                                            onClick={() => { setShowCommentInput(null); setReplyToComment(null); }}
-                                            className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-[#818384] hover:bg-white/5 transition-all"
-                                          >
-                                            Cancel
-                                          </button>
-                                          <button
-                                            onClick={() => {
-                                              handleSendReply(post.id);
-                                              setShowCommentInput(null);
-                                            }}
-                                            disabled={!replyText[post.id]?.trim()}
-                                            className="px-5 py-1.5 bg-purple-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-purple-500 transition-all disabled:opacity-50 shadow-lg shadow-purple-500/20"
-                                          >
-                                            Post
-                                          </button>
-                                        </div>
-                                      </motion.div>
-                                    )}
-                                  </AnimatePresence>
+                                      </div>
+                                      <div className="flex justify-end gap-3 pt-3 border-t border-white/5">
+                                        <button 
+                                          onClick={() => { setShowCommentInput(null); setReplyToComment(null); }}
+                                          className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-[#818384] hover:bg-white/5 transition-all"
+                                        >
+                                          Cancel
+                                        </button>
+                                        <button
+                                          onClick={() => handleSendReply(post.id)}
+                                          disabled={!replyText[post.id]?.trim()}
+                                          className="px-6 py-2 bg-purple-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-purple-500 transition-all disabled:opacity-50 shadow-lg shadow-purple-500/20 active:scale-95"
+                                        >
+                                          Post
+                                        </button>
+                                      </div>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
 
-                                {post.comments && post.comments.length > 0 && (
-                                  <div className="space-y-2.5 pl-1.5">
-                                    {post.comments.map(comment => (
-                                      <div 
-                                        key={comment.id} 
-                                        className={`flex gap-2.5 group/comment ${comment.replyTo ? 'ml-4 border-l border-white/5 pl-2' : ''}`}
-                                      >
-                                        <div className="flex flex-col items-center">
-                                          <img src={comment.photoURL} className="w-5 h-5 rounded-full border border-[#343536]" alt={comment.displayName} />
-                                          <div className="w-px flex-1 bg-[#343536] my-1 group-last/comment:hidden" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                          <div className="flex items-center gap-2 mb-0.5">
-                                            <span className="text-[10px] font-bold text-[#d7dadc]">{comment.displayName}</span>
-                                            {userRanks[comment.uid] && (
-                                              <span className={`text-[7px] font-black uppercase tracking-tighter px-1 py-0.5 rounded bg-white/5 border border-white/10 flex items-center gap-0.5 ${userRanks[comment.uid].color}`}>
-                                                {userRanks[comment.uid].icon} {userRanks[comment.uid].title}
-                                              </span>
-                                            )}
-                                            <span className="text-[9px] text-[#818384]">{formatTime(comment.createdAt)}</span>
-                                            
-                                            {user?.uid === comment.uid && (
-                                              <div className="ml-auto flex items-center gap-1 opacity-0 group-hover/comment:opacity-100 transition-opacity">
-                                                <button 
-                                                  onClick={() => {
-                                                    setEditingCommentId({ postId: post.id, commentId: comment.id });
-                                                    setEditCommentText(comment.text);
-                                                  }}
-                                                  className="text-blue-400/40 hover:text-blue-400 p-1"
-                                                >
-                                                  <Pencil className="w-2.5 h-2.5" />
-                                                </button>
-                                                <button 
-                                                  onClick={() => handleDeleteComment(post.id, comment.id)}
-                                                  className="text-rose-500/40 hover:text-rose-500 p-1"
-                                                >
-                                                  <Trash2 className="w-2.5 h-2.5" />
-                                                </button>
+                                {post.comments && post.comments.length > 0 ? (
+                                  <div className="space-y-6 px-2">
+                                    {(() => {
+                                      const topLevelComments = post.comments
+                                        .filter(c => !c.parentId)
+                                        .sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+                                      
+                                      const replies = post.comments.filter(c => c.parentId);
+
+                                      return topLevelComments.map(comment => (
+                                        <div key={comment.id} className="space-y-4 relative">
+                                          {/* Main Comment */}
+                                          <div className="flex gap-3 group/comment relative z-10">
+                                            <div className="flex flex-col items-center">
+                                              <div className="relative">
+                                                <img src={comment.photoURL} className="w-8 h-8 rounded-full border-2 border-purple-500/20 shadow-lg" alt={comment.displayName} />
+                                                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-[#0a0a0b] rounded-full" />
                                               </div>
-                                            )}
-                                          </div>
-                                          
-                                            {editingCommentId?.commentId === comment.id ? (
-                                              <div className="space-y-2 mt-1">
-                                                <textarea
-                                                  value={editCommentText}
-                                                  onChange={(e) => setEditCommentText(e.target.value)}
-                                                  className="w-full bg-black/40 border border-[#343536] rounded-lg p-2 text-[11px] text-white focus:outline-none focus:border-blue-500/50 resize-none min-h-[50px]"
-                                                />
-                                                <div className="flex justify-end gap-2">
-                                                  <button 
-                                                    onClick={() => setEditingCommentId(null)}
-                                                    className="px-2 py-1 rounded-lg text-[8px] font-bold text-[#818384] hover:bg-white/5"
-                                                  >
-                                                    Cancel
-                                                  </button>
-                                                  <button 
-                                                    onClick={() => handleEditComment(post.id, comment.id)}
-                                                    className="px-3 py-1 bg-blue-600 text-white rounded-lg text-[8px] font-bold hover:bg-blue-500"
-                                                  >
-                                                    Save
-                                                  </button>
-                                                </div>
-                                              </div>
-                                            ) : (
-                                              <div className="space-y-1">
-                                                <p className="text-[#d7dadc] text-[11px] leading-relaxed break-words">
-                                                  {comment.replyTo && (
-                                                    <span className="text-purple-400 font-bold mr-1.5">@{comment.replyTo}</span>
+                                              {replies.some(r => r.parentId === comment.id) && (
+                                                <div className="w-0.5 flex-1 bg-gradient-to-b from-purple-500/30 via-purple-500/10 to-transparent my-2 rounded-full" />
+                                              )}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                              <div className="bg-white/5 rounded-2xl p-3 border border-white/10 hover:border-purple-500/30 transition-all">
+                                                <div className="flex items-center flex-wrap gap-2 mb-1.5">
+                                                  <span className="text-xs font-black text-white">{comment.displayName}</span>
+                                                  {userRanks[comment.uid] && (
+                                                    <span className={`text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-1 ${userRanks[comment.uid].color}`}>
+                                                      {userRanks[comment.uid].icon} {userRanks[comment.uid].title}
+                                                    </span>
                                                   )}
-                                                  {comment.text}
-                                                </p>
+                                                  <span className="text-[10px] text-white/30 ml-auto">{formatTime(comment.createdAt)}</span>
+                                                </div>
+                                                
+                                                {editingCommentId?.commentId === comment.id ? (
+                                                  <div className="space-y-2">
+                                                    <textarea
+                                                      autoFocus
+                                                      value={editCommentText}
+                                                      onChange={(e) => setEditCommentText(e.target.value)}
+                                                      className="w-full bg-white/5 border border-white/10 rounded-xl p-2 text-sm text-white focus:outline-none focus:border-purple-500/50 resize-none min-h-[60px]"
+                                                    />
+                                                    <div className="flex justify-end gap-2">
+                                                      <button 
+                                                        onClick={() => setEditingCommentId(null)}
+                                                        className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-white/40 hover:bg-white/5"
+                                                      >
+                                                        Cancel
+                                                      </button>
+                                                      <button 
+                                                        onClick={() => handleEditComment(post.id, comment.id)}
+                                                        className="px-4 py-1.5 bg-purple-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-purple-500"
+                                                      >
+                                                        Save
+                                                      </button>
+                                                    </div>
+                                                  </div>
+                                                ) : (
+                                                  <p className="text-white/80 text-sm leading-relaxed break-words">
+                                                    {comment.text}
+                                                  </p>
+                                                )}
+                                              </div>
+
+                                              <div className="flex items-center gap-4 mt-1 ml-1">
                                                 <button 
                                                   onClick={() => {
+                                                    if (!user) {
+                                                      onAuthRequest?.();
+                                                      return;
+                                                    }
                                                     setShowCommentInput(post.id);
                                                     setReplyToComment({ postId: post.id, commentId: comment.id, name: comment.displayName });
                                                   }}
-                                                  className="text-[9px] font-black uppercase tracking-widest text-[#818384] hover:text-white transition-colors"
+                                                  className="text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-purple-400 transition-colors flex items-center gap-1.5 py-1"
                                                 >
+                                                  <MessageSquare className="w-3 h-3" />
                                                   Reply
                                                 </button>
+                                                
+                                                {user?.uid === comment.uid && (
+                                                  <div className="flex items-center gap-3">
+                                                    <button 
+                                                      onClick={() => {
+                                                        setEditingCommentId({ postId: post.id, commentId: comment.id });
+                                                        setEditCommentText(comment.text);
+                                                      }}
+                                                      className="text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-blue-400 transition-colors"
+                                                    >
+                                                      Edit
+                                                    </button>
+                                                    <button 
+                                                      onClick={() => handleDeleteComment(post.id, comment.id)}
+                                                      className="text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-rose-500 transition-colors"
+                                                    >
+                                                      Delete
+                                                    </button>
+                                                  </div>
+                                                )}
                                               </div>
-                                            )}
+                                            </div>
+                                          </div>
+
+                                          {/* Replies */}
+                                          <div className="space-y-3">
+                                            {replies
+                                              .filter(r => r.parentId === comment.id)
+                                              .sort((a, b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0))
+                                              .map(reply => (
+                                                <div key={reply.id} className="ml-8 sm:ml-11 flex gap-3 group/reply relative">
+                                                  <div className="absolute -left-4 top-0 bottom-0 w-0.5 bg-purple-500/10 rounded-full" />
+                                                  <img src={reply.photoURL} className="w-6 h-6 rounded-full border border-white/10 shadow-md" alt={reply.displayName} />
+                                                  <div className="flex-1 min-w-0">
+                                                    <div className="bg-white/5 rounded-xl p-2.5 border border-white/5 hover:border-purple-500/20 transition-all">
+                                                      <div className="flex items-center flex-wrap gap-2 mb-1">
+                                                        <span className="text-[11px] font-black text-white">{reply.displayName}</span>
+                                                        <span className="text-[10px] text-white/30 ml-auto">{formatTime(reply.createdAt)}</span>
+                                                      </div>
+                                                      
+                                                      {editingCommentId?.commentId === reply.id ? (
+                                                        <div className="space-y-2">
+                                                          <textarea
+                                                            autoFocus
+                                                            value={editCommentText}
+                                                            onChange={(e) => setEditCommentText(e.target.value)}
+                                                            className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-purple-500/50 resize-none min-h-[40px]"
+                                                          />
+                                                          <div className="flex justify-end gap-2">
+                                                            <button 
+                                                              onClick={() => setEditingCommentId(null)}
+                                                              className="px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest text-white/40 hover:bg-white/5"
+                                                            >
+                                                              Cancel
+                                                            </button>
+                                                            <button 
+                                                              onClick={() => handleEditComment(post.id, reply.id)}
+                                                              className="px-3 py-1 bg-purple-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-purple-500"
+                                                            >
+                                                              Save
+                                                            </button>
+                                                          </div>
+                                                        </div>
+                                                      ) : (
+                                                        <p className="text-white/80 text-xs leading-relaxed break-words">
+                                                          {reply.replyTo && (
+                                                            <span className="text-purple-400 font-black mr-1.5">@{reply.replyTo}</span>
+                                                          )}
+                                                          {reply.text}
+                                                        </p>
+                                                      )}
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center gap-3 mt-1 ml-1">
+                                                      <button 
+                                                        onClick={() => {
+                                                          if (!user) {
+                                                            onAuthRequest?.();
+                                                            return;
+                                                          }
+                                                          setShowCommentInput(post.id);
+                                                          setReplyToComment({ postId: post.id, commentId: comment.id, name: reply.displayName });
+                                                        }}
+                                                        className="text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-purple-400 transition-colors py-1"
+                                                      >
+                                                        Reply
+                                                      </button>
+                                                      
+                                                      {user?.uid === reply.uid && (
+                                                        <>
+                                                          <button 
+                                                            onClick={() => {
+                                                              setEditingCommentId({ postId: post.id, commentId: reply.id });
+                                                              setEditCommentText(reply.text);
+                                                            }}
+                                                            className="text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-blue-400 transition-colors"
+                                                          >
+                                                            Edit
+                                                          </button>
+                                                          <button 
+                                                            onClick={() => handleDeleteComment(post.id, reply.id)}
+                                                            className="text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-rose-500 transition-colors"
+                                                          >
+                                                            Delete
+                                                          </button>
+                                                        </>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              ))}
+                                          </div>
                                         </div>
-                                      </div>
-                                    ))}
+                                      ));
+                                    })()}
+                                  </div>
+                                ) : (
+                                  <div className="py-10 text-center">
+                                    <p className="text-[10px] font-black text-white/10 uppercase tracking-[0.3em]">No comments yet</p>
                                   </div>
                                 )}
                               </motion.div>
@@ -1594,53 +1782,52 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
                   </AnimatePresence>
                 )}
               </div>
-            </>
+            </React.Fragment>
           )}
         </div>
-
-        <AnimatePresence>
-          {reportingPostId && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4"
-            >
-              <motion.div 
-                initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                className="w-full max-w-md bg-[#1a1a1b] border border-[#343536] rounded-[24px] p-8 text-center shadow-[0_0_50px_rgba(0,0,0,0.5)]"
-              >
-                <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <ShieldCheck className="w-8 h-8 text-amber-500" />
-                </div>
-                <h2 className="text-2xl font-black text-white mb-2 uppercase tracking-tighter">Report Post?</h2>
-                <p className="text-white/40 text-xs mb-8 leading-relaxed uppercase tracking-widest font-bold">
-                  Are you sure you want to report this post? This action helps keep our community safe and focused.
-                </p>
-                <div className="flex flex-col gap-3">
-                  <button 
-                    onClick={confirmReport}
-                    className="w-full py-4 bg-amber-500 text-black rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-amber-400 transition-all shadow-[0_0_20px_rgba(245,158,11,0.2)]"
-                  >
-                    Confirm Report
-                  </button>
-                  <button 
-                    onClick={() => setReportingPostId(null)}
-                    className="w-full py-4 bg-white/5 text-white/40 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-white/10 transition-all"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
     </div>
-  </div>
-);
-};
 
+    <AnimatePresence>
+        {reportingPostId && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="w-full max-w-md bg-[#1a1a1b] border border-[#343536] rounded-[24px] p-8 text-center shadow-[0_0_50px_rgba(0,0,0,0.5)]"
+            >
+              <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                <ShieldCheck className="w-8 h-8 text-amber-500" />
+              </div>
+              <h2 className="text-2xl font-black text-white mb-2 uppercase tracking-tighter">Report Post?</h2>
+              <p className="text-white/40 text-xs mb-8 leading-relaxed uppercase tracking-widest font-bold">
+                Are you sure you want to report this post? This action helps keep our community safe and focused.
+              </p>
+              <div className="flex flex-col gap-3">
+                <button 
+                  onClick={confirmReport}
+                  className="w-full py-4 bg-amber-500 text-black rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-amber-400 transition-all shadow-[0_0_20px_rgba(245,158,11,0.2)]"
+                >
+                  Confirm Report
+                </button>
+                <button 
+                  onClick={() => setReportingPostId(null)}
+                  className="w-full py-4 bg-white/5 text-white/40 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-white/10 transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
 export default CommunityPage;
