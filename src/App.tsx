@@ -21,6 +21,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
+  const [settings, setSettings] = useState({ activateChat: true, activateCommunity: true, streakGoal: 7 });
 
   useEffect(() => {
     // Global safety timeout to ensure loading screen eventually disappears
@@ -44,11 +45,19 @@ export default function App() {
           
           const userDoc = await Promise.race([userDocPromise, timeoutPromise]) as any;
           
-          if (!userDoc.exists() || !userDoc.data()?.onboarded) {
-            console.log("App.tsx: User needs onboarding");
-            needsOnboarding = true;
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            setSettings({
+              activateChat: data.activateChat !== undefined ? data.activateChat : (data.deactivateChat !== undefined ? !data.deactivateChat : true),
+              activateCommunity: data.activateCommunity !== undefined ? data.activateCommunity : (data.deactivateCommunity !== undefined ? !data.deactivateCommunity : true),
+              streakGoal: data.streakGoal || 7
+            });
+            if (!data.onboarded) {
+              console.log("App.tsx: User needs onboarding");
+              needsOnboarding = true;
+            }
           } else {
-            console.log("App.tsx: User already onboarded");
+            needsOnboarding = true;
           }
         } catch (error) {
           console.error("Error fetching user data in App.tsx:", error);
@@ -101,17 +110,17 @@ export default function App() {
             className="w-full"
           >
             {activeTab === 'dashboard' ? (
-              <DemoOne onProfileClick={() => handleTabChange('profile')} />
+              <DemoOne onProfileClick={() => handleTabChange('profile')} settings={settings} />
             ) : activeTab === 'progress' ? (
               <ProgressPage />
             ) : activeTab === 'timer' ? (
               <TimerPage />
             ) : activeTab === 'compete' ? (
-              <CompetePage onAuthRequest={() => setShowAuth(true)} />
+              <CompetePage onAuthRequest={() => setShowAuth(true)} activateChat={settings.activateChat} />
             ) : activeTab === 'profile' ? (
               <ProfilePage onBack={() => handleTabChange('dashboard')} />
             ) : (
-              <CommunityPage onAuthRequest={() => setShowAuth(true)} />
+              <CommunityPage onAuthRequest={() => setShowAuth(true)} activateCommunity={settings.activateCommunity} />
             )}
           </motion.div>
         ) : (
@@ -127,7 +136,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {!showAuth && <Navbar activeTab={activeTab} setActiveTab={handleTabChange} />}
+      {!showAuth && <Navbar activeTab={activeTab} setActiveTab={handleTabChange} activateCommunity={settings.activateCommunity} />}
       </main>
     </ErrorBoundary>
   );

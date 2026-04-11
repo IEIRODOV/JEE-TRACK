@@ -6,9 +6,10 @@ import { SYLLABUS_DATA } from '@/src/constants/syllabus';
 import { playTickSound, playCheckSound } from '@/src/lib/sounds';
 
 interface ChapterProgress {
-  ncert: boolean;
+  theoryLecture: number;
   module: boolean;
   pyq: boolean;
+  revisionCount: number;
   level: string;
   customName?: string;
   isCustom?: boolean;
@@ -79,11 +80,13 @@ const ProgressPage = () => {
     const newProgress = { ...progressData };
     if (!newProgress[subject]) newProgress[subject] = {};
     if (!newProgress[subject][chapterId]) {
+      const levels = getMasteryLevels();
       newProgress[subject][chapterId] = { 
-        ncert: false, 
+        theoryLecture: 0,
         module: false, 
         pyq: false, 
-        level: 'basic'
+        revisionCount: 0,
+        level: levels[0]
       };
     }
 
@@ -95,6 +98,8 @@ const ProgressPage = () => {
     if (typeof value === 'boolean') {
       if (value) playCheckSound();
       else playTickSound();
+    } else if (field === 'theoryLecture') {
+      if (value === 100) playCheckSound();
     }
 
     setProgressData(newProgress);
@@ -114,11 +119,13 @@ const ProgressPage = () => {
     
     const newProgress = { ...progressData };
     if (!newProgress[subject]) newProgress[subject] = {};
+    const levels = getMasteryLevels();
     newProgress[subject][chapterId] = {
-      ncert: false,
+      theoryLecture: 0,
       module: false,
       pyq: false,
-      level: 'basic',
+      revisionCount: 0,
+      level: levels[0],
       customName: newChapterName,
       isCustom: true
     };
@@ -155,9 +162,9 @@ const ProgressPage = () => {
   const getMasteryLevels = () => {
     const category = examInfo.id.split('_')[0].toLowerCase();
     if (category === 'jee') {
-      return ['basic', 'mains', 'advance'];
+      return ['mains', 'advance'];
     }
-    return ['basic', 'perfect', 'mastery'];
+    return ['perfect', 'mastery'];
   };
 
   const masteryLevels = getMasteryLevels();
@@ -183,6 +190,39 @@ const ProgressPage = () => {
 
   const chapters = getChapters();
 
+  const calculateSubjectProgress = (subject: string) => {
+    const category = examInfo.id.split('_')[0].toLowerCase();
+    const syllabus = SYLLABUS_DATA[examInfo.id] || SYLLABUS_DATA[category] || SYLLABUS_DATA.jee;
+    const defaultChapters = syllabus[subject] || [];
+    
+    const subjectData = progressData[subject] || {};
+    const customChapters = Object.entries(subjectData)
+      .filter(([_, data]) => (data as ChapterProgress).isCustom)
+      .map(([id, _]) => id);
+
+    const allChapterIds = [
+      ...defaultChapters,
+      ...customChapters
+    ];
+
+    if (allChapterIds.length === 0) return 0;
+
+    let totalProgress = 0;
+    allChapterIds.forEach(id => {
+      const prog = subjectData[id];
+      if (prog) {
+        let chapterProgress = 0;
+        chapterProgress += (prog.theoryLecture || 0) * 0.25;
+        chapterProgress += (prog.module ? 25 : 0);
+        chapterProgress += (prog.pyq ? 25 : 0);
+        chapterProgress += (Math.min(prog.revisionCount || 0, 3) / 3) * 25;
+        totalProgress += chapterProgress;
+      }
+    });
+
+    return Math.round(totalProgress / allChapterIds.length);
+  };
+
   return (
     <div className="min-h-screen bg-black pt-24 pb-32 px-4">
       <div className="max-w-6xl mx-auto">
@@ -199,8 +239,43 @@ const ProgressPage = () => {
             PROGRESS <span className="text-purple-500">TRACKER</span>
           </h1>
           <p className="text-white/40 text-sm max-w-md text-center">
-            Master your syllabus chapter by chapter. Track NCERT, Modules, and PYQs.
+            Master your syllabus chapter by chapter. Track Theory & Lectures, Modules, and PYQs.
           </p>
+        </div>
+
+        {/* Preparation Tracker */}
+        <div className="mb-16">
+          <div className="flex items-center gap-3 mb-6 justify-center md:justify-start">
+            <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
+            <h3 className="text-[10px] font-black text-white uppercase tracking-[0.3em]">
+              {examInfo.category.toUpperCase()} Preparation Tracker
+            </h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {subjects.map((subject) => {
+              const progress = calculateSubjectProgress(subject);
+              return (
+                <div key={subject} className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl">
+                  <div className="flex justify-between items-end mb-4">
+                    <div>
+                      <h4 className="text-white/40 text-[9px] font-black uppercase tracking-widest mb-1">{subject}</h4>
+                      <div className="text-2xl font-black text-white tracking-tighter">{progress}%</div>
+                    </div>
+                    <div className="text-[9px] font-black text-purple-400 uppercase tracking-widest bg-purple-500/10 px-2 py-1 rounded-lg border border-purple-500/20">
+                      Readiness
+                    </div>
+                  </div>
+                  <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progress}%` }}
+                      className="h-full bg-gradient-to-r from-purple-600 to-blue-500"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Subject Tabs */}
@@ -234,12 +309,13 @@ const ProgressPage = () => {
             >
               {chapters.map((chapter) => {
                 const progress = progressData[activeSubject]?.[chapter.id] || { 
-                  ncert: false, 
+                  theoryLecture: 0,
                   module: false, 
                   pyq: false, 
-                  level: 'basic'
+                  revisionCount: 0,
+                  level: masteryLevels[0]
                 };
-                const isFullyMastered = progress.ncert && progress.module && progress.pyq;
+                const isFullyMastered = progress.theoryLecture === 100 && progress.module && progress.pyq;
                 const displayName = progress.customName || chapter.name;
 
                 return (
@@ -251,7 +327,7 @@ const ProgressPage = () => {
                     className={`rounded-2xl border transition-all duration-300 p-4 md:p-6
                       ${isFullyMastered ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-white/5 border-white/10'}`}
                   >
-                      <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px_220px] items-center gap-6">
+                      <div className="grid grid-cols-1 xl:grid-cols-[1fr_auto] items-center gap-8">
                         {/* Edit & Chapter Name */}
                         <div className="flex items-center gap-4 min-w-0">
                           <div className="min-w-0 flex-1">
@@ -302,42 +378,88 @@ const ProgressPage = () => {
                           </div>
                         </div>
 
-                        {/* Checklist */}
-                        <div className="flex items-center gap-2 justify-center">
-                          {[
-                            { id: 'ncert', label: 'NCERT' },
-                            { id: 'module', label: 'Module' },
-                            { id: 'pyq', label: 'PYQ' }
-                          ].map((item) => (
-                            <button
-                              key={item.id}
-                              onClick={() => updateProgress(activeSubject, chapter.id, item.id as any, !progress[item.id as keyof ChapterProgress])}
-                              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border transition-all
-                                ${progress[item.id as keyof ChapterProgress] 
-                                  ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' 
-                                  : 'bg-white/5 border-white/10 text-white/20 hover:bg-white/10'}`}
-                            >
-                              <span className="text-[10px] font-black uppercase tracking-widest">{item.label}</span>
-                            </button>
-                          ))}
-                        </div>
+                        {/* Controls Group */}
+                        <div className="flex flex-wrap items-center justify-center gap-6 md:gap-8">
+                          {/* Slidebars */}
+                          <div className="flex flex-col gap-4 w-full md:w-48">
+                            <div className="space-y-1">
+                              <div className="flex justify-between items-center">
+                                <span className="text-[9px] font-black uppercase tracking-widest text-white/30">Theory & Lecture</span>
+                                <span className="text-[10px] font-bold text-purple-400">{progress.theoryLecture || 0}%</span>
+                              </div>
+                              <input 
+                                type="range"
+                                min="0"
+                                max="100"
+                                value={progress.theoryLecture || 0}
+                                onChange={(e) => updateProgress(activeSubject, chapter.id, 'theoryLecture', parseInt(e.target.value))}
+                                className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                              />
+                            </div>
+                          </div>
 
-                        {/* Mastery Level */}
-                        <div className="flex items-center gap-1 bg-white/5 p-1.5 rounded-xl border border-white/10 justify-center">
-                          {masteryLevels.map((lvl) => (
-                            <button
-                              key={lvl}
-                              onClick={() => updateProgress(activeSubject, chapter.id, 'level', lvl)}
-                              className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all
-                                ${progress.level === lvl 
-                                  ? lvl === 'basic' ? 'bg-blue-500 text-white shadow-[0_0_10px_rgba(59,130,246,0.5)]' :
-                                    (lvl === 'mains' || lvl === 'perfect') ? 'bg-purple-500 text-white shadow-[0_0_10px_rgba(168,85,247,0.5)]' :
-                                    'bg-rose-500 text-white shadow-[0_0_10px_rgba(244,63,94,0.5)]'
-                                  : 'text-white/20 hover:text-white/40'}`}
-                            >
-                              {lvl}
-                            </button>
-                          ))}
+                          {/* Ticks */}
+                          <div className="flex items-center gap-4">
+                            {[
+                              { id: 'module', label: 'Module' },
+                              { id: 'pyq', label: 'PYQ' }
+                            ].map((item) => (
+                              <button
+                                key={item.id}
+                                onClick={() => updateProgress(activeSubject, chapter.id, item.id as any, !progress[item.id as keyof ChapterProgress])}
+                                className={`flex items-center gap-2 transition-all
+                                  ${progress[item.id as keyof ChapterProgress] 
+                                    ? 'text-emerald-400' 
+                                    : 'text-white/20 hover:text-white/40'}`}
+                              >
+                                {progress[item.id as keyof ChapterProgress] ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
+                                <span className="text-[10px] font-black uppercase tracking-widest">{item.label}</span>
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Revision Count */}
+                          <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-xl border border-white/10">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-white/30">Revisions</span>
+                            <div className="flex items-center gap-3">
+                              <button 
+                                onClick={() => updateProgress(activeSubject, chapter.id, 'revisionCount', Math.max(0, (progress.revisionCount || 0) - 1))}
+                                className="w-6 h-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                              >
+                                <motion.span whileTap={{ scale: 0.8 }}>-</motion.span>
+                              </button>
+                              <span className="text-xs font-black text-white w-4 text-center">{progress.revisionCount || 0}</span>
+                              <button 
+                                onClick={() => updateProgress(activeSubject, chapter.id, 'revisionCount', (progress.revisionCount || 0) + 1)}
+                                className="w-6 h-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                              >
+                                <motion.span whileTap={{ scale: 0.8 }}>+</motion.span>
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Mastery Level */}
+                          <div className="flex items-center gap-1 bg-white/5 p-1.5 rounded-xl border border-white/10">
+                            {masteryLevels.map((lvl) => {
+                              const isCompleted = (progress.theoryLecture || 0) === 100 && progress.module && progress.pyq;
+                              const isDisabled = !isCompleted;
+                              
+                              return (
+                                <button
+                                  key={lvl}
+                                  disabled={isDisabled}
+                                  onClick={() => updateProgress(activeSubject, chapter.id, 'level', lvl)}
+                                  className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all
+                                    ${progress.level === lvl 
+                                      ? (lvl === 'mains' || lvl === 'perfect') ? 'bg-purple-500 text-white shadow-[0_0_10px_rgba(168,85,247,0.5)]' :
+                                        'bg-rose-500 text-white shadow-[0_0_10px_rgba(244,63,94,0.5)]'
+                                      : isDisabled ? 'text-white/5 cursor-not-allowed' : 'text-white/20 hover:text-white/40'}`}
+                                >
+                                  {lvl}
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
                   </motion.div>

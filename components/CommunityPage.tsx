@@ -84,6 +84,7 @@ interface Post {
 
 interface CommunityPageProps {
   onAuthRequest?: () => void;
+  activateCommunity?: boolean;
 }
 
 const COMMUNITIES = [
@@ -513,7 +514,7 @@ const RESOURCES = {
   ]
 };
 
-const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
+const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPageProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [userExam, setUserExam] = useState<string | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -922,6 +923,22 @@ const CommunityPage = ({ onAuthRequest }: CommunityPageProps) => {
     }
     return 0; // Already sorted by createdAt desc from query
   });
+
+  if (!activateCommunity) {
+    return (
+      <div className="min-h-screen bg-black pt-24 pb-32 px-4 flex items-center justify-center">
+        <div className="max-w-md w-full text-center">
+          <div className="w-20 h-20 rounded-[32px] bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-6 mx-auto">
+            <MessageSquare className="w-8 h-8 text-rose-400" />
+          </div>
+          <h2 className="text-2xl font-black text-white mb-2 uppercase tracking-tighter">Community Deactivated</h2>
+          <p className="text-white/40 text-[10px] leading-relaxed uppercase tracking-widest font-bold">
+            The community feed is currently disabled in your app settings.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full min-h-screen pt-24 pb-12 px-4 md:px-8">

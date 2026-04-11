@@ -154,11 +154,12 @@ FriendListItem.displayName = 'FriendListItem';
 
 interface CompetePageProps {
   onAuthRequest?: () => void;
+  activateChat?: boolean;
 }
 
 import { getRankInfo } from '@/src/lib/ranks';
 
-const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
+const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
@@ -869,8 +870,10 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
                   </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                  {/* Friend List */}
-                  <div className="lg:col-span-4 space-y-6">
+                  {activateChat ? (
+                    <>
+                      {/* Friend List */}
+                      <div className="lg:col-span-4 space-y-6">
                     <div className="flex items-center justify-between mb-6">
                       <div className="flex items-center gap-3">
                         <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400">
@@ -1061,9 +1064,21 @@ const CompetePage = ({ onAuthRequest }: CompetePageProps) => {
                         </p>
                       </div>
                     )}
-                  </AnimatePresence>
+                    </AnimatePresence>
+                  </div>
+                </>
+              ) : (
+                <div className="lg:col-span-12 h-[400px] rounded-[40px] glass border border-white/10 flex flex-col items-center justify-center text-center p-12">
+                  <div className="w-20 h-20 rounded-[32px] bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-6">
+                    <MessageSquare className="w-8 h-8 text-rose-400" />
+                  </div>
+                  <h2 className="text-xl font-black text-white mb-2 uppercase tracking-tighter">Chat Deactivated</h2>
+                  <p className="text-white/40 text-[10px] max-w-xs leading-relaxed uppercase tracking-widest font-bold">
+                    Friend chat is currently disabled in your app settings.
+                  </p>
                 </div>
-              </div>
+              )}
+            </div>
             </div>
           </motion.div>
         )}

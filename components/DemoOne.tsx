@@ -10,6 +10,7 @@ import { playTickSound } from '@/src/lib/sounds';
 
 interface DemoOneProps {
   onProfileClick: () => void;
+  settings?: { activateChat: boolean; activateCommunity: boolean; streakGoal: number };
 }
 
 const EXAM_DATES: Record<string, any> = {
@@ -41,7 +42,7 @@ const EXAM_DATES: Record<string, any> = {
   }
 };
 
-const DemoOne = ({ onProfileClick }: DemoOneProps) => {
+const DemoOne = ({ onProfileClick, settings }: DemoOneProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [globalRank, setGlobalRank] = useState<number | string>('--');
   const [timerState, setTimerState] = useState({ isRunning: false, startTime: null as number | null, accumulatedSeconds: 0 });
@@ -51,7 +52,6 @@ const DemoOne = ({ onProfileClick }: DemoOneProps) => {
   const [dailyQuestions, setDailyQuestions] = useState<Record<string, number>>({});
   const [stats, setStats] = useState([
     { label: "Daily Goal", value: "--", icon: <Target className="w-3 h-3" />, color: "text-emerald-400" },
-    { label: "Current Streak", value: "--", icon: <Zap className="w-3 h-3" />, color: "text-amber-400" },
     { label: "Study Time", value: "--", icon: <Clock className="w-3 h-3" />, color: "text-blue-400" },
     { label: "Questions Solved", value: "--", icon: <Target className="w-3 h-3" />, color: "text-purple-400" },
   ]);
@@ -86,7 +86,13 @@ const DemoOne = ({ onProfileClick }: DemoOneProps) => {
       subExam: subExam
     };
   });
-  const [targetHours, setTargetHours] = useState(6);
+  const [targetHours, setTargetHours] = useState(settings?.streakGoal || 7);
+
+  useEffect(() => {
+    if (settings?.streakGoal) {
+      setTargetHours(settings.streakGoal);
+    }
+  }, [settings?.streakGoal]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -300,7 +306,6 @@ const DemoOne = ({ onProfileClick }: DemoOneProps) => {
 
       setStats([
         { label: "Daily Goal", value: dailyGoal, icon: <Target className="w-3 h-3" />, color: "text-emerald-400", completed: dailyGoal === "100%" },
-        { label: "Current Streak", value: streak, icon: <Zap className="w-3 h-3" />, color: "text-amber-400", completed: isGoalMet },
         { label: "Study Time", value: studyTime, icon: <Clock className="w-3 h-3" />, color: "text-blue-400", completed: isGoalMet },
         { label: "Questions Solved", value: questionsSolved.toString(), icon: <Target className="w-3 h-3" />, color: "text-purple-400", completed: questionsSolved >= 50 },
       ]);
@@ -599,7 +604,7 @@ const DemoOne = ({ onProfileClick }: DemoOneProps) => {
           </div>
 
           {/* Quick Stats Bar */}
-          <div className="grid grid-cols-2 gap-4 w-full max-w-3xl mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-4xl mb-8">
             {stats.map((stat: any, i) => (
               <motion.div
                 key={stat.label}

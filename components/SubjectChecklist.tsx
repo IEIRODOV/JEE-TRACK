@@ -90,7 +90,7 @@ const SubjectChecklist = ({ category, examId }: SubjectChecklistProps) => {
       // Get default chapters
       const defaultChapters = chapters.map(chName => {
         const prog = subjectData[chName];
-        const completed = prog ? (prog.ncert && prog.module && prog.pyq) : false;
+        const completed = prog ? (prog.theoryLecture === 100 && prog.module && prog.pyq) : false;
         const displayName = prog?.customName || chName;
         return { 
           id: chName, 
@@ -105,7 +105,7 @@ const SubjectChecklist = ({ category, examId }: SubjectChecklistProps) => {
         .map(([id, data]: [string, any]) => ({
           id,
           name: data.customName || id,
-          completed: data.ncert && data.module && data.pyq
+          completed: data.theoryLecture === 100 && data.module && data.pyq
         }));
 
       return {
@@ -216,7 +216,7 @@ const SubjectChecklist = ({ category, examId }: SubjectChecklistProps) => {
       </div>
       <div className="mt-12 p-4 rounded-2xl border border-white/5 bg-white/5 text-center">
         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">
-          Note: Completion of <span className="text-emerald-400">NCERT</span>, <span className="text-emerald-400">Module</span>, and <span className="text-emerald-400">PYQ</span> on the Progress Page will automatically tick mark chapters here.
+          Note: Completion of <span className="text-emerald-400">Theory & Lecture</span>, <span className="text-emerald-400">Module</span>, and <span className="text-emerald-400">PYQ</span> on the Progress Page will automatically tick mark chapters here.
         </p>
       </div>
     </div>
