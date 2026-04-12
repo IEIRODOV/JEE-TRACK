@@ -55,6 +55,7 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
     { label: "Daily Goal", value: "--", icon: <Target className="w-3 h-3" />, color: "text-emerald-400" },
     { label: "Study Time", value: "--", icon: <Clock className="w-3 h-3" />, color: "text-blue-400" },
     { label: "Questions Solved", value: "--", icon: <Target className="w-3 h-3" />, color: "text-purple-400" },
+    { label: "Current Streak", value: "--", icon: <Zap className="w-3 h-3" />, color: "text-orange-400" },
   ]);
 
   const [selectedExam, setSelectedExam] = useState(() => {
@@ -257,11 +258,14 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
     const todayStr = checkDate.toDateString();
     const todaySeconds = secondsMap[todayStr] || 0;
 
+    // If today's goal isn't met, check if yesterday's was. If not, streak is 0.
     if (todaySeconds < targetSeconds) {
-      checkDate.setDate(checkDate.getDate() - 1);
-      const yesterdayStr = checkDate.toDateString();
-      const yesterdaySeconds = secondsMap[yesterdayStr] || 0;
-      if (yesterdaySeconds < targetSeconds) return 0;
+      const yesterday = new Date(checkDate);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toDateString();
+      if ((secondsMap[yesterdayStr] || 0) < targetSeconds) return 0;
+      // If yesterday was met, start counting from yesterday
+      checkDate = yesterday;
     }
 
     while (true) {
@@ -309,6 +313,7 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
         { label: "Daily Goal", value: dailyGoal, icon: <Target className="w-3 h-3" />, color: "text-emerald-400", completed: dailyGoal === "100%" },
         { label: "Study Time", value: studyTime, icon: <Clock className="w-3 h-3" />, color: "text-blue-400", completed: isGoalMet },
         { label: "Questions Solved", value: questionsSolved.toString(), icon: <Target className="w-3 h-3" />, color: "text-purple-400", completed: questionsSolved >= 50 },
+        { label: "Current Streak", value: streak, icon: <Zap className="w-3 h-3" />, color: "text-orange-400", completed: currentStreak > 0 },
       ]);
     };
 
@@ -329,33 +334,18 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
         const leaderboardSnap = await getDoc(leaderboardRef);
         const isNewUser = !leaderboardSnap.exists();
 
+        const currentSecondsMap = { ...dailyStudySeconds, [today]: (dailyStudySeconds[today] || 0) + (hours * 3600) };
+        const currentStreak = calculateStreak(currentSecondsMap, targetHours);
+        
         // Update Leaderboard
         await setDoc(leaderboardRef, {
           displayName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
           photoURL: user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=random`,
           totalQuestions: increment(questions),
           totalHours: increment(hours),
+          streak: currentStreak, // Accurate streak based on study hours
           lastUpdated: serverTimestamp()
         }, { merge: true });
-
-        // Update streak only if goal met and not already updated today
-        const today = new Date().toDateString();
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        const lastStreakUpdate = userDoc.data()?.lastStreakUpdate;
-        
-        if (lastStreakUpdate !== today) {
-          const currentSecondsMap = { ...dailyStudySeconds, [today]: (dailyStudySeconds[today] || 0) + (hours * 3600) };
-          const currentStreak = calculateStreak(currentSecondsMap, targetHours);
-          
-          if (currentStreak > 0) {
-            await setDoc(leaderboardRef, {
-              streak: currentStreak
-            }, { merge: true });
-            await setDoc(doc(db, 'users', user.uid), {
-              lastStreakUpdate: today
-            }, { merge: true });
-          }
-        }
 
         // Update Global Stats
         const globalStatsRef = doc(db, 'stats', 'global');
@@ -572,14 +562,22 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
                         <p className="text-[8px] text-white/20 uppercase tracking-widest">Enable global feed</p>
                       </div>
 
-                      <div className="space-y-1">
+                      <div className="space-y-2 pt-1">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-bold text-white/60">Streak Goal</span>
                           <div className="px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
                             <span className="text-[10px] font-black text-emerald-400">{settings?.streakGoal || 7}H</span>
                           </div>
                         </div>
-                        <p className="text-[8px] text-white/20 uppercase tracking-widest">Daily target study hours</p>
+                        <input 
+                          type="range"
+                          min="1"
+                          max="18"
+                          value={settings?.streakGoal || 7}
+                          onChange={(e) => updateSettings?.({ streakGoal: parseInt(e.target.value) })}
+                          className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                        />
+                        <p className="text-[8px] text-white/20 uppercase tracking-widest leading-tight">Daily target study hours</p>
                       </div>
                     </div>
                   </div>
@@ -652,7 +650,7 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
           </div>
 
           {/* Quick Stats Bar */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-4xl mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-5xl mb-8">
             {stats.map((stat: any, i) => (
               <motion.div
                 key={stat.label}
@@ -737,31 +735,7 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
             ))}
           </div>
 
-          {/* Target Hours Controller */}
-          <motion.div 
-            variants={itemVariants}
-            className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xl mb-12"
-          >
-            <div className="flex flex-col items-start">
-              <span className="text-[8px] font-black text-white/40 uppercase tracking-widest mb-1">Streak Goal</span>
-              <span className="text-xs font-bold text-white">{targetHours} Hours / Day</span>
-            </div>
-            <div className="h-8 w-px bg-white/10" />
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={() => updateTargetHours(Math.max(1, targetHours - 1))}
-                className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-all"
-              >
-                -
-              </button>
-              <button 
-                onClick={() => updateTargetHours(Math.min(24, targetHours + 1))}
-                className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-all"
-              >
-                +
-              </button>
-            </div>
-          </motion.div>
+          {/* Target Hours Controller - Removed as requested */}
         </motion.div>
 
           <motion.div variants={itemVariants} className="w-full flex flex-col items-center gap-8">

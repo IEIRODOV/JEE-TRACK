@@ -3,10 +3,11 @@ import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, TrendingUp, Zap, T
 import { playTickSound, playF1Sound } from '@/src/lib/sounds';
 import { motion, AnimatePresence } from 'motion/react';
 import AnoAI from "@/components/ui/animated-shader-background";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar, Cell, ReferenceLine } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar, Cell, ReferenceLine, PieChart, Pie } from 'recharts';
 
 import { auth, db, onAuthStateChanged } from '@/src/firebase';
 import PulseLoader from "@/components/ui/pulse-loader";
+import { SYLLABUS_DATA } from '@/src/constants/syllabus';
 import { 
   doc, 
   setDoc, 
@@ -35,6 +36,7 @@ const TimerPage = () => {
   const [completedQuestionDays, setCompletedQuestionDays] = useState<string[]>([]);
   const [dailyQuestionCounts, setDailyQuestionCounts] = useState<Record<string, number>>({});
   const [dailyStudySeconds, setDailyStudySeconds] = useState<Record<string, number>>({});
+  const [subjectStudySeconds, setSubjectStudySeconds] = useState<Record<string, Record<string, number>>>({});
   const [globalStats, setGlobalStats] = useState({ totalStudents: 0, totalQuestions: 0 });
   
   const [targetHours, setTargetHours] = useState<number>(6);
@@ -42,6 +44,8 @@ const TimerPage = () => {
   
   const [currentQuestions, setCurrentQuestions] = useState<number>(0);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+  const [selectedSubject, setSelectedSubject] = useState<string>('');
+  const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
   
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [startTime, setStartTime] = useState<number | null>(null);
@@ -120,6 +124,7 @@ const TimerPage = () => {
     const unsubscribe = onSnapshot(statsRef, (snapshot) => {
       const newQuestionCounts: Record<string, number> = {};
       const newStudySeconds: Record<string, number> = {};
+      const newSubjectSeconds: Record<string, Record<string, number>> = {};
       const newMockTestDates: string[] = [];
       const newMockTestDetails: Record<string, { completed: boolean, marks: string }> = {};
       const newCompletedStudy: string[] = [];
@@ -131,6 +136,7 @@ const TimerPage = () => {
 
         if (data.questionsSolved !== undefined) newQuestionCounts[dateStr] = data.questionsSolved;
         if (data.studySeconds !== undefined) newStudySeconds[dateStr] = data.studySeconds;
+        if (data.subjectSeconds !== undefined) newSubjectSeconds[dateStr] = data.subjectSeconds;
         
         if (data.isMockTest) {
           newMockTestDates.push(dateStr);
@@ -150,6 +156,7 @@ const TimerPage = () => {
 
       setDailyQuestionCounts(newQuestionCounts);
       setDailyStudySeconds(newStudySeconds);
+      setSubjectStudySeconds(newSubjectSeconds);
       setMockTestDates(newMockTestDates);
       setMockTestDetails(newMockTestDetails);
       setCompletedStudyDays(newCompletedStudy);
@@ -217,6 +224,23 @@ const TimerPage = () => {
     return () => unsubscribe();
   }, []);
 
+  // Load available subjects from syllabus
+  useEffect(() => {
+    const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
+    const year = localStorage.getItem('pulse_user_year') || '2027';
+    const subExam = localStorage.getItem('pulse_user_subexam') || 'mains';
+    const examId = exam === 'jee' ? `jee_${subExam}_${year}` : `${exam}_${year}`;
+    
+    const normalizedExamId = examId.includes('boards') && !examId.endsWith('th') ? `${examId}th` : examId;
+    const syllabus = SYLLABUS_DATA[normalizedExamId] || SYLLABUS_DATA[examId] || SYLLABUS_DATA[exam] || SYLLABUS_DATA.jee;
+    
+    const subjects = Object.keys(syllabus);
+    setAvailableSubjects(subjects);
+    if (subjects.length > 0 && !selectedSubject) {
+      setSelectedSubject(subjects[0]);
+    }
+  }, [selectedSubject]);
+
   // Timer logic
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -235,6 +259,22 @@ const TimerPage = () => {
         const newSeconds = { ...dailyStudySecondsRef.current, [today]: totalElapsed };
         setDailyStudySeconds(newSeconds);
 
+        // Update subject distribution state
+        if (selectedSubject) {
+          setSubjectStudySeconds(prev => {
+            const todaySubjects = prev[today] || {};
+            const prevSubjectSeconds = todaySubjects[selectedSubject] || 0;
+            // We only add 1 second per tick
+            return {
+              ...prev,
+              [today]: {
+                ...todaySubjects,
+                [selectedSubject]: prevSubjectSeconds + 1
+              }
+            };
+          });
+        }
+
         if (totalElapsed >= targetHoursRef.current * 3600 && !completedStudyDaysRef.current.includes(today)) {
           setCompletedStudyDays(prev => [...prev, today]);
         }
@@ -247,8 +287,11 @@ const TimerPage = () => {
         const sessionSeconds = Math.floor((now - startTime) / 1000);
         const totalElapsed = accumulatedSeconds + sessionSeconds;
         
+        const currentSubjectSeconds = subjectStudySeconds[today] || {};
+
         await saveToFirestore(today, {
           studySeconds: totalElapsed,
+          subjectSeconds: currentSubjectSeconds,
           date: today
         });
       }, 30000);
@@ -257,7 +300,7 @@ const TimerPage = () => {
       clearInterval(interval);
       clearInterval(periodicSave);
     };
-  }, [isTimerRunning, startTime, accumulatedSeconds]);
+  }, [isTimerRunning, startTime, accumulatedSeconds, selectedSubject]);
 
   const saveToFirestore = async (dateStr: string, data: any) => {
     if (!user) {
@@ -330,6 +373,38 @@ const TimerPage = () => {
     }
   };
 
+  const calculateStreak = (secondsMap: Record<string, number>, target: number) => {
+    let currentStreak = 0;
+    let checkDate = new Date();
+    checkDate.setHours(0, 0, 0, 0);
+    const targetSeconds = target * 3600;
+
+    const todayStr = checkDate.toDateString();
+    const todaySeconds = secondsMap[todayStr] || 0;
+
+    // If today's goal isn't met, check if yesterday's was. If not, streak is 0.
+    if (todaySeconds < targetSeconds) {
+      const yesterday = new Date(checkDate);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toDateString();
+      if ((secondsMap[yesterdayStr] || 0) < targetSeconds) return 0;
+      // If yesterday was met, start counting from yesterday
+      checkDate = yesterday;
+    }
+
+    while (true) {
+      const dateStr = checkDate.toDateString();
+      const seconds = secondsMap[dateStr] || 0;
+      if (seconds >= targetSeconds) {
+        currentStreak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+    return currentStreak;
+  };
+
   const syncGlobalProgress = async (questions: number, hours: number) => {
     if (!user) return;
     try {
@@ -337,13 +412,15 @@ const TimerPage = () => {
       const leaderboardSnap = await getDoc(leaderboardRef);
       const isNewUser = !leaderboardSnap.exists();
 
+      const newStreak = calculateStreak(dailyStudySeconds, targetHours);
+
       // Update Leaderboard
       await setDoc(leaderboardRef, {
         displayName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
         photoURL: user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=random`,
         totalQuestions: increment(questions),
         totalHours: increment(hours),
-        streak: increment(1),
+        streak: newStreak, // Accurate streak based on study hours
         lastUpdated: serverTimestamp()
       }, { merge: true });
 
@@ -404,8 +481,10 @@ const TimerPage = () => {
       }
 
       // Final save on stop
+      const currentSubjectSeconds = subjectStudySeconds[today] || {};
       await saveToFirestore(today, {
         studySeconds: elapsedSeconds,
+        subjectSeconds: currentSubjectSeconds,
         date: today
       });
     }
@@ -733,6 +812,16 @@ const TimerPage = () => {
               <div className="relative z-10 flex flex-col items-center w-full">
                 <div className="flex items-center justify-between w-full mb-4">
                   <div className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Focus Session</div>
+                  <select 
+                    value={selectedSubject}
+                    onChange={(e) => setSelectedSubject(e.target.value)}
+                    disabled={isTimerRunning}
+                    className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] font-black text-white/60 uppercase tracking-widest focus:outline-none focus:border-purple-500/50 transition-all disabled:opacity-50"
+                  >
+                    {availableSubjects.map(sub => (
+                      <option key={sub} value={sub} className="bg-black text-white">{sub}</option>
+                    ))}
+                  </select>
                 </div>
                 
                 <div className="relative mb-8">
@@ -834,6 +923,89 @@ const TimerPage = () => {
               </div>
             </motion.div>
           </div>
+
+          {/* Subject Distribution Donut Chart */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-8 rounded-[40px] glass border border-white/10 mb-12 relative overflow-hidden"
+          >
+            <div className="flex items-center gap-2 mb-8">
+              <div className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
+              <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Subject Time Distribution</span>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+              <div className="h-64 w-full relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={(() => {
+                        const today = new Date().toDateString();
+                        const todaySubjects = subjectStudySeconds[today] || {};
+                        const data = Object.entries(todaySubjects).map(([name, seconds]) => ({
+                          name,
+                          value: seconds
+                        }));
+                        return data.length > 0 ? data : [{ name: 'No Data', value: 1 }];
+                      })()}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {(() => {
+                        const today = new Date().toDateString();
+                        const todaySubjects = subjectStudySeconds[today] || {};
+                        const colors = ['#a855f7', '#10b981', '#f43f5e', '#3b82f6', '#f59e0b', '#06b6d4'];
+                        return Object.keys(todaySubjects).map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={colors[index % colors.length]} stroke="none" />
+                        ));
+                      })()}
+                      {Object.keys(subjectStudySeconds[new Date().toDateString()] || {}).length === 0 && (
+                        <Cell fill="rgba(255,255,255,0.05)" stroke="none" />
+                      )}
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                      itemStyle={{ color: '#fff', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
+                      formatter={(value: number) => [`${(value / 3600).toFixed(1)}h`, 'Time']}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Total</span>
+                  <span className="text-2xl font-mono font-black text-white">
+                    {((dailyStudySeconds[new Date().toDateString()] || 0) / 3600).toFixed(1)}h
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {(() => {
+                  const today = new Date().toDateString();
+                  const todaySubjects = subjectStudySeconds[today] || {};
+                  const colors = ['#a855f7', '#10b981', '#f43f5e', '#3b82f6', '#f59e0b', '#06b6d4'];
+                  return Object.entries(todaySubjects).map(([name, seconds], index) => (
+                    <div key={name} className="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/10">
+                      <div className="flex items-center gap-3">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
+                        <span className="text-xs font-bold text-white/80">{name}</span>
+                      </div>
+                      <span className="text-xs font-mono font-bold text-white">{(Number(seconds) / 3600).toFixed(1)}h</span>
+                    </div>
+                  ));
+                })()}
+                {Object.keys(subjectStudySeconds[new Date().toDateString()] || {}).length === 0 && (
+                  <div className="text-center py-8">
+                    <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">No subject data for today</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
 
           {/* Bar Graphs Section */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
