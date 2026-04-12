@@ -45,6 +45,8 @@ const SubjectChecklist = ({ category, examId }: SubjectChecklistProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [progressData, setProgressData] = useState<Record<string, any>>({});
+  const [chapterOrder, setChapterOrder] = useState<Record<string, string[]>>({});
+  const [hiddenChapters, setHiddenChapters] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -60,7 +62,10 @@ const SubjectChecklist = ({ category, examId }: SubjectChecklistProps) => {
     const docRef = doc(db, 'users', user.uid, 'data', `progress-${examId}`);
     const unsubscribe = onSnapshot(docRef, (doc) => {
       if (doc.exists()) {
-        setProgressData(doc.data().progress || {});
+        const data = doc.data();
+        setProgressData(data.progress || {});
+        setChapterOrder(data.chapterOrder || {});
+        setHiddenChapters(data.hiddenChapters || {});
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, `users/${user.uid}/data/progress-${examId}`, false);
@@ -86,18 +91,21 @@ const SubjectChecklist = ({ category, examId }: SubjectChecklistProps) => {
 
     const initial: Subject[] = Object.entries(syllabus).map(([name, chapters], idx) => {
       const subjectData = progressData[name] || {};
+      const hidden = hiddenChapters[name] || [];
       
       // Get default chapters
-      const defaultChapters = chapters.map(chName => {
-        const prog = subjectData[chName];
-        const completed = prog ? (prog.theoryLecture === 100 && prog.module && prog.pyq) : false;
-        const displayName = prog?.customName || chName;
-        return { 
-          id: chName, 
-          name: displayName, 
-          completed 
-        };
-      });
+      const defaultChapters = chapters
+        .filter(chName => !hidden.includes(chName))
+        .map(chName => {
+          const prog = subjectData[chName];
+          const completed = prog ? (prog.theoryLecture === 100 && prog.module && prog.pyq) : false;
+          const displayName = prog?.customName || chName;
+          return { 
+            id: chName, 
+            name: displayName, 
+            completed 
+          };
+        });
 
       // Get custom chapters for this subject
       const customChapters = Object.entries(subjectData)
@@ -108,11 +116,26 @@ const SubjectChecklist = ({ category, examId }: SubjectChecklistProps) => {
           completed: data.theoryLecture === 100 && data.module && data.pyq
         }));
 
+      let allChapters = [...defaultChapters, ...customChapters];
+
+      // Sort by chapterOrder
+      const order = chapterOrder[name];
+      if (order && order.length > 0) {
+        allChapters = allChapters.sort((a, b) => {
+          const indexA = order.indexOf(a.id);
+          const indexB = order.indexOf(b.id);
+          if (indexA === -1 && indexB === -1) return 0;
+          if (indexA === -1) return 1;
+          if (indexB === -1) return -1;
+          return indexA - indexB;
+        });
+      }
+
       return {
         name,
         color: colors[idx % colors.length],
         font: fonts[idx % fonts.length],
-        chapters: [...defaultChapters, ...customChapters]
+        chapters: allChapters
       };
     });
     setSubjects(initial);

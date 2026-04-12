@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import AnoAI from "@/components/ui/animated-shader-background";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar, Cell, ReferenceLine, PieChart, Pie } from 'recharts';
 
-import { auth, db, onAuthStateChanged } from '@/src/firebase';
+import { auth, db, onAuthStateChanged, handleFirestoreError, OperationType } from '@/src/firebase';
 import PulseLoader from "@/components/ui/pulse-loader";
 import { SYLLABUS_DATA } from '@/src/constants/syllabus';
 import { 
@@ -48,6 +48,7 @@ const TimerPage = () => {
   const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
   
   const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [accumulatedSeconds, setAccumulatedSeconds] = useState<number>(0);
   const [isTimerLoading, setIsTimerLoading] = useState(true);
@@ -721,8 +722,65 @@ const TimerPage = () => {
     }
   }
 
+  const deleteOneHour = async () => {
+    if (!user) return;
+    const today = new Date().toDateString();
+    const currentSeconds = dailyStudySeconds[today] || 0;
+    const newSeconds = Math.max(0, currentSeconds - 3600);
+    
+    setDailyStudySeconds(prev => ({ ...prev, [today]: newSeconds }));
+    setElapsedSeconds(newSeconds);
+    setShowDeleteConfirm(false);
+    playTickSound();
+
+    try {
+      await setDoc(doc(db, 'users', user.uid, 'dailyStats', today), {
+        studySeconds: newSeconds
+      }, { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/dailyStats/${today}`);
+    }
+  };
+
   return (
     <div className="w-full min-h-screen bg-black overflow-x-hidden relative">
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-zinc-900 border border-white/10 p-8 rounded-[32px] max-w-sm w-full text-center"
+            >
+              <div className="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <Trash2 className="w-8 h-8 text-red-500" />
+              </div>
+              <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2">Delete 1 Hour?</h3>
+              <p className="text-sm text-white/40 mb-8">This will subtract 1 hour from your today's study time. This action cannot be undone.</p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 py-3 rounded-xl bg-white/5 text-white font-black uppercase tracking-widest text-[10px] hover:bg-white/10 transition-all"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={deleteOneHour}
+                  className="flex-1 py-3 rounded-xl bg-red-600 text-white font-black uppercase tracking-widest text-[10px] hover:bg-red-500 transition-all"
+                >
+                  Confirm
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(17,24,39,1)_0%,rgba(0,0,0,1)_100%)] pointer-events-none" />
       
       <div className="relative z-10 flex flex-col items-center pt-16 pb-24 px-4">
@@ -810,18 +868,24 @@ const TimerPage = () => {
               <div className="absolute inset-[1px] bg-black rounded-[39px] z-0" />
 
               <div className="relative z-10 flex flex-col items-center w-full">
-                <div className="flex items-center justify-between w-full mb-4">
-                  <div className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Focus Session</div>
-                  <select 
-                    value={selectedSubject}
-                    onChange={(e) => setSelectedSubject(e.target.value)}
-                    disabled={isTimerRunning}
-                    className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] font-black text-white/60 uppercase tracking-widest focus:outline-none focus:border-purple-500/50 transition-all disabled:opacity-50"
-                  >
+                <div className="flex flex-col w-full mb-8">
+                  <div className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mb-4">Focus Subject</div>
+                  <div className="flex flex-wrap gap-2">
                     {availableSubjects.map(sub => (
-                      <option key={sub} value={sub} className="bg-black text-white">{sub}</option>
+                      <button
+                        key={sub}
+                        onClick={() => !isTimerRunning && setSelectedSubject(sub)}
+                        disabled={isTimerRunning}
+                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border
+                          ${selectedSubject === sub 
+                            ? 'bg-purple-600 border-purple-400 text-white shadow-[0_0_20px_rgba(147,51,234,0.3)]' 
+                            : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10 hover:text-white'}
+                          ${isTimerRunning ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer active:scale-95'}`}
+                      >
+                        {sub}
+                      </button>
                     ))}
-                  </select>
+                  </div>
                 </div>
                 
                 <div className="relative mb-8">
@@ -874,6 +938,16 @@ const TimerPage = () => {
                     )}
                     {isTimerLoading ? 'Syncing...' : (isTimerRunning ? 'Stop Session' : 'Start Session')}
                   </button>
+                  
+                  {!isTimerRunning && !isTimerLoading && elapsedSeconds >= 3600 && (
+                    <button 
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20 transition-all active:scale-95"
+                      title="Delete 1 Hour"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -1193,7 +1267,7 @@ const TimerPage = () => {
                 <CalendarIcon className="w-8 h-8" />
               </div>
               <div className="relative z-10 text-center md:text-left">
-                <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2">Interactive Scheduling</h3>
+                <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2">Test Scheduling</h3>
                 <p className="text-sm text-white/60 font-medium leading-relaxed max-w-lg">
                   Plan your success visually. Simply <span className="text-purple-400 font-black">click any date</span> in the calendar above to instantly toggle a mock test session.
                 </p>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle2, Circle, BookOpen, Activity, Plus, Pencil, Trash2, CheckSquare, Square } from 'lucide-react';
+import { CheckCircle2, Circle, BookOpen, Activity, Plus, Pencil, Trash2, CheckSquare, Square, Check, ChevronUp, ChevronDown, GripVertical } from 'lucide-react';
 import { auth, db, doc, onSnapshot, setDoc, handleFirestoreError, OperationType } from '@/src/firebase';
 import { SYLLABUS_DATA } from '@/src/constants/syllabus';
 import { playTickSound, playCheckSound } from '@/src/lib/sounds';
@@ -9,6 +9,7 @@ interface ChapterProgress {
   theoryLecture: number;
   module: boolean;
   pyq: boolean;
+  pyqYears?: number[];
   revisionCount: number;
   level: string;
   customName?: string;
@@ -34,6 +35,8 @@ const ProgressPage = () => {
   const [examInfo, setExamInfo] = useState(getExamInfo());
   const [activeSubject, setActiveSubject] = useState<string>('');
   const [progressData, setProgressData] = useState<Record<string, SubjectProgressData>>({});
+  const [chapterOrder, setChapterOrder] = useState<Record<string, string[]>>({});
+  const [hiddenChapters, setHiddenChapters] = useState<Record<string, string[]>>({});
   const [editingChapter, setEditingChapter] = useState<{ subject: string, id: string, name: string } | null>(null);
   const [newChapterName, setNewChapterName] = useState('');
 
@@ -65,7 +68,10 @@ const ProgressPage = () => {
     const docRef = doc(db, 'users', user.uid, 'data', `progress-${examInfo.id}`);
     const unsubscribe = onSnapshot(docRef, (doc) => {
       if (doc.exists()) {
-        setProgressData(doc.data().progress || {});
+        const data = doc.data();
+        setProgressData(data.progress || {});
+        setChapterOrder(data.chapterOrder || {});
+        setHiddenChapters(data.hiddenChapters || {});
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, `users/${user.uid}/data/progress-${examInfo.id}`, false);
@@ -85,6 +91,7 @@ const ProgressPage = () => {
         theoryLecture: 0,
         module: false, 
         pyq: false, 
+        pyqYears: [],
         revisionCount: 0,
         level: levels[0]
       };
@@ -124,18 +131,28 @@ const ProgressPage = () => {
       theoryLecture: 0,
       module: false,
       pyq: false,
+      pyqYears: [],
       revisionCount: 0,
       level: levels[0],
       customName: newChapterName,
       isCustom: true
     };
 
+    // Update order
+    const currentOrder = chapterOrder[subject] || getChapters().map(c => c.id);
+    const newOrder = [...currentOrder, chapterId];
+    const updatedChapterOrder = { ...chapterOrder, [subject]: newOrder };
+
     setProgressData(newProgress);
+    setChapterOrder(updatedChapterOrder);
     setNewChapterName('');
     playCheckSound();
 
     try {
-      await setDoc(doc(db, 'users', user.uid, 'data', `progress-${examInfo.id}`), { progress: newProgress }, { merge: true });
+      await setDoc(doc(db, 'users', user.uid, 'data', `progress-${examInfo.id}`), { 
+        progress: newProgress,
+        chapterOrder: updatedChapterOrder
+      }, { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/data/progress-${examInfo.id}`);
     }
@@ -145,15 +162,69 @@ const ProgressPage = () => {
     if (!user || !window.confirm('Delete this chapter?')) return;
 
     const newProgress = { ...progressData };
-    if (newProgress[subject]) {
-      delete newProgress[subject][chapterId];
+    const isCustom = newProgress[subject]?.[chapterId]?.isCustom;
+    
+    let updatedChapterOrder = { ...chapterOrder };
+    let updatedHiddenChapters = { ...hiddenChapters };
+
+    if (isCustom) {
+      if (newProgress[subject]) {
+        delete newProgress[subject][chapterId];
+      }
+      if (updatedChapterOrder[subject]) {
+        updatedChapterOrder[subject] = updatedChapterOrder[subject].filter(id => id !== chapterId);
+      }
+    } else {
+      // Default chapter - hide it
+      if (!updatedHiddenChapters[subject]) updatedHiddenChapters[subject] = [];
+      if (!updatedHiddenChapters[subject].includes(chapterId)) {
+        updatedHiddenChapters[subject].push(chapterId);
+      }
+      if (updatedChapterOrder[subject]) {
+        updatedChapterOrder[subject] = updatedChapterOrder[subject].filter(id => id !== chapterId);
+      }
     }
 
     setProgressData(newProgress);
+    setChapterOrder(updatedChapterOrder);
+    setHiddenChapters(updatedHiddenChapters);
     playTickSound();
 
     try {
-      await setDoc(doc(db, 'users', user.uid, 'data', `progress-${examInfo.id}`), { progress: newProgress });
+      await setDoc(doc(db, 'users', user.uid, 'data', `progress-${examInfo.id}`), { 
+        progress: newProgress,
+        chapterOrder: updatedChapterOrder,
+        hiddenChapters: updatedHiddenChapters
+      }, { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/data/progress-${examInfo.id}`);
+    }
+  };
+
+  const moveChapter = async (subject: string, chapterId: string, direction: 'up' | 'down') => {
+    if (!user) return;
+    
+    const currentOrder = chapterOrder[subject] || getChapters().map(c => c.id);
+    const index = currentOrder.indexOf(chapterId);
+    if (index === -1) return;
+
+    const newOrder = [...currentOrder];
+    if (direction === 'up' && index > 0) {
+      [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+    } else if (direction === 'down' && index < newOrder.length - 1) {
+      [newOrder[index + 1], newOrder[index]] = [newOrder[index], newOrder[index + 1]];
+    } else {
+      return;
+    }
+
+    const updatedChapterOrder = { ...chapterOrder, [subject]: newOrder };
+    setChapterOrder(updatedChapterOrder);
+    playTickSound();
+
+    try {
+      await setDoc(doc(db, 'users', user.uid, 'data', `progress-${examInfo.id}`), { 
+        chapterOrder: updatedChapterOrder 
+      }, { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/data/progress-${examInfo.id}`);
     }
@@ -180,10 +251,24 @@ const ProgressPage = () => {
       .filter(([_, data]) => (data as ChapterProgress).isCustom)
       .map(([id, data]) => ({ id, name: (data as ChapterProgress).customName || id }));
 
+    const hidden = hiddenChapters[activeSubject] || [];
     const allChapters = [
-      ...defaultChapters.map(name => ({ id: name, name })),
+      ...defaultChapters.filter(name => !hidden.includes(name)).map(name => ({ id: name, name })),
       ...customChapters
     ];
+
+    // Sort by chapterOrder
+    const order = chapterOrder[activeSubject];
+    if (order && order.length > 0) {
+      return allChapters.sort((a, b) => {
+        const indexA = order.indexOf(a.id);
+        const indexB = order.indexOf(b.id);
+        if (indexA === -1 && indexB === -1) return 0;
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        return indexA - indexB;
+      });
+    }
 
     return allChapters;
   };
@@ -316,7 +401,8 @@ const ProgressPage = () => {
                   level: masteryLevels[0]
                 };
                 const isFullyMastered = progress.theoryLecture === 100 && progress.module && progress.pyq;
-                const displayName = progress.customName || chapter.name;
+                const displayName = progress.customName || chapter.name || 'Untitled Chapter';
+                const pyqYears = Array.from({ length: 10 }, (_, i) => 2017 + i);
 
                 return (
                   <motion.div 
@@ -327,7 +413,30 @@ const ProgressPage = () => {
                     className={`rounded-2xl border transition-all duration-300 p-4 md:p-6
                       ${isFullyMastered ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-white/5 border-white/10'}`}
                   >
-                      <div className="grid grid-cols-1 xl:grid-cols-[1fr_auto] items-center gap-8">
+                      <div className="grid grid-cols-1 xl:grid-cols-[auto_1fr_auto] items-center gap-6">
+                        {/* Reorder Controls */}
+                        <div className="flex flex-col gap-1.5 p-2 rounded-xl bg-white/5 border border-white/10 group-hover:border-purple-500/30 transition-all">
+                          <button 
+                            onClick={() => moveChapter(activeSubject, chapter.id, 'up')}
+                            className="p-1.5 rounded-lg hover:bg-purple-500/20 text-white/20 hover:text-purple-400 transition-all active:scale-90"
+                            title="Move Up"
+                          >
+                            <ChevronUp className="w-4 h-4" />
+                          </button>
+                          <div className="flex flex-col gap-0.5 items-center opacity-20">
+                            <div className="w-1 h-1 bg-white rounded-full" />
+                            <div className="w-1 h-1 bg-white rounded-full" />
+                            <div className="w-1 h-1 bg-white rounded-full" />
+                          </div>
+                          <button 
+                            onClick={() => moveChapter(activeSubject, chapter.id, 'down')}
+                            className="p-1.5 rounded-lg hover:bg-purple-500/20 text-white/20 hover:text-purple-400 transition-all active:scale-90"
+                            title="Move Down"
+                          >
+                            <ChevronDown className="w-4 h-4" />
+                          </button>
+                        </div>
+
                         {/* Edit & Chapter Name */}
                         <div className="flex items-center gap-4 min-w-0">
                           <div className="min-w-0 flex-1">
@@ -350,28 +459,25 @@ const ProgressPage = () => {
                                 className="bg-white/10 border border-purple-500/50 rounded px-3 py-2 text-white w-full outline-none font-bold"
                               />
                             ) : (
-                              <div className="flex items-center gap-3 group min-w-0">
+                              <div className="flex items-center gap-3 group/name min-w-0">
                                 <h4 
-                                  onClick={() => setEditingChapter({ subject: activeSubject, id: chapter.id, name: displayName })}
-                                  className={`font-bold text-lg cursor-pointer hover:text-purple-400 transition-colors truncate flex-1 ${isFullyMastered ? 'text-emerald-400' : 'text-white'}`}
+                                  className={`font-bold text-lg flex-1 ${isFullyMastered ? 'text-emerald-400' : 'text-white'}`}
                                 >
                                   {displayName}
                                 </h4>
-                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="flex items-center gap-1 opacity-0 group-hover/name:opacity-100 transition-opacity">
                                   <button 
                                     onClick={() => setEditingChapter({ subject: activeSubject, id: chapter.id, name: displayName })}
                                     className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-purple-400 hover:bg-purple-500/10 transition-all"
                                   >
                                     <Pencil className="w-3 h-3" />
                                   </button>
-                                  {progress.isCustom && (
-                                    <button 
-                                      onClick={() => deleteChapter(activeSubject, chapter.id)}
-                                      className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                    </button>
-                                  )}
+                                  <button 
+                                    onClick={() => deleteChapter(activeSubject, chapter.id)}
+                                    className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
                                 </div>
                               </div>
                             )}
@@ -399,23 +505,62 @@ const ProgressPage = () => {
                           </div>
 
                           {/* Ticks */}
-                          <div className="flex items-center gap-4">
+                          <div className="flex flex-wrap items-center gap-6">
                             {[
-                              { id: 'module', label: 'Module' },
-                              { id: 'pyq', label: 'PYQ' }
+                              { id: 'module', label: 'Module' }
                             ].map((item) => (
                               <button
                                 key={item.id}
                                 onClick={() => updateProgress(activeSubject, chapter.id, item.id as any, !progress[item.id as keyof ChapterProgress])}
-                                className={`flex items-center gap-2 transition-all
+                                className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all
                                   ${progress[item.id as keyof ChapterProgress] 
-                                    ? 'text-emerald-400' 
-                                    : 'text-white/20 hover:text-white/40'}`}
+                                    ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' 
+                                    : 'bg-white/5 border-white/10 text-white/20 hover:border-white/40'}`}
                               >
-                                {progress[item.id as keyof ChapterProgress] ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
+                                {progress[item.id as keyof ChapterProgress] ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4 opacity-20" />}
                                 <span className="text-[10px] font-black uppercase tracking-widest">{item.label}</span>
                               </button>
                             ))}
+
+                            {/* PYQ with Year Selection */}
+                            <div className="flex flex-col gap-2">
+                              <button
+                                onClick={() => updateProgress(activeSubject, chapter.id, 'pyq', !progress.pyq)}
+                                className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all
+                                  ${progress.pyq 
+                                    ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' 
+                                    : 'bg-white/5 border-white/10 text-white/20 hover:border-white/40'}`}
+                              >
+                                {progress.pyq ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4 opacity-20" />}
+                                <span className="text-[10px] font-black uppercase tracking-widest">PYQ</span>
+                              </button>
+                              
+                              {progress.pyq && (
+                                <div className="grid grid-cols-5 gap-1 p-1.5 bg-black/40 rounded-xl border border-white/5">
+                                  {pyqYears.map(year => {
+                                    const isSelected = (progress.pyqYears || []).includes(year);
+                                    return (
+                                      <button
+                                        key={year}
+                                        onClick={() => {
+                                          const currentYears = progress.pyqYears || [];
+                                          const newYears = isSelected 
+                                            ? currentYears.filter(y => y !== year)
+                                            : [...currentYears, year];
+                                          updateProgress(activeSubject, chapter.id, 'pyqYears', newYears);
+                                        }}
+                                        className={`flex items-center justify-center px-1 py-1 rounded-md border text-[8px] font-black transition-all duration-200
+                                          ${isSelected 
+                                            ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]' 
+                                            : 'bg-white/5 border-white/10 text-white/20 hover:border-white/30 hover:text-white/40'}`}
+                                      >
+                                        {year.toString().slice(-2)}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
                           </div>
 
                           {/* Revision Count */}

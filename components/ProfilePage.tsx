@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, db, signOut } from '@/src/firebase';
-import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
-import { User, Target, BookOpen, Activity, Loader2, LogOut, Save, User as UserIcon, ChevronLeft, Sparkles, Trophy, Medal, Info, X, Check } from 'lucide-react';
+import { doc, setDoc, getDoc, updateDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
+import { User, Target, BookOpen, Activity, Loader2, LogOut, Save, User as UserIcon, ChevronLeft, Sparkles, Trophy, Medal, Info, X, Check, RefreshCw } from 'lucide-react';
 import { playTickSound } from '@/src/lib/sounds';
 import AnoAI from "@/components/ui/animated-shader-background";
 import { getRankInfo } from '@/src/lib/ranks';
@@ -25,6 +25,8 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [customExamName, setCustomExamName] = useState('');
   const [customExamDate, setCustomExamDate] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -32,6 +34,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
       if (currentUser) {
         setUser(currentUser);
         setDisplayName(currentUser.displayName || '');
+        setIsAdmin(currentUser.email === 'bablasaur19@gmail.com');
         
         const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
         if (userDoc.exists()) {
@@ -119,6 +122,28 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
     playTickSound();
     await signOut(auth);
     window.location.reload();
+  };
+
+  const handleResetAllStreaks = async () => {
+    if (!window.confirm('Are you sure you want to reset ALL user streaks to zero? This cannot be undone.')) return;
+    setResetting(true);
+    try {
+      const lbRef = collection(db, 'leaderboard');
+      const snapshot = await getDocs(lbRef);
+      const batch = writeBatch(db);
+      
+      snapshot.docs.forEach(doc => {
+        batch.update(doc.ref, { streak: 0 });
+      });
+      
+      await batch.commit();
+      setSuccess('All user streaks have been reset to zero.');
+      setTimeout(() => setSuccess(''), 5000);
+    } catch (err: any) {
+      setError('Failed to reset streaks: ' + err.message);
+    } finally {
+      setResetting(false);
+    }
   };
 
   const EXAMS = [
@@ -425,6 +450,22 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
               <LogOut className="w-4 h-4" />
               Terminate Session
             </button>
+
+            {isAdmin && (
+              <div className="mt-12 p-6 rounded-3xl bg-rose-500/5 border border-rose-500/20">
+                <h3 className="text-xs font-black text-rose-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <RefreshCw className="w-3 h-3" /> Admin Controls
+                </h3>
+                <button
+                  onClick={handleResetAllStreaks}
+                  disabled={resetting}
+                  className="w-full py-3 bg-rose-500 text-white rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-rose-600 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {resetting ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                  Reset Every User Streak to Zero
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

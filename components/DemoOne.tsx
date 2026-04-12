@@ -5,7 +5,7 @@ import AnoAI from "@/components/ui/animated-shader-background";
 import CountdownTimer from "@/components/ui/countdown-timer";
 import SubjectChecklist from "@/components/SubjectChecklist";
 import WeeklyTargets from "@/components/WeeklyTargets";
-import { auth, onAuthStateChanged, db, doc, getDoc, setDoc, onSnapshot, collection, query, orderBy, limit, User, handleFirestoreError, OperationType, serverTimestamp, increment, addDoc } from '@/src/firebase';
+import { auth, onAuthStateChanged, db, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, orderBy, limit, User, handleFirestoreError, OperationType, serverTimestamp, increment, addDoc } from '@/src/firebase';
 import { playTickSound } from '@/src/lib/sounds';
 
 interface DemoOneProps {
@@ -112,9 +112,17 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
       const customDate = localStorage.getItem('pulse_custom_date');
 
       if (user) {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
         if (userDoc.exists()) {
           const data = userDoc.data();
+          
+          // One-time streak reset logic
+          if (!data.streakReset_2026_04_12_v2) {
+            await setDoc(doc(db, 'leaderboard', user.uid), { streak: 0 }, { merge: true });
+            await updateDoc(userDocRef, { streakReset_2026_04_12_v2: true });
+          }
+
           exam = (data.exam || exam).toLowerCase();
           year = data.year || year;
           subExam = data.subExam || subExam;
