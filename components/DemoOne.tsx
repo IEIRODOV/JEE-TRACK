@@ -483,7 +483,7 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
             className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all overflow-hidden"
           >
             {user?.photoURL ? (
-              <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
+              <img src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=random`} alt="Profile" className="w-full h-full object-cover" />
             ) : (
               <UserIcon className="w-5 h-5 text-white/40" />
             )}

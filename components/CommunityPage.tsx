@@ -1351,7 +1351,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                         <div className="p-4">
                           <div className="flex items-center gap-3 mb-4">
                             <img 
-                              src={post.photoURL} 
+                              src={post.photoURL || `https://ui-avatars.com/api/?name=${post.displayName}&background=random`} 
                               className="w-10 h-10 rounded-full border border-[#343536] shadow-lg"
                               alt={post.displayName}
                             />
@@ -1558,7 +1558,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                                       <div className="flex gap-3">
                                         {user && (
                                           <img 
-                                            src={user.photoURL || ''} 
+                                            src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'User'}&background=random`} 
                                             className="w-8 h-8 rounded-full border border-white/10 hidden sm:block" 
                                             alt="" 
                                           />
@@ -1605,7 +1605,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                                           <div className="flex gap-3 group/comment relative z-10">
                                             <div className="flex flex-col items-center">
                                               <div className="relative">
-                                                <img src={comment.photoURL} className="w-8 h-8 rounded-full border-2 border-purple-500/20 shadow-lg" alt={comment.displayName} />
+                                                <img src={comment.photoURL || `https://ui-avatars.com/api/?name=${comment.displayName}&background=random`} className="w-8 h-8 rounded-full border-2 border-purple-500/20 shadow-lg" alt={comment.displayName} />
                                                 <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-[#0a0a0b] rounded-full" />
                                               </div>
                                               {replies.some(r => r.parentId === comment.id) && (
@@ -1701,7 +1701,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                                               .map(reply => (
                                                 <div key={reply.id} className="ml-8 sm:ml-11 flex gap-3 group/reply relative">
                                                   <div className="absolute -left-4 top-0 bottom-0 w-0.5 bg-purple-500/10 rounded-full" />
-                                                  <img src={reply.photoURL} className="w-6 h-6 rounded-full border border-white/10 shadow-md" alt={reply.displayName} />
+                                                  <img src={reply.photoURL || `https://ui-avatars.com/api/?name=${reply.displayName}&background=random`} className="w-6 h-6 rounded-full border border-white/10 shadow-md" alt={reply.displayName} />
                                                   <div className="flex-1 min-w-0">
                                                     <div className="bg-white/5 rounded-xl p-2.5 border border-white/5 hover:border-purple-500/20 transition-all">
                                                       <div className="flex items-center flex-wrap gap-2 mb-1">

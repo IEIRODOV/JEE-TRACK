@@ -195,7 +195,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
         <div className="flex items-center gap-6 mb-12">
           <div className="w-20 h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
             {user?.photoURL ? (
-              <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
+              <img src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=random`} alt="Profile" className="w-full h-full object-cover" />
             ) : (
               <UserIcon className="w-10 h-10 text-white/20" />
             )}

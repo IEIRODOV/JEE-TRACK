@@ -108,7 +108,7 @@ const FriendListItem = memo(({
       <div className="flex items-center gap-4 relative z-10">
         <div className="relative">
           <img 
-            src={friend.photoURL} 
+            src={friend.photoURL || `https://ui-avatars.com/api/?name=${friend.displayName || 'Friend'}&background=random`} 
             className={`w-10 h-10 rounded-2xl border transition-all object-cover
               ${isSelected ? 'border-purple-400' : 'border-white/10 group-hover:border-white/30'}`} 
             alt="" 
@@ -483,9 +483,16 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const msgs: Message[] = [];
-      snapshot.forEach((doc) => {
-        msgs.push({ id: doc.id, ...doc.data() } as Message);
+      const unreadIds: string[] = [];
+
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        msgs.push({ id: docSnap.id, ...data } as Message);
+        if (!data.read && data.receiverId === user.uid) {
+          unreadIds.push(docSnap.id);
+        }
       });
+
       // Sort client-side to avoid composite index requirement
       msgs.sort((a, b) => {
         const timeA = a.createdAt?.toMillis() || 0;
@@ -494,6 +501,13 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
       });
       setMessages(msgs);
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+
+      // Mark messages as read if we are the receiver
+      if (unreadIds.length > 0) {
+        unreadIds.forEach(id => {
+          setDoc(doc(db, 'messages', id), { read: true }, { merge: true });
+        });
+      }
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'messages', false);
     });
@@ -585,8 +599,11 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
     setMessageType('text');
 
     try {
-      await addDoc(collection(db, 'chats', chatId, 'messages'), {
+      await addDoc(collection(db, 'messages'), {
+        chatId,
+        participants: [user.uid, selectedFriend.uid],
         senderId: user.uid,
+        receiverId: selectedFriend.uid,
         text,
         type,
         read: false,
@@ -594,7 +611,7 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
       });
     } catch (error) {
       console.error("Error sending message:", error);
-      handleFirestoreError(error, OperationType.WRITE, `chats/${chatId}/messages`);
+      handleFirestoreError(error, OperationType.WRITE, 'messages');
     }
   }, [user, selectedFriend, newMessage, messageType]);
 
@@ -935,7 +952,7 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
                               <div className="p-5 border-b border-white/10 bg-white/5 flex items-center justify-between">
                                 <div className="flex items-center gap-4">
                                   <img 
-                                    src={selectedFriend.photoURL} 
+                                    src={selectedFriend.photoURL || `https://ui-avatars.com/api/?name=${selectedFriend.displayName || 'Friend'}&background=random`} 
                                     className="w-12 h-12 rounded-2xl border border-white/20 shadow-[0_0_20px_rgba(255,255,255,0.1)] object-cover" 
                                     alt="" 
                                     referrerPolicy="no-referrer"
