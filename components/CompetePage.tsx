@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, memo } from 'react';
 import { Trophy, Users, Target, Zap, ChevronRight, Globe, ShieldCheck, TrendingUp, Medal, Plus, Award, Clock, Trash2, X, UserPlus, HelpCircle, Send, MessageSquare, Copy } from 'lucide-react';
 import PulseLoader from "@/components/ui/pulse-loader";
 import { motion, AnimatePresence } from 'motion/react';
-import { auth, onAuthStateChanged, User, db, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, limit, Timestamp, setDoc, doc, getDoc, getDocs, where, arrayUnion, arrayRemove, increment, handleFirestoreError, OperationType, getCountFromServer } from '@/src/firebase';
+import { auth, onAuthStateChanged, User, db, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, limit, Timestamp, setDoc, doc, getDoc, getDocs, where, arrayUnion, arrayRemove, increment, handleFirestoreError, OperationType, getCountFromServer, writeBatch } from '@/src/firebase';
 import { playTickSound } from '@/src/lib/sounds';
 
 interface Message {
@@ -412,13 +412,17 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
         return;
       }
 
-      await setDoc(doc(db, 'users', user.uid), {
+      const batch = writeBatch(db);
+      
+      batch.set(doc(db, 'users', user.uid), {
         friends: arrayUnion(friendId)
       }, { merge: true });
 
-      await setDoc(doc(db, 'users', friendId), {
+      batch.set(doc(db, 'users', friendId), {
         friends: arrayUnion(user.uid)
       }, { merge: true });
+
+      await batch.commit();
 
       setInputCode('');
     } catch (error) {
@@ -435,13 +439,17 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
 
     try {
       const friendId = removingFriendId;
-      await setDoc(doc(db, 'users', user.uid), {
+      const batch = writeBatch(db);
+      
+      batch.set(doc(db, 'users', user.uid), {
         friends: arrayRemove(friendId)
       }, { merge: true });
 
-      await setDoc(doc(db, 'users', friendId), {
+      batch.set(doc(db, 'users', friendId), {
         friends: arrayRemove(user.uid)
       }, { merge: true });
+
+      await batch.commit();
 
       setRemovingFriendId(null);
       if (selectedFriend?.uid === friendId) setSelectedFriend(null);

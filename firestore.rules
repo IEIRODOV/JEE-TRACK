@@ -159,14 +159,13 @@ service cloud.firestore {
       // Allow owner/admin full write
       allow write: if isOwner(userId) || isAdmin();
       
-      // Allow anyone to add themselves to a user's friend list (mutual link)
+      // Allow anyone to add/remove themselves to a user's friend list (mutual link)
       allow update: if isAuthenticated() && (
         isOwner(userId) || 
         (
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['friends']) &&
-          request.resource.data.friends.hasAll(resource.data.friends || []) &&
-          request.resource.data.friends.size() == (resource.data.friends || []).size() + 1 &&
-          request.resource.data.friends.hasAny([request.auth.uid])
+          // The only change allowed is adding/removing the current user's UID
+          request.resource.data.friends.removeAll([request.auth.uid]) == resource.data.get('friends', []).removeAll([request.auth.uid])
         )
       );
 
