@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, memo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react';
 import { Trophy, Users, Target, Zap, ChevronRight, Globe, ShieldCheck, TrendingUp, Medal, Plus, Award, Clock, Trash2, X, UserPlus, HelpCircle, Send, MessageSquare, Copy } from 'lucide-react';
 import PulseLoader from "@/components/ui/pulse-loader";
 import { motion, AnimatePresence } from 'motion/react';
@@ -159,10 +159,103 @@ interface CompetePageProps {
 
 import { getRankInfo } from '@/src/lib/ranks';
 
+const LeaderboardList = memo(({ 
+  leaderboard, 
+  user, 
+  isLoading, 
+  onProfileClick
+}: { 
+  leaderboard: any[], 
+  user: User | null, 
+  isLoading: boolean, 
+  onProfileClick: (player: any) => void
+}) => {
+  return (
+    <div className="divide-y divide-white/5">
+      {isLoading ? (
+        <div className="p-12 flex flex-col items-center justify-center gap-4">
+          <PulseLoader size={32} />
+        </div>
+      ) : leaderboard.length === 0 ? (
+        <div className="p-12 text-center">
+          <p className="text-white/20 text-[10px] font-black uppercase tracking-widest">No data in the arena yet.</p>
+        </div>
+      ) : (
+        leaderboard.map((player, idx) => {
+          const isCurrentUser = player.uid === user?.uid;
+          return (
+            <motion.div 
+              key={idx} 
+              whileHover={{ backgroundColor: 'rgba(255,255,255,0.03)' }}
+              onClick={() => onProfileClick(player)}
+              className={`flex items-center justify-between p-2 transition-all group relative cursor-pointer ${isCurrentUser ? 'bg-blue-500/5 border-l-2 border-blue-500' : ''}`}
+            >
+              {isCurrentUser && (
+                <div className="absolute top-1 right-3">
+                  <span className="text-[6px] font-black text-blue-400 uppercase tracking-widest">You</span>
+                </div>
+              )}
+              
+              <div className="flex items-center gap-3">
+                <div className="w-6 flex justify-center">
+                  {idx < 3 ? (
+                    <div className={`w-4 h-4 rounded-lg flex items-center justify-center text-[8px] font-black rotate-3 group-hover:rotate-0 transition-transform
+                      ${idx === 0 ? 'bg-yellow-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.4)]' : 
+                        idx === 1 ? 'bg-slate-300 text-black shadow-[0_0_10px_rgba(203,213,225,0.4)]' : 
+                        'bg-amber-700 text-white shadow-[0_0_10px_rgba(180,83,9,0.4)]'}`}>
+                      {idx + 1}
+                    </div>
+                  ) : (
+                    <span className="text-[8px] font-black text-white/20">{idx + 1}</span>
+                  )}
+                </div>
+                <div className="relative">
+                  <img 
+                    src={player.photoURL || `https://ui-avatars.com/api/?name=${player.displayName}&background=random`} 
+                    className={`w-7 h-7 rounded-lg border transition-all ${isCurrentUser ? 'border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.3)]' : 'border-white/10 group-hover:border-blue-500/50'}`} 
+                    alt={player.displayName} 
+                    referrerPolicy="no-referrer" 
+                  />
+                </div>
+                <div className="min-w-[80px]">
+                  <span className={`block text-[10px] font-bold transition-colors ${isCurrentUser ? 'text-blue-400' : 'text-white group-hover:text-blue-400'}`}>
+                    {player.displayName}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[6px] font-bold text-white/40 uppercase tracking-widest">Streak: {player.streak}d</span>
+                    <div className="w-0.5 h-0.5 bg-white/20 rounded-full" />
+                    <span className={`text-[6px] font-black uppercase tracking-widest flex items-center gap-1 ${getRankInfo(player.totalQuestions).color}`}>
+                      {getRankInfo(player.totalQuestions).icon} {getRankInfo(player.totalQuestions).title}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <div className={`text-xs font-black leading-none ${isCurrentUser ? 'text-blue-400' : 'text-rose-400'}`}>{player.totalQuestions}</div>
+                  <div className="text-[6px] font-bold text-white/20 uppercase tracking-widest mt-0.5">Solved</div>
+                </div>
+                <div className="text-right w-10">
+                  <div className={`text-xs font-black leading-none ${isCurrentUser ? 'text-blue-400' : 'text-emerald-400'}`}>{player.totalHours.toFixed(1)}h</div>
+                  <div className="text-[6px] font-bold text-white/20 uppercase tracking-widest mt-0.5">Study</div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <ChevronRight className="w-2.5 h-2.5 text-white/10 group-hover:text-white/40 group-hover:translate-x-0.5 transition-all" />
+                </div>
+              </div>
+            </motion.div>
+          );
+        })
+      )}
+    </div>
+  );
+});
+LeaderboardList.displayName = 'LeaderboardList';
+
 const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
-  const [activities, setActivities] = useState<any[]>([]);
   const [globalStats, setGlobalStats] = useState({ totalStudents: 0, totalQuestions: 0, totalHours: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [dbError, setDbError] = useState<string | null>(null);
@@ -225,76 +318,97 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
     return () => unsubscribe();
   }, [user, currentDate]);
 
-  // Friends Data Listener
+  // Friends IDs Listener
   useEffect(() => {
     if (!user) return;
 
-    const unsubscribe = onSnapshot(doc(db, 'users', user.uid), async (userDoc) => {
+    const unsubscribe = onSnapshot(doc(db, 'users', user.uid), (userDoc) => {
       if (userDoc.exists()) {
         const friendIds = userDoc.data().friends || [];
-        if (friendIds.length > 0) {
-          const friendsData: any[] = [];
-          for (const fId of friendIds) {
-            const fDoc = await getDoc(doc(db, 'users', fId));
-            if (fDoc.exists()) {
-              const statsDoc = await getDoc(doc(db, 'users', fId, 'dailyStats', currentDate));
-              const lbDoc = await getDoc(doc(db, 'leaderboard', fId));
-              
-              friendsData.push({
-                uid: fId,
-                displayName: fDoc.data().displayName || 'Friend',
-                photoURL: fDoc.data().photoURL || `https://ui-avatars.com/api/?name=${fDoc.data().displayName || 'Friend'}&background=random`,
-                totalQuestions: lbDoc.exists() ? lbDoc.data().totalQuestions : 0,
-                stats: statsDoc.exists() ? statsDoc.data() : { studySeconds: 0, questionsSolved: 0 }
-              });
-            }
-          }
-          setFriends(friendsData);
-        } else {
-          setFriends([]);
-        }
+        setFriends(prev => {
+          // Only update if IDs actually changed to prevent downstream re-renders
+          const prevIds = prev.map(f => f.uid).sort().join(',');
+          const nextIds = [...friendIds].sort().join(',');
+          if (prevIds === nextIds) return prev;
+          
+          // Initialize basic friend objects
+          return friendIds.map((id: string) => {
+            const existing = prev.find(p => p.uid === id);
+            return existing || { 
+              uid: id, 
+              displayName: 'Loading...', 
+              photoURL: '', 
+              totalQuestions: 0, 
+              stats: { studySeconds: 0, questionsSolved: 0 } 
+            };
+          });
+        });
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, `users/${user.uid}`, false);
     });
 
     return () => unsubscribe();
-  }, [user, currentDate]);
+  }, [user]);
 
-  // Real-time Friends Stats Listener
+  // Real-time Friends Data Listeners (Profiles, Stats, Timers)
   useEffect(() => {
     if (!user || friends.length === 0) return;
 
-    const unsubscribesStats = friends.map(friend => {
-      return onSnapshot(doc(db, 'users', friend.uid, 'dailyStats', currentDate), (docSnap) => {
+    const friendIds = friends.map(f => f.uid);
+    
+    // 1. Listen to Profiles & Leaderboard Stats
+    const unsubscribesProfile = friendIds.map(fId => {
+      return onSnapshot(doc(db, 'users', fId), (docSnap) => {
         if (docSnap.exists()) {
-          const newStats = docSnap.data();
+          const data = docSnap.data();
           setFriends(prev => prev.map(f => 
-            f.uid === friend.uid ? { ...f, stats: newStats } : f
-          ));
-        } else {
-          setFriends(prev => prev.map(f => 
-            f.uid === friend.uid ? { ...f, stats: { studySeconds: 0, questionsSolved: 0 } } : f
+            f.uid === fId ? { 
+              ...f, 
+              displayName: data.displayName || 'Friend',
+              photoURL: data.photoURL || `https://ui-avatars.com/api/?name=${data.displayName || 'Friend'}&background=random`
+            } : f
           ));
         }
-      }, (error) => {
-        handleFirestoreError(error, OperationType.GET, `users/${friend.uid}/dailyStats/${currentDate}`, false);
       });
     });
 
-    const unsubscribesTimer = friends.map(friend => {
-      return onSnapshot(doc(db, 'users', friend.uid, 'data', 'timer'), (docSnap) => {
+    const unsubscribesLeaderboard = friendIds.map(fId => {
+      return onSnapshot(doc(db, 'leaderboard', fId), (docSnap) => {
         if (docSnap.exists()) {
-          setFriendsTimerStates(prev => ({ ...prev, [friend.uid]: docSnap.data() }));
-        } else {
-          setFriendsTimerStates(prev => ({ ...prev, [friend.uid]: { isRunning: false, startTime: null, accumulatedSeconds: 0 } }));
+          const data = docSnap.data();
+          setFriends(prev => prev.map(f => 
+            f.uid === fId ? { ...f, totalQuestions: data.totalQuestions || 0 } : f
+          ));
         }
+      });
+    });
+
+    // 2. Listen to Daily Stats
+    const unsubscribesStats = friendIds.map(fId => {
+      return onSnapshot(doc(db, 'users', fId, 'dailyStats', currentDate), (docSnap) => {
+        const stats = docSnap.exists() ? docSnap.data() : { studySeconds: 0, questionsSolved: 0 };
+        setFriends(prev => prev.map(f => 
+          f.uid === fId ? { ...f, stats } : f
+        ));
       }, (error) => {
-        handleFirestoreError(error, OperationType.GET, `users/${friend.uid}/data/timer`, false);
+        handleFirestoreError(error, OperationType.GET, `users/${fId}/dailyStats/${currentDate}`, false);
+      });
+    });
+
+    // 3. Listen to Timers
+    const unsubscribesTimer = friendIds.map(fId => {
+      return onSnapshot(doc(db, 'users', fId, 'data', 'timer'), (docSnap) => {
+        const timerData = docSnap.exists() ? docSnap.data() : { isRunning: false, startTime: null, accumulatedSeconds: 0 };
+        setFriendsTimerStates(prev => ({ ...prev, [fId]: timerData }));
+      }, (error) => {
+        handleFirestoreError(error, OperationType.GET, `users/${fId}/data/timer`, false);
       });
     });
 
     return () => {
+      unsubscribesProfile.forEach(unsub => unsub());
+      unsubscribesLeaderboard.forEach(unsub => unsub());
       unsubscribesStats.forEach(unsub => unsub());
       unsubscribesTimer.forEach(unsub => unsub());
     };
@@ -387,7 +501,7 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
     return () => unsubscribe();
   }, [user, selectedFriend]);
 
-  const handleLinkFriend = async () => {
+  const handleLinkFriend = useCallback(async () => {
     if (!user || !inputCode.trim()) return;
     setIsLinking(true);
     playTickSound();
@@ -430,9 +544,9 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
     } finally {
       setIsLinking(false);
     }
-  };
+  }, [user, inputCode]);
 
-  const handleRemoveFriend = async () => {
+  const handleRemoveFriend = useCallback(async () => {
     if (!user || !removingFriendId) return;
     setIsRemoving(true);
     playTickSound();
@@ -458,25 +572,21 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
     } finally {
       setIsRemoving(false);
     }
-  };
+  }, [user, removingFriendId, selectedFriend]);
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = useCallback(async () => {
     if (!user || !selectedFriend || !newMessage.trim()) return;
     playTickSound();
 
     const text = newMessage.trim();
     const type = messageType;
     const chatId = [user.uid, selectedFriend.uid].sort().join('_');
-    const participants = [user.uid, selectedFriend.uid];
     setNewMessage('');
     setMessageType('text');
 
     try {
-      await addDoc(collection(db, 'messages'), {
-        chatId,
-        participants,
+      await addDoc(collection(db, 'chats', chatId, 'messages'), {
         senderId: user.uid,
-        receiverId: selectedFriend.uid,
         text,
         type,
         read: false,
@@ -484,8 +594,9 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
       });
     } catch (error) {
       console.error("Error sending message:", error);
+      handleFirestoreError(error, OperationType.WRITE, `chats/${chatId}/messages`);
     }
-  };
+  }, [user, selectedFriend, newMessage, messageType]);
 
   useEffect(() => {
     console.log("Current selectedProfile state:", selectedProfile);
@@ -538,42 +649,9 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
     return () => unsubscribe();
   }, []);
 
-  // Activity Feed Listener
-  useEffect(() => {
-    const q = query(
-      collection(db, 'activity'),
-      orderBy('createdAt', 'desc'),
-      limit(10)
-    );
-
-    console.log('Attaching activity listener...');
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      console.log('Activity snapshot received, size:', snapshot.size);
-      const feed: any[] = [];
-      snapshot.forEach((doc) => {
-        feed.push({ id: doc.id, ...doc.data() });
-      });
-      setActivities(feed);
-    }, (error) => {
-      console.error('Activity listener error:', error);
-      handleFirestoreError(error, OperationType.LIST, 'activity', false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
   const userStats = leaderboard.find(p => p.uid === user?.uid) || { totalQuestions: 0, totalHours: 0, streak: 0 };
   const rankInfo = getRankInfo(userStats.totalQuestions);
   const progressToNext = Math.min((userStats.totalQuestions / rankInfo.nextThreshold) * 100, 100);
-
-  const formatTimeAgo = (timestamp: Timestamp | null) => {
-    if (!timestamp) return 'Just now';
-    const seconds = Math.floor((Date.now() - timestamp.toDate().getTime()) / 1000);
-    if (seconds < 60) return `${seconds}s ago`;
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-    return timestamp.toDate().toLocaleDateString();
-  };
 
   return (
     <div className="w-full min-h-screen bg-black overflow-x-hidden relative">
@@ -705,99 +783,15 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
               </div>
             </div>
             
-            <div className="divide-y divide-white/5">
-              {isLoading ? (
-                <div className="p-12 flex flex-col items-center justify-center gap-4">
-                  <PulseLoader size={32} />
-                </div>
-              ) : leaderboard.length === 0 ? (
-                <div className="p-12 text-center">
-                  <p className="text-white/20 text-[10px] font-black uppercase tracking-widest">No data in the arena yet.</p>
-                </div>
-              ) : (
-                leaderboard.map((player, idx) => {
-                  const isCurrentUser = player.uid === user?.uid;
-                  return (
-                    <motion.div 
-                      key={idx} 
-                      whileHover={{ backgroundColor: 'rgba(255,255,255,0.03)' }}
-                      onClick={() => {
-                        console.log("Selected profile:", player);
-                        setSelectedProfile(player);
-                      }}
-                      className={`flex items-center justify-between p-2 transition-all group relative cursor-pointer ${isCurrentUser ? 'bg-blue-500/5 border-l-2 border-blue-500' : ''}`}
-                    >
-                      {isCurrentUser && (
-                        <div className="absolute top-1 right-3">
-                          <span className="text-[6px] font-black text-blue-400 uppercase tracking-widest">You</span>
-                        </div>
-                      )}
-                      
-                      <div className="flex items-center gap-3">
-                        <div className="w-6 flex justify-center">
-                          {idx < 3 ? (
-                            <div className={`w-4 h-4 rounded-lg flex items-center justify-center text-[8px] font-black rotate-3 group-hover:rotate-0 transition-transform
-                              ${idx === 0 ? 'bg-yellow-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.4)]' : 
-                                idx === 1 ? 'bg-slate-300 text-black shadow-[0_0_10px_rgba(203,213,225,0.4)]' : 
-                                'bg-amber-700 text-white shadow-[0_0_10px_rgba(180,83,9,0.4)]'}`}>
-                              {idx + 1}
-                            </div>
-                          ) : (
-                            <span className="text-[8px] font-black text-white/20">{idx + 1}</span>
-                          )}
-                        </div>
-                        <div className="relative">
-                          <img 
-                            src={player.photoURL || `https://ui-avatars.com/api/?name=${player.displayName}&background=random`} 
-                            className={`w-7 h-7 rounded-lg border transition-all ${isCurrentUser ? 'border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.3)]' : 'border-white/10 group-hover:border-blue-500/50'}`} 
-                            alt={player.displayName} 
-                            referrerPolicy="no-referrer" 
-                          />
-                        </div>
-                        <div className="min-w-[80px]">
-                          <span className={`block text-[10px] font-bold transition-colors ${isCurrentUser ? 'text-blue-400' : 'text-white group-hover:text-blue-400'}`}>
-                            {player.displayName}
-                          </span>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[6px] font-bold text-white/40 uppercase tracking-widest">Streak: {player.streak}d</span>
-                            <div className="w-0.5 h-0.5 bg-white/20 rounded-full" />
-                            <span className={`text-[6px] font-black uppercase tracking-widest flex items-center gap-1 ${getRankInfo(player.totalQuestions).color}`}>
-                              {getRankInfo(player.totalQuestions).icon} {getRankInfo(player.totalQuestions).title}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-3">
-                        <div className="text-right">
-                          <div className={`text-xs font-black leading-none ${isCurrentUser ? 'text-blue-400' : 'text-rose-400'}`}>{player.totalQuestions}</div>
-                          <div className="text-[6px] font-bold text-white/20 uppercase tracking-widest mt-0.5">Solved</div>
-                        </div>
-                        <div className="text-right w-10">
-                          <div className={`text-xs font-black leading-none ${isCurrentUser ? 'text-blue-400' : 'text-emerald-400'}`}>{player.totalHours.toFixed(1)}h</div>
-                          <div className="text-[6px] font-bold text-white/20 uppercase tracking-widest mt-0.5">Study</div>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <motion.button 
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            className="p-1 rounded-lg bg-white/5 border border-white/10 text-white/20 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all opacity-0 group-hover:opacity-100"
-                            title="Challenge User"
-                          >
-                            <Zap className="w-2.5 h-2.5" />
-                          </motion.button>
-                          <ChevronRight className="w-2.5 h-2.5 text-white/10 group-hover:text-white/40 group-hover:translate-x-0.5 transition-all" />
-                        </div>
-                      </div>
-                    </motion.div>
-                  );
-                })
-              )}
-            </div>
+            <LeaderboardList 
+              leaderboard={leaderboard} 
+              user={user} 
+              isLoading={isLoading} 
+              onProfileClick={setSelectedProfile} 
+            />
           </motion.div>
 
           <motion.div 
-            variants={itemVariants}
             whileHover={{ scale: 1.01 }}
             className="mt-12 p-8 rounded-[40px] border border-blue-500/20 bg-blue-500/5 backdrop-blur-xl relative overflow-hidden group"
           >
@@ -892,216 +886,225 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
                     <>
                       {/* Friend List */}
                       <div className="lg:col-span-4 space-y-6">
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400">
-                          <Users className="w-4 h-4" />
-                        </div>
-                        <h3 className="text-xs font-black text-white uppercase tracking-widest">Your Crew</h3>
-                      </div>
-                      <span className="text-[10px] font-black text-white/20">{friends.length}</span>
-                    </div>
-
-                    <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                      {friends.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-                          <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/20 mb-4">
-                            <UserPlus className="w-6 h-6" />
-                          </div>
-                          <p className="text-[10px] font-black text-white/20 uppercase tracking-widest leading-relaxed">
-                            Your crew is empty.<br/>Link with friends to start!
-                          </p>
-                        </div>
-                      ) : (
-                        friends.map((friend) => (
-                          <FriendListItem 
-                            key={friend.uid}
-                            friend={friend}
-                            isSelected={selectedFriend?.uid === friend.uid}
-                            unreadCount={unreadCounts[friend.uid] || 0}
-                            timerState={friendsTimerStates[friend.uid]}
-                            onClick={() => { playTickSound(); setSelectedFriend(friend); }}
-                          />
-                        ))
-                      )}
-                    </div>
-                  </div>
-
-                {/* Chat / Doubts Section */}
-                <div className="lg:col-span-8">
-                  <AnimatePresence mode="wait">
-                    {selectedFriend ? (
-                      <motion.div 
-                        key={selectedFriend.uid}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        className="h-[500px] rounded-[40px] glass border border-white/10 flex flex-col overflow-hidden"
-                      >
-                        <div className="p-5 border-b border-white/10 bg-white/5 flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <img 
-                              src={selectedFriend.photoURL} 
-                              className="w-12 h-12 rounded-2xl border border-white/20 shadow-[0_0_20px_rgba(255,255,255,0.1)] object-cover" 
-                              alt="" 
-                              referrerPolicy="no-referrer"
-                            />
-                            <div>
-                              <h3 className="text-base font-black text-white uppercase tracking-tight">{selectedFriend.displayName}</h3>
-                              <div className="flex items-center gap-3 mt-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">{(selectedFriend.stats.studySeconds / 3600).toFixed(1)}h Study</span>
-                                  <div className="w-1 h-1 bg-white/20 rounded-full" />
-                                  <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest">{selectedFriend.stats.questionsSolved} Questions</span>
-                                </div>
-                                <FriendTimer timerState={friendsTimerStates[selectedFriend.uid]} />
-                              </div>
+                        <div className="flex items-center justify-between mb-6">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400">
+                              <Users className="w-4 h-4" />
                             </div>
+                            <h3 className="text-xs font-black text-white uppercase tracking-widest">Your Crew</h3>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <button 
-                              onClick={() => setRemovingFriendId(selectedFriend.uid)}
-                              className="p-2 rounded-xl bg-white/5 border border-white/10 text-white/20 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={() => setSelectedFriend(null)}
-                              className="p-2 rounded-xl bg-white/5 border border-white/10 text-white/40 hover:text-white transition-all"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
+                          <span className="text-[10px] font-black text-white/20">{friends.length}</span>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-black/40 scroll-smooth">
-                          {/* Friend Stats Big Boxes */}
-                          <div className="grid grid-cols-2 gap-4 mb-10">
-                            <motion.div 
-                              initial={{ opacity: 0, scale: 0.95 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              className="p-8 rounded-[40px] glass border-t-4 border-t-emerald-500 border-x border-white/10 border-b border-white/10 flex flex-col items-center justify-center text-center shadow-[0_20px_50px_rgba(16,185,129,0.15)] relative overflow-hidden group"
-                            >
-                              <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                                <Clock className="w-24 h-24" />
+                        <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                          {friends.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                              <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/20 mb-4">
+                                <UserPlus className="w-6 h-6" />
                               </div>
-                              <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-400 mb-4">
-                                <Clock className="w-6 h-6" />
-                              </div>
-                              <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-2">Study Time</span>
-                              <div className="text-4xl font-mono font-black text-white tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
-                                {(selectedFriend.stats.studySeconds / 3600).toFixed(1)}<span className="text-lg ml-1 text-emerald-500/50">h</span>
-                              </div>
-                            </motion.div>
+                              <p className="text-[10px] font-black text-white/20 uppercase tracking-widest leading-relaxed">
+                                Your crew is empty.<br/>Link with friends to start!
+                              </p>
+                            </div>
+                          ) : (
+                            friends.map((friend) => (
+                              <FriendListItem 
+                                key={friend.uid}
+                                friend={friend}
+                                isSelected={selectedFriend?.uid === friend.uid}
+                                unreadCount={unreadCounts[friend.uid] || 0}
+                                timerState={friendsTimerStates[friend.uid]}
+                                onClick={() => { playTickSound(); setSelectedFriend(friend); }}
+                              />
+                            ))
+                          )}
+                        </div>
+                      </div>
 
+                      {/* Chat / Doubts Section */}
+                      <div className="lg:col-span-8">
+                        <AnimatePresence mode="wait">
+                          {selectedFriend ? (
                             <motion.div 
-                              initial={{ opacity: 0, scale: 0.95 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              className="p-8 rounded-[40px] glass border-t-4 border-t-blue-500 border-x border-white/10 border-b border-white/10 flex flex-col items-center justify-center text-center shadow-[0_20px_50px_rgba(59,130,246,0.15)] relative overflow-hidden group"
+                              key={selectedFriend.uid}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -20 }}
+                              className="h-[500px] rounded-[40px] glass border border-white/10 flex flex-col overflow-hidden"
                             >
-                              <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                                <Target className="w-24 h-24" />
-                              </div>
-                              <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-400 mb-4">
-                                <Target className="w-6 h-6" />
-                              </div>
-                              <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-2">Questions</span>
-                              <div className="text-4xl font-mono font-black text-white tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
-                                {selectedFriend.stats.questionsSolved}
-                              </div>
-                            </motion.div>
-                          </div>
-
-                          {messages.map((msg) => {
-                            const isMe = msg.senderId === user.uid;
-                            return (
-                              <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                <div className={`max-w-[80%] rounded-2xl p-3 relative
-                                  ${isMe ? 'bg-purple-600 text-white rounded-tr-none' : 'bg-white/10 text-white rounded-tl-none border border-white/10'}
-                                  ${msg.type === 'doubt' ? 'ring-2 ring-amber-500/50 border-amber-500/30' : ''}`}
-                                >
-                                  {msg.type === 'doubt' && (
-                                    <div className="flex items-center gap-1.5 mb-1.5">
-                                      <HelpCircle className="w-3 h-3 text-amber-400" />
-                                      <span className="text-[8px] font-black uppercase tracking-widest text-amber-400">Doubt</span>
+                              <div className="p-5 border-b border-white/10 bg-white/5 flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                  <img 
+                                    src={selectedFriend.photoURL} 
+                                    className="w-12 h-12 rounded-2xl border border-white/20 shadow-[0_0_20px_rgba(255,255,255,0.1)] object-cover" 
+                                    alt="" 
+                                    referrerPolicy="no-referrer"
+                                  />
+                                  <div>
+                                    <h3 className="text-base font-black text-white uppercase tracking-tight">{selectedFriend.displayName}</h3>
+                                    <div className="flex items-center gap-3 mt-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">{(selectedFriend.stats.studySeconds / 3600).toFixed(1)}h Study</span>
+                                        <div className="w-1 h-1 bg-white/20 rounded-full" />
+                                        <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest">{selectedFriend.stats.questionsSolved} Questions</span>
+                                      </div>
+                                      <FriendTimer timerState={friendsTimerStates[selectedFriend.uid]} />
                                     </div>
-                                  )}
-                                  <p className="text-xs leading-relaxed">{msg.text}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button 
+                                    onClick={() => setRemovingFriendId(selectedFriend.uid)}
+                                    className="p-2 rounded-xl bg-white/5 border border-white/10 text-white/20 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                  <button 
+                                    onClick={() => setSelectedFriend(null)}
+                                    className="p-2 rounded-xl bg-white/5 border border-white/10 text-white/40 hover:text-white transition-all"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
                                 </div>
                               </div>
-                            );
-                          })}
-                          <div ref={chatEndRef} />
-                        </div>
 
-                        <div className="p-6 bg-white/5 border-t border-white/10">
-                          <div className="flex items-center gap-3 mb-4">
-                            <button 
-                              onClick={() => setMessageType('text')}
-                              className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all
-                                ${messageType === 'text' ? 'bg-purple-500 text-white' : 'bg-white/5 text-white/40'}`}
-                            >
-                              Message
-                            </button>
-                            <button 
-                              onClick={() => setMessageType('doubt')}
-                              className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5
-                                ${messageType === 'doubt' ? 'bg-amber-500 text-black' : 'bg-white/5 text-white/40'}`}
-                            >
-                              <HelpCircle className="w-3 h-3" />
-                              Ask Doubt
-                            </button>
-                          </div>
-                          <div className="flex gap-3">
-                            <input 
-                              type="text" 
-                              value={newMessage}
-                              onChange={(e) => setNewMessage(e.target.value)}
-                              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                              placeholder="Type something..."
-                              className="flex-1 bg-black/40 border border-white/10 rounded-2xl px-6 py-3 text-xs text-white outline-none focus:border-purple-500/50 transition-all"
-                            />
-                            <button 
-                              onClick={handleSendMessage}
-                              disabled={!newMessage.trim()}
-                              className="w-12 h-12 rounded-2xl bg-purple-600 text-white flex items-center justify-center hover:bg-purple-500 transition-all disabled:opacity-50"
-                            >
-                              <Send className="w-5 h-5" />
-                            </button>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ) : (
-                      <div className="h-[500px] rounded-[40px] glass border border-white/10 flex flex-col items-center justify-center text-center p-12">
-                        <div className="w-20 h-20 rounded-[32px] bg-white/5 border border-white/10 flex items-center justify-center mb-6">
-                          <MessageSquare className="w-8 h-8 text-white/10" />
-                        </div>
-                        <h2 className="text-xl font-black text-white mb-2 uppercase tracking-tighter">Social Hub</h2>
-                        <p className="text-white/40 text-[10px] max-w-xs leading-relaxed uppercase tracking-widest font-bold">
-                          Select a friend to start chatting or ask a doubt.
-                        </p>
+                              <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-black/40 scroll-smooth">
+                                {/* Friend Stats Big Boxes */}
+                                <div className="grid grid-cols-2 gap-4 mb-10">
+                                  <motion.div 
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="p-8 rounded-[40px] glass border-t-4 border-t-emerald-500 border-x border-white/10 border-b border-white/10 flex flex-col items-center justify-center text-center shadow-[0_20px_50px_rgba(16,185,129,0.15)] relative overflow-hidden group"
+                                  >
+                                    <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                                      <Clock className="w-24 h-24" />
+                                    </div>
+                                    <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-400 mb-4">
+                                      <Clock className="w-6 h-6" />
+                                    </div>
+                                    <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-2">Study Time</span>
+                                    <div className="text-4xl font-mono font-black text-white tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
+                                      {friendsTimerStates[selectedFriend.uid]?.isRunning ? (
+                                        <div className="flex flex-col items-center">
+                                          <span className="text-emerald-400 animate-pulse">LIVE</span>
+                                          <FriendTimer timerState={friendsTimerStates[selectedFriend.uid]} />
+                                        </div>
+                                      ) : (
+                                        <>
+                                          {(selectedFriend.stats.studySeconds / 3600).toFixed(1)}<span className="text-lg ml-1 text-emerald-500/50">h</span>
+                                        </>
+                                      )}
+                                    </div>
+                                  </motion.div>
+
+                                  <motion.div 
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="p-8 rounded-[40px] glass border-t-4 border-t-blue-500 border-x border-white/10 border-b border-white/10 flex flex-col items-center justify-center text-center shadow-[0_20px_50px_rgba(59,130,246,0.15)] relative overflow-hidden group"
+                                  >
+                                    <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                                      <Target className="w-24 h-24" />
+                                    </div>
+                                    <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-400 mb-4">
+                                      <Target className="w-6 h-6" />
+                                    </div>
+                                    <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-2">Questions</span>
+                                    <div className="text-4xl font-mono font-black text-white tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
+                                      {selectedFriend.stats.questionsSolved}
+                                    </div>
+                                  </motion.div>
+                                </div>
+
+                                {messages.map((msg) => {
+                                  const isMe = msg.senderId === user.uid;
+                                  return (
+                                    <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                      <div className={`max-w-[80%] rounded-2xl p-3 relative
+                                        ${isMe ? 'bg-purple-600 text-white rounded-tr-none' : 'bg-white/10 text-white rounded-tl-none border border-white/10'}
+                                        ${msg.type === 'doubt' ? 'ring-2 ring-amber-500/50 border-amber-500/30' : ''}`}
+                                      >
+                                        {msg.type === 'doubt' && (
+                                          <div className="flex items-center gap-1.5 mb-1.5">
+                                            <HelpCircle className="w-3 h-3 text-amber-400" />
+                                            <span className="text-[8px] font-black uppercase tracking-widest text-amber-400">Doubt</span>
+                                          </div>
+                                        )}
+                                        <p className="text-xs leading-relaxed">{msg.text}</p>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                                <div ref={chatEndRef} />
+                              </div>
+
+                              <div className="p-6 bg-white/5 border-t border-white/10">
+                                <div className="flex items-center gap-3 mb-4">
+                                  <button 
+                                    onClick={() => setMessageType('text')}
+                                    className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all
+                                      ${messageType === 'text' ? 'bg-purple-500 text-white' : 'bg-white/5 text-white/40'}`}
+                                  >
+                                    Message
+                                  </button>
+                                  <button 
+                                    onClick={() => setMessageType('doubt')}
+                                    className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5
+                                      ${messageType === 'doubt' ? 'bg-amber-500 text-black' : 'bg-white/5 text-white/40'}`}
+                                  >
+                                    <HelpCircle className="w-3 h-3" />
+                                    Ask Doubt
+                                  </button>
+                                </div>
+                                <div className="flex gap-3">
+                                  <input 
+                                    type="text" 
+                                    value={newMessage}
+                                    onChange={(e) => setNewMessage(e.target.value)}
+                                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                                    placeholder="Type something..."
+                                    className="flex-1 bg-black/40 border border-white/10 rounded-2xl px-6 py-3 text-xs text-white outline-none focus:border-purple-500/50 transition-all"
+                                  />
+                                  <button 
+                                    onClick={handleSendMessage}
+                                    disabled={!newMessage.trim()}
+                                    className="w-12 h-12 rounded-2xl bg-purple-600 text-white flex items-center justify-center hover:bg-purple-500 transition-all disabled:opacity-50"
+                                  >
+                                    <Send className="w-5 h-5" />
+                                  </button>
+                                </div>
+                              </div>
+                            </motion.div>
+                          ) : (
+                            <div className="h-[500px] rounded-[40px] glass border border-white/10 flex flex-col items-center justify-center text-center p-12">
+                              <div className="w-20 h-20 rounded-[32px] bg-white/5 border border-white/10 flex items-center justify-center mb-6">
+                                <MessageSquare className="w-8 h-8 text-white/10" />
+                              </div>
+                              <h2 className="text-xl font-black text-white mb-2 uppercase tracking-tighter">Social Hub</h2>
+                              <p className="text-white/40 text-[10px] max-w-xs leading-relaxed uppercase tracking-widest font-bold">
+                                Select a friend to start chatting or ask a doubt.
+                              </p>
+                            </div>
+                          )}
+                        </AnimatePresence>
                       </div>
-                    )}
-                    </AnimatePresence>
-                  </div>
-                </>
-              ) : (
-                <div className="lg:col-span-12 h-[400px] rounded-[40px] glass border border-white/10 flex flex-col items-center justify-center text-center p-12">
-                  <div className="w-20 h-20 rounded-[32px] bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-6">
-                    <MessageSquare className="w-8 h-8 text-rose-400" />
-                  </div>
-                  <h2 className="text-xl font-black text-white mb-2 uppercase tracking-tighter">Chat Deactivated</h2>
-                  <p className="text-white/40 text-[10px] max-w-xs leading-relaxed uppercase tracking-widest font-bold">
-                    Friend chat is currently disabled in your app settings.
-                  </p>
+                    </>
+                  ) : (
+                    <div className="lg:col-span-12 h-[400px] rounded-[40px] glass border border-white/10 flex flex-col items-center justify-center text-center p-12">
+                      <div className="w-20 h-20 rounded-[32px] bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-6">
+                        <MessageSquare className="w-8 h-8 text-rose-400" />
+                      </div>
+                      <h2 className="text-xl font-black text-white mb-2 uppercase tracking-tighter">Chat Deactivated</h2>
+                      <p className="text-white/40 text-[10px] max-w-xs leading-relaxed uppercase tracking-widest font-bold">
+                        Friend chat is currently disabled in your app settings.
+                      </p>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            </div>
-          </motion.div>
-        )}
-      </motion.div>
-    </div>
+              </div>
+            </motion.div>
+          )}
+        </motion.div>
+      </div>
 
       <AnimatePresence mode="wait">
         {removingFriendId && (

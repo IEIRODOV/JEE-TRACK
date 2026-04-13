@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { auth, db, signOut } from '@/src/firebase';
+import { auth, db, signOut, onAuthStateChanged } from '@/src/firebase';
 import { doc, setDoc, getDoc, updateDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
+import { updateProfile } from 'firebase/auth';
 import { User, Target, BookOpen, Activity, Loader2, LogOut, Save, User as UserIcon, ChevronLeft, Sparkles, Trophy, Medal, Info, X, Check, RefreshCw } from 'lucide-react';
 import { playTickSound } from '@/src/lib/sounds';
 import AnoAI from "@/components/ui/animated-shader-background";
@@ -88,7 +89,13 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
       const currentUser = auth.currentUser;
       if (currentUser) {
         const examName = selectedExam === 'more' ? customExamName : selectedExam;
-        // Update Firestore
+        
+        // 1. Update Firebase Auth Profile
+        await updateProfile(currentUser, {
+          displayName: displayName
+        });
+
+        // 2. Update Users Collection
         await setDoc(doc(db, 'users', currentUser.uid), {
           displayName: displayName,
           exam: examName,
@@ -98,10 +105,14 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
           updatedAt: new Date()
         }, { merge: true });
 
-        // Update Leaderboard display name
+        // 3. Update Leaderboard display name
         await setDoc(doc(db, 'leaderboard', currentUser.uid), {
           displayName: displayName
         }, { merge: true });
+
+        // 4. Update Activity Feed (optional but good for consistency)
+        // Note: We don't update past activities as they are historical logs, 
+        // but new ones will use the new name.
 
         localStorage.setItem('pulse_user_exam', examName);
         localStorage.setItem('pulse_user_year', selectedYear);
