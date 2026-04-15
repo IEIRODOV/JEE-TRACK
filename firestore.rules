@@ -164,8 +164,7 @@ service cloud.firestore {
         isOwner(userId) || 
         (
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['friends']) &&
-          // The only change allowed is adding/removing the current user's UID
-          request.resource.data.friends.removeAll([request.auth.uid]) == resource.data.get('friends', []).removeAll([request.auth.uid])
+          isValidFriendUpdate()
         )
       );
 
@@ -177,6 +176,24 @@ service cloud.firestore {
         );
         allow write: if isOwner(userId) || isAdmin();
       }
+    }
+
+    // Helper for mutual friend linking
+    function isValidFriendUpdate() {
+      let hasFriends = 'friends' in resource.data && resource.data.friends is list;
+      let oldFriends = hasFriends ? resource.data.friends : [];
+      let newFriends = request.resource.data.friends;
+      
+      // The update must result in a list
+      return newFriends is list &&
+             (
+               // Case 1: Adding self
+               (newFriends.size() == oldFriends.size() + 1 && newFriends.removeAll(oldFriends) == [request.auth.uid]) ||
+               // Case 2: Already added (idempotent)
+               (newFriends.size() == oldFriends.size() && newFriends.hasAll(oldFriends) && oldFriends.hasAll(newFriends)) ||
+               // Case 3: Removing self
+               (newFriends.size() == oldFriends.size() - 1 && oldFriends.removeAll(newFriends) == [request.auth.uid])
+             );
     }
 
     // Stats: Publicly readable, authenticated incrementable

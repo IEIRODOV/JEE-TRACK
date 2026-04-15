@@ -574,11 +574,12 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
       
       console.log("CompetePage: Committing batch to link friends (mutual)...");
       
-      // Use update instead of set with merge for array operations to be more precise
-      batch.update(doc(db, 'users', user.uid), {
+      // Use set with merge for current user (owner) to ensure it works even if doc/field is missing
+      batch.set(doc(db, 'users', user.uid), {
         friends: arrayUnion(friendId)
-      });
+      }, { merge: true });
 
+      // Use update for friend (non-owner) to respect security rules
       batch.update(doc(db, 'users', friendId), {
         friends: arrayUnion(user.uid)
       });
@@ -590,21 +591,21 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
       alert(`Successfully linked with ${friendData.displayName || 'your friend'}!`);
     } catch (error) {
       console.error("CompetePage: Error linking friend:", error);
-      // If update fails because document doesn't exist (unlikely), try set with merge
-      if (error instanceof Error && error.message.includes('NOT_FOUND')) {
-        console.log("CompetePage: Document not found, falling back to set with merge...");
-        try {
-          const batch = writeBatch(db);
-          batch.set(doc(db, 'users', user.uid), { friends: arrayUnion(friendId) }, { merge: true });
-          batch.set(doc(db, 'users', friendId), { friends: arrayUnion(user.uid) }, { merge: true });
-          await batch.commit();
-          console.log("CompetePage: Fallback set successful");
-        } catch (e) {
-          console.error("CompetePage: Fallback also failed", e);
+      
+      // Detailed error logging for debugging
+      if (error instanceof Error) {
+        if (error.message.includes('permission-denied')) {
+          console.error("CompetePage: Permission denied. Check firestore.rules for mutual linking.");
+          alert("Permission denied! Please try again in a few moments.");
+        } else if (error.message.includes('not-found')) {
+          console.error("CompetePage: Document not found. One of the users might not have a profile yet.");
+          alert("User profile not found. Please ask your friend to log in once to activate their account.");
+        } else {
+          alert("Failed to link friend. Please check your connection and try again.");
         }
       }
+      
       handleFirestoreError(error, OperationType.WRITE, 'users', false);
-      alert("Failed to link friend. Please try again.");
     } finally {
       setIsLinking(false);
     }
