@@ -62,7 +62,7 @@ const TimerPage = () => {
   
   const [currentQuestions, setCurrentQuestions] = useState<number>(0);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
-  const [selectedSubject, setSelectedSubject] = useState<string>('');
+  const [selectedSubject, setSelectedSubject] = useState<string>(localStorage.getItem('pulse_selected_subject') || '');
   const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
   
   const [isTimerRunning, setIsTimerRunning] = useState(false);
@@ -72,16 +72,26 @@ const TimerPage = () => {
   const [isTimerLoading, setIsTimerLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
 
-  // Refs to avoid stale closures in timer
+  // Refs to avoid stale closures in timer and async operations
   const dailyStudySecondsRef = useRef(dailyStudySeconds);
   const completedStudyDaysRef = useRef(completedStudyDays);
   const targetHoursRef = useRef(targetHours);
+  const subjectStudySecondsRef = useRef(subjectStudySeconds);
+  const subjectQuestionCountsRef = useRef(subjectQuestionCounts);
+  const selectedSubjectRef = useRef(selectedSubject);
+  const currentQuestionsRef = useRef(currentQuestions);
+  const elapsedSecondsRef = useRef(elapsedSeconds);
 
   useEffect(() => {
     dailyStudySecondsRef.current = dailyStudySeconds;
     completedStudyDaysRef.current = completedStudyDays;
     targetHoursRef.current = targetHours;
-  }, [dailyStudySeconds, completedStudyDays, targetHours]);
+    subjectStudySecondsRef.current = subjectStudySeconds;
+    subjectQuestionCountsRef.current = subjectQuestionCounts;
+    selectedSubjectRef.current = selectedSubject;
+    currentQuestionsRef.current = currentQuestions;
+    elapsedSecondsRef.current = elapsedSeconds;
+  }, [dailyStudySeconds, completedStudyDays, targetHours, subjectStudySeconds, subjectQuestionCounts, selectedSubject, currentQuestions, elapsedSeconds]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -260,6 +270,7 @@ const TimerPage = () => {
     setAvailableSubjects(subjects);
     if (subjects.length > 0 && !selectedSubject) {
       setSelectedSubject(subjects[0]);
+      localStorage.setItem('pulse_selected_subject', subjects[0]);
     }
   }, [selectedSubject]);
 
@@ -282,16 +293,17 @@ const TimerPage = () => {
         setDailyStudySeconds(newSeconds);
 
         // Update subject distribution state
-        if (selectedSubject) {
+        const currentSub = selectedSubjectRef.current;
+        if (currentSub) {
           setSubjectStudySeconds(prev => {
             const todaySubjects = prev[today] || {};
-            const prevSubjectSeconds = todaySubjects[selectedSubject] || 0;
+            const prevSubjectSeconds = todaySubjects[currentSub] || 0;
             // We only add 1 second per tick
             return {
               ...prev,
               [today]: {
                 ...todaySubjects,
-                [selectedSubject]: prevSubjectSeconds + 1
+                [currentSub]: prevSubjectSeconds + 1
               }
             };
           });
@@ -309,7 +321,7 @@ const TimerPage = () => {
         const sessionSeconds = Math.floor((now - startTime) / 1000);
         const totalElapsed = accumulatedSeconds + sessionSeconds;
         
-        const currentSubjectSeconds = subjectStudySeconds[today] || {};
+        const currentSubjectSeconds = subjectStudySecondsRef.current[today] || {};
 
         await saveToFirestore(today, {
           studySeconds: totalElapsed,
@@ -503,7 +515,7 @@ const TimerPage = () => {
       }
 
       // Final save on stop
-      const currentSubjectSeconds = subjectStudySeconds[today] || {};
+      const currentSubjectSeconds = subjectStudySecondsRef.current[today] || {};
       await saveToFirestore(today, {
         studySeconds: elapsedSeconds,
         subjectSeconds: currentSubjectSeconds,
@@ -513,7 +525,7 @@ const TimerPage = () => {
   };
 
   const updateQuestions = async (val: number) => {
-    const diff = val - currentQuestions;
+    const diff = val - currentQuestionsRef.current;
     const today = new Date().toDateString();
     setCurrentQuestions(val);
     
@@ -521,10 +533,11 @@ const TimerPage = () => {
     setDailyQuestionCounts(newCounts);
 
     // Update subject-wise question counts
-    let updatedSubjectQuestions = { ...(subjectQuestionCounts[today] || {}) };
-    if (selectedSubject) {
-      const prevSubCount = updatedSubjectQuestions[selectedSubject] || 0;
-      updatedSubjectQuestions[selectedSubject] = Math.max(0, prevSubCount + diff);
+    let updatedSubjectQuestions = { ...(subjectQuestionCountsRef.current[today] || {}) };
+    const currentSub = selectedSubjectRef.current;
+    if (currentSub) {
+      const prevSubCount = updatedSubjectQuestions[currentSub] || 0;
+      updatedSubjectQuestions[currentSub] = Math.max(0, prevSubCount + diff);
       setSubjectQuestionCounts(prev => ({
         ...prev,
         [today]: updatedSubjectQuestions
@@ -907,7 +920,12 @@ const TimerPage = () => {
                     {availableSubjects.map(sub => (
                       <button
                         key={sub}
-                        onClick={() => !isTimerRunning && setSelectedSubject(sub)}
+                        onClick={() => {
+                          if (!isTimerRunning) {
+                            setSelectedSubject(sub);
+                            localStorage.setItem('pulse_selected_subject', sub);
+                          }
+                        }}
                         disabled={isTimerRunning}
                         className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border
                           ${selectedSubject === sub 
