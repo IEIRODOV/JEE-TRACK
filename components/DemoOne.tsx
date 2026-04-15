@@ -10,7 +10,13 @@ import { playTickSound } from '@/src/lib/sounds';
 
 interface DemoOneProps {
   onProfileClick: () => void;
-  settings?: { activateChat: boolean; activateCommunity: boolean; streakGoal: number };
+  settings?: { 
+    activateChat: boolean; 
+    activateCommunity: boolean; 
+    streakGoal: number;
+    timerSoundEnabled: boolean;
+    timerSoundType: string;
+  };
   updateSettings?: (newSettings: any) => void;
 }
 
@@ -586,6 +592,42 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
                           className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-emerald-500"
                         />
                         <p className="text-[8px] text-white/20 uppercase tracking-widest leading-tight">Daily target study hours</p>
+                      </div>
+
+                      <div className="h-px bg-white/5 my-2" />
+
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-white/60">Timer Sound</span>
+                          <button 
+                            onClick={() => { playTickSound(); updateSettings?.({ timerSoundEnabled: !settings?.timerSoundEnabled }); }}
+                            className={`w-10 h-5 rounded-full transition-all relative ${settings?.timerSoundEnabled ? 'bg-emerald-500' : 'bg-white/10'}`}
+                          >
+                            <motion.div 
+                              animate={{ x: settings?.timerSoundEnabled ? 20 : 2 }}
+                              className="absolute top-1 left-0 w-3 h-3 bg-white rounded-full shadow-lg"
+                            />
+                          </button>
+                        </div>
+                        
+                        {settings?.timerSoundEnabled && (
+                          <div className="grid grid-cols-3 gap-1">
+                            {['f1', 'tank', 'jet'].map((type) => (
+                              <button
+                                key={type}
+                                onClick={() => { playTickSound(); updateSettings?.({ timerSoundType: type }); }}
+                                className={`py-1.5 rounded-lg text-[7px] font-black uppercase tracking-widest transition-all border ${
+                                  settings?.timerSoundType === type
+                                    ? 'bg-purple-500/20 border-purple-500 text-purple-400'
+                                    : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'
+                                }`}
+                              >
+                                {type}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-[8px] text-white/20 uppercase tracking-widest">Engine sound on timer start</p>
                       </div>
                     </div>
                   </div>

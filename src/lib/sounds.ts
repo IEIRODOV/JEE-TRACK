@@ -102,6 +102,144 @@ const playSynthesizedF1 = (ctx: AudioContext) => {
   osc2.stop(now + duration);
 };
 
+// Synthesized Tank sound
+const playSynthesizedTank = (ctx: AudioContext) => {
+  const duration = 2.5;
+  const now = ctx.currentTime;
+
+  // 1. The "Boom" (Firing)
+  const boomOsc = ctx.createOscillator();
+  const boomGain = ctx.createGain();
+  const clickOsc = ctx.createOscillator(); // Initial "crack"
+  const clickGain = ctx.createGain();
+  
+  boomOsc.type = 'triangle';
+  boomOsc.frequency.setValueAtTime(180, now);
+  boomOsc.frequency.exponentialRampToValueAtTime(30, now + 0.3);
+  
+  boomGain.gain.setValueAtTime(1.0, now);
+  boomGain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+
+  clickOsc.type = 'square';
+  clickOsc.frequency.setValueAtTime(800, now);
+  clickOsc.frequency.exponentialRampToValueAtTime(100, now + 0.05);
+  clickGain.gain.setValueAtTime(0.3, now);
+  clickGain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+  
+  boomOsc.connect(boomGain);
+  boomGain.connect(ctx.destination);
+  clickOsc.connect(clickGain);
+  clickGain.connect(ctx.destination);
+  
+  boomOsc.start(now);
+  clickOsc.start(now);
+  boomOsc.stop(now + 0.6);
+  clickOsc.stop(now + 0.05);
+
+  // 2. The Rumble (Engine)
+  const osc1 = ctx.createOscillator();
+  const osc2 = ctx.createOscillator();
+  const gainNode = ctx.createGain();
+  const filter = ctx.createBiquadFilter();
+  const noise = ctx.createBufferSource();
+
+  // Create some low-frequency noise for the rumble
+  const bufferSize = ctx.sampleRate * duration;
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    data[i] = Math.random() * 2 - 1;
+  }
+  noise.buffer = buffer;
+
+  osc1.type = 'sawtooth';
+  osc2.type = 'sine';
+
+  osc1.frequency.setValueAtTime(40, now);
+  osc1.frequency.linearRampToValueAtTime(35, now + duration);
+  
+  osc2.frequency.setValueAtTime(60, now);
+  osc2.frequency.linearRampToValueAtTime(55, now + duration);
+
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(200, now);
+  filter.frequency.exponentialRampToValueAtTime(100, now + duration);
+
+  gainNode.gain.setValueAtTime(0, now);
+  gainNode.gain.linearRampToValueAtTime(0.4, now + 0.2);
+  gainNode.gain.exponentialRampToValueAtTime(0.01, now + duration);
+
+  osc1.connect(filter);
+  osc2.connect(filter);
+  noise.connect(filter);
+  filter.connect(gainNode);
+  gainNode.connect(ctx.destination);
+
+  osc1.start(now);
+  osc2.start(now);
+  noise.start(now);
+  osc1.stop(now + duration);
+  osc2.stop(now + duration);
+  noise.stop(now + duration);
+};
+
+// Synthesized Fighter Jet sound
+const playSynthesizedJet = (ctx: AudioContext) => {
+  const duration = 3.0;
+  const now = ctx.currentTime;
+
+  const osc1 = ctx.createOscillator();
+  const gainNode = ctx.createGain();
+  const filter = ctx.createBiquadFilter();
+  
+  // White noise for the jet exhaust
+  const bufferSize = ctx.sampleRate * duration;
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    data[i] = Math.random() * 2 - 1;
+  }
+  const noise = ctx.createBufferSource();
+  noise.buffer = buffer;
+
+  osc1.type = 'sawtooth';
+  osc1.frequency.setValueAtTime(120, now);
+  osc1.frequency.exponentialRampToValueAtTime(80, now + duration);
+
+  filter.type = 'bandpass';
+  filter.frequency.setValueAtTime(2000, now);
+  filter.frequency.exponentialRampToValueAtTime(500, now + duration);
+  filter.Q.value = 1.0;
+
+  gainNode.gain.setValueAtTime(0, now);
+  gainNode.gain.linearRampToValueAtTime(0.6, now + 0.1);
+  gainNode.gain.exponentialRampToValueAtTime(0.01, now + duration);
+
+  osc1.connect(filter);
+  noise.connect(filter);
+  filter.connect(gainNode);
+  gainNode.connect(ctx.destination);
+
+  osc1.start(now);
+  noise.start(now);
+  osc1.stop(now + duration);
+  noise.stop(now + duration);
+};
+
+export const playTankSound = async () => {
+  if (typeof window === 'undefined') return;
+  if (!audioContext) audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+  if (audioContext.state === 'suspended') await audioContext.resume();
+  playSynthesizedTank(audioContext);
+};
+
+export const playJetSound = async () => {
+  if (typeof window === 'undefined') return;
+  if (!audioContext) audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+  if (audioContext.state === 'suspended') await audioContext.resume();
+  playSynthesizedJet(audioContext);
+};
+
 export const playF1Sound = async () => {
   if (typeof window === 'undefined') return;
 

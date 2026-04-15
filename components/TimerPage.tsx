@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, TrendingUp, Zap, Trash2, Cloud, CloudOff, Loader2, Activity } from 'lucide-react';
-import { playTickSound, playF1Sound } from '@/src/lib/sounds';
+import { playTickSound, playF1Sound, playTankSound, playJetSound } from '@/src/lib/sounds';
 import { motion, AnimatePresence } from 'motion/react';
 import AnoAI from "@/components/ui/animated-shader-background";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar, Cell, ReferenceLine, PieChart, Pie } from 'recharts';
@@ -24,23 +24,44 @@ import {
 } from 'firebase/firestore';
 
 const SUBJECT_COLORS: Record<string, string> = {
-  'Maths': '#3b82f6',
-  'Math': '#3b82f6',
-  'Physics': '#a855f7',
+  'Maths': '#a855f7',
+  'Math': '#a855f7',
+  'Physics': '#3b82f6',
   'Chemistry': '#10b981',
+  'Biology': '#f43f5e',
   'Bio': '#f43f5e',
   'Science': '#06b6d4',
   'Social Science': '#f59e0b',
+  'English': '#ec4899',
+  'Hindi': '#f97316',
   'No Data': 'rgba(255,255,255,0.05)'
 };
 
 const getSubjectColor = (subject: string, index: number) => {
   if (SUBJECT_COLORS[subject]) return SUBJECT_COLORS[subject];
-  const defaultColors = ['#a855f7', '#10b981', '#f43f5e', '#3b82f6', '#f59e0b', '#06b6d4'];
-  return defaultColors[index % defaultColors.length];
+  
+  // Stable color selection based on subject name hash
+  const defaultColors = [
+    '#a855f7', '#3b82f6', '#10b981', '#f43f5e', '#f59e0b', 
+    '#06b6d4', '#ec4899', '#f97316', '#8b5cf6', '#0ea5e9'
+  ];
+  
+  let hash = 0;
+  for (let i = 0; i < subject.length; i++) {
+    hash = subject.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const colorIndex = Math.abs(hash) % defaultColors.length;
+  return defaultColors[colorIndex];
 };
 
-const TimerPage = () => {
+interface TimerPageProps {
+  settings?: {
+    timerSoundEnabled: boolean;
+    timerSoundType: string;
+  };
+}
+
+const TimerPage = ({ settings }: TimerPageProps) => {
   const [user, setUser] = useState<any>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -268,11 +289,20 @@ const TimerPage = () => {
     
     const subjects = Object.keys(syllabus);
     setAvailableSubjects(subjects);
-    if (subjects.length > 0 && !selectedSubject) {
-      setSelectedSubject(subjects[0]);
-      localStorage.setItem('pulse_selected_subject', subjects[0]);
+    
+    // Only set default if current selected subject is not in the new list or is empty
+    if (subjects.length > 0) {
+      const currentStored = localStorage.getItem('pulse_selected_subject');
+      if (!currentStored || !subjects.includes(currentStored)) {
+        if (!selectedSubject || !subjects.includes(selectedSubject)) {
+          setSelectedSubject(subjects[0]);
+          localStorage.setItem('pulse_selected_subject', subjects[0]);
+        }
+      } else if (!selectedSubject) {
+        setSelectedSubject(currentStored);
+      }
     }
-  }, [selectedSubject]);
+  }, [user]); // Re-run when user changes or on mount
 
   // Timer logic
   useEffect(() => {
@@ -494,7 +524,18 @@ const TimerPage = () => {
   };
 
   const toggleTimer = async () => {
-    playF1Sound();
+    if (settings?.timerSoundEnabled) {
+      if (settings.timerSoundType === 'tank') {
+        playTankSound();
+      } else if (settings.timerSoundType === 'jet') {
+        playJetSound();
+      } else {
+        playF1Sound();
+      }
+    } else {
+      playTickSound();
+    }
+    
     const today = new Date().toDateString();
     if (!isTimerRunning) {
       const now = Date.now();

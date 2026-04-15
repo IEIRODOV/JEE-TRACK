@@ -20,7 +20,13 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
-  const [settings, setSettings] = useState({ activateChat: true, activateCommunity: true, streakGoal: 7 });
+  const [settings, setSettings] = useState({ 
+    activateChat: true, 
+    activateCommunity: true, 
+    streakGoal: 7,
+    timerSoundEnabled: true,
+    timerSoundType: 'f1'
+  });
 
   const updateSettings = async (newSettings: Partial<typeof settings>) => {
     const updated = { ...settings, ...newSettings };
@@ -38,6 +44,8 @@ export default function App() {
     if (newSettings.activateChat !== undefined) localStorage.setItem('pulse_activate_chat', String(newSettings.activateChat));
     if (newSettings.activateCommunity !== undefined) localStorage.setItem('pulse_activate_community', String(newSettings.activateCommunity));
     if (newSettings.streakGoal !== undefined) localStorage.setItem('pulse_streak_goal', String(newSettings.streakGoal));
+    if (newSettings.timerSoundEnabled !== undefined) localStorage.setItem('pulse_timer_sound_enabled', String(newSettings.timerSoundEnabled));
+    if (newSettings.timerSoundType !== undefined) localStorage.setItem('pulse_timer_sound_type', String(newSettings.timerSoundType));
   };
 
   useEffect(() => {
@@ -67,7 +75,9 @@ export default function App() {
             setSettings({
               activateChat: data.activateChat !== undefined ? data.activateChat : (data.deactivateChat !== undefined ? !data.deactivateChat : true),
               activateCommunity: data.activateCommunity !== undefined ? data.activateCommunity : (data.deactivateCommunity !== undefined ? !data.deactivateCommunity : true),
-              streakGoal: data.streakGoal || 7
+              streakGoal: data.streakGoal || 7,
+              timerSoundEnabled: data.timerSoundEnabled !== undefined ? data.timerSoundEnabled : true,
+              timerSoundType: data.timerSoundType || 'f1'
             });
             
             // Ensure friendCode exists
@@ -138,7 +148,7 @@ export default function App() {
             ) : activeTab === 'progress' ? (
               <ProgressPage />
             ) : activeTab === 'timer' ? (
-              <TimerPage />
+              <TimerPage settings={settings} />
             ) : activeTab === 'compete' ? (
               <CompetePage onAuthRequest={() => setShowAuth(true)} activateChat={settings.activateChat} />
             ) : activeTab === 'profile' ? (

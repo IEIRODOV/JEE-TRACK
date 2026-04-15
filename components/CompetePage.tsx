@@ -314,18 +314,26 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
   useEffect(() => {
     if (!user) return;
 
+    console.log("CompetePage: Attaching friends IDs listener for", user.uid);
     const unsubscribe = onSnapshot(doc(db, 'users', user.uid), (userDoc) => {
       if (userDoc.exists()) {
         const data = userDoc.data();
         const friendIds = data.friends || [];
         if (data.friendCode) setFriendCode(data.friendCode);
         
+        console.log("CompetePage: Received friend IDs from Firestore:", friendIds);
+        
         setFriends(prev => {
           // Only update if IDs actually changed to prevent downstream re-renders
           const prevIds = prev.map(f => f.uid).sort().join(',');
           const nextIds = [...friendIds].sort().join(',');
-          if (prevIds === nextIds) return prev;
           
+          if (prevIds === nextIds) {
+            console.log("CompetePage: Friend IDs unchanged, skipping state update");
+            return prev;
+          }
+          
+          console.log("CompetePage: Friend IDs changed, updating friends state");
           // Initialize basic friend objects
           return friendIds.map((id: string) => {
             const existing = prev.find(p => p.uid === id);
@@ -338,12 +346,18 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
             };
           });
         });
+      } else {
+        console.warn("CompetePage: User document does not exist in friends listener");
       }
     }, (error) => {
+      console.error("CompetePage: Friends IDs Listener Error:", error);
       handleFirestoreError(error, OperationType.GET, `users/${user.uid}`, false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      console.log("CompetePage: Unsubscribing from friends IDs listener");
+      unsubscribe();
+    };
   }, [user]);
 
   // Real-time Friends Data Listeners (Profiles, Stats, Timers)
@@ -513,6 +527,8 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
   const handleLinkFriend = useCallback(async () => {
     const trimmedCode = inputCode.trim().toUpperCase();
     if (!user || !trimmedCode) return;
+    
+    console.log("CompetePage: Attempting to link friend with code:", trimmedCode);
     setIsLinking(true);
     playTickSound();
 
@@ -522,6 +538,7 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
+        console.warn("CompetePage: No user found with friend code:", trimmedCode);
         alert("Invalid friend code! Make sure your friend has logged in recently to activate their code.");
         setIsLinking(false);
         return;
@@ -529,6 +546,9 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
 
       const friendDoc = querySnapshot.docs[0];
       const friendId = friendDoc.id;
+      const friendData = friendDoc.data();
+
+      console.log("CompetePage: Found friend:", friendId, friendData.displayName);
 
       if (friendId === user.uid) {
         alert("You cannot add yourself!");
@@ -545,6 +565,7 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
 
       const batch = writeBatch(db);
       
+      console.log("CompetePage: Committing batch to link friends...");
       batch.set(doc(db, 'users', user.uid), {
         friends: arrayUnion(friendId)
       }, { merge: true });
@@ -554,10 +575,14 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
       }, { merge: true });
 
       await batch.commit();
+      console.log("CompetePage: Batch committed successfully");
+      
       setInputCode('');
-      alert("Friend linked successfully!");
+      alert(`Successfully linked with ${friendData.displayName || 'your friend'}!`);
     } catch (error) {
+      console.error("CompetePage: Error linking friend:", error);
       handleFirestoreError(error, OperationType.WRITE, 'users', false);
+      alert("Failed to link friend. Please try again.");
     } finally {
       setIsLinking(false);
     }
