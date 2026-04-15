@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, TrendingUp, Zap, Trash2, Cloud, CloudOff, Loader2, Activity } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, TrendingUp, Zap, Trash2, Cloud, CloudOff, Loader2, Activity, Clock, Target } from 'lucide-react';
 import { playTickSound, playF1Sound, playTankSound, playJetSound } from '@/src/lib/sounds';
 import { motion, AnimatePresence } from 'motion/react';
 import AnoAI from "@/components/ui/animated-shader-background";
@@ -54,6 +54,14 @@ const getSubjectColor = (subject: string, index: number) => {
   return defaultColors[colorIndex];
 };
 
+const formatTime = (seconds: number) => {
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return `${h}h ${m}m`;
+};
+
 interface TimerPageProps {
   settings?: {
     timerSoundEnabled: boolean;
@@ -93,6 +101,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   const [isTimerLoading, setIsTimerLoading] = useState(true);
   const [isStatsLoaded, setIsStatsLoaded] = useState(false);
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
+  const [activeTab, setActiveTab] = useState<'timer' | 'test'>('timer');
 
   // Refs to avoid stale closures in timer and async operations
   const dailyStudySecondsRef = useRef(dailyStudySeconds);
@@ -103,6 +112,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   const selectedSubjectRef = useRef(selectedSubject);
   const currentQuestionsRef = useRef(currentQuestions);
   const elapsedSecondsRef = useRef(elapsedSeconds);
+  const lastTickElapsedRef = useRef(0);
 
   useEffect(() => {
     dailyStudySecondsRef.current = dailyStudySeconds;
@@ -320,6 +330,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     let periodicSave: NodeJS.Timeout;
 
     if (isTimerRunning && startTime) {
+      lastTickElapsedRef.current = elapsedSeconds;
       interval = setInterval(() => {
         const now = Date.now();
         const today = new Date().toDateString();
@@ -343,6 +354,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
           setStartTime(midnight.getTime());
           setAccumulatedSeconds(0);
           setElapsedSeconds(0);
+          lastTickElapsedRef.current = 0;
           return;
         }
 
@@ -354,22 +366,24 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         const newSeconds = { ...dailyStudySecondsRef.current, [today]: totalElapsed };
         setDailyStudySeconds(newSeconds);
 
-        // Update subject distribution state
+        // Update subject distribution state with delta to keep in sync
         const currentSub = selectedSubjectRef.current;
-        if (currentSub) {
+        const delta = totalElapsed - lastTickElapsedRef.current;
+        
+        if (delta > 0 && currentSub) {
           setSubjectStudySeconds(prev => {
             const todaySubjects = prev[today] || {};
             const prevSubjectSeconds = todaySubjects[currentSub] || 0;
-            // We only add 1 second per tick
             return {
               ...prev,
               [today]: {
                 ...todaySubjects,
-                [currentSub]: prevSubjectSeconds + 1
+                [currentSub]: prevSubjectSeconds + delta
               }
             };
           });
         }
+        lastTickElapsedRef.current = totalElapsed;
 
         if (totalElapsed >= targetHoursRef.current * 3600 && !completedStudyDaysRef.current.includes(today)) {
           setCompletedStudyDays(prev => [...prev, today]);
@@ -944,24 +958,66 @@ const TimerPage = ({ settings }: TimerPageProps) => {
             
             <div className="flex items-center gap-2 bg-white/5 p-1 rounded-xl border border-white/10 backdrop-blur-xl">
               <button 
-                onClick={() => setViewMode('month')}
+                onClick={() => setActiveTab('timer')}
                 className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all
-                  ${viewMode === 'month' ? 'bg-white text-black' : 'text-white/40 hover:text-white/60'}`}
+                  ${activeTab === 'timer' ? 'bg-purple-600 text-white' : 'text-white/40 hover:text-white/60'}`}
               >
-                Month
+                Timer
               </button>
               <button 
-                onClick={() => setViewMode('week')}
+                onClick={() => setActiveTab('test')}
                 className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all
-                  ${viewMode === 'week' ? 'bg-white text-black' : 'text-white/40 hover:text-white/60'}`}
+                  ${activeTab === 'test' ? 'bg-purple-600 text-white' : 'text-white/40 hover:text-white/60'}`}
               >
-                Week
+                Tests
               </button>
             </div>
           </div>
 
-          {/* Trackers Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+          <AnimatePresence mode="wait">
+            {activeTab === 'timer' ? (
+              <motion.div
+                key="timer-tab"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                {/* Monthly Stats Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-6 rounded-[32px] glass border border-white/10 flex items-center justify-between group hover:bg-white/5 transition-all"
+                  >
+                    <div>
+                      <div className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Study Hours</div>
+                      <div className="text-3xl font-mono font-bold text-emerald-400">{monthStudyHours}h</div>
+                      <div className="mt-1 text-[9px] text-white/20 uppercase font-bold tracking-wider">This Month</div>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-emerald-500/10 text-emerald-400">
+                      <Clock className="w-6 h-6" />
+                    </div>
+                  </motion.div>
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="p-6 rounded-[32px] glass border border-white/10 flex items-center justify-between group hover:bg-white/5 transition-all"
+                  >
+                    <div>
+                      <div className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Questions</div>
+                      <div className="text-3xl font-mono font-bold text-blue-400">{monthQuestionCount}</div>
+                      <div className="mt-1 text-[9px] text-white/20 uppercase font-bold tracking-wider">This Month</div>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-blue-500/10 text-blue-400">
+                      <Target className="w-6 h-6" />
+                    </div>
+                  </motion.div>
+                </div>
+
+                {/* Trackers Section */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
             {/* Stopwatch Card */}
             <motion.div 
               whileHover={{ y: -5 }}
@@ -1176,14 +1232,14 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                       <Tooltip 
                         contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
                         itemStyle={{ color: '#fff', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
-                        formatter={(value: number) => [`${(value / 3600).toFixed(1)}h`, 'Time']}
+                        formatter={(value: number) => [formatTime(value), 'Time']}
                       />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                     <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Total</span>
                     <span className="text-2xl font-mono font-black text-white">
-                      {((dailyStudySeconds[new Date().toDateString()] || 0) / 3600).toFixed(1)}h
+                      {formatTime(dailyStudySeconds[new Date().toDateString()] || 0)}
                     </span>
                   </div>
                 </div>
@@ -1198,7 +1254,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                           <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getSubjectColor(name, index) }} />
                           <span className="text-[10px] font-bold text-white/80 uppercase tracking-wider">{name}</span>
                         </div>
-                        <span className="text-[10px] font-mono font-bold text-white">{(Number(seconds) / 3600).toFixed(1)}h</span>
+                        <span className="text-[10px] font-mono font-bold text-white">{formatTime(Number(seconds))}</span>
                       </div>
                     ));
                   })()}
@@ -1370,6 +1426,44 @@ const TimerPage = ({ settings }: TimerPageProps) => {
             </motion.div>
           </div>
 
+          {/* Go to Test Section Button */}
+          <div className="flex justify-center mb-12">
+            <button 
+              onClick={() => setActiveTab('test')}
+              className="p-4 rounded-2xl bg-purple-600/10 border border-purple-500/20 text-purple-400 hover:bg-purple-600/20 transition-all flex flex-col items-center gap-2 group w-32 h-32 justify-center"
+            >
+              <CalendarIcon className="w-6 h-6 group-hover:scale-110 transition-transform" />
+              <span className="text-[8px] font-black uppercase tracking-[0.2em] text-center leading-tight">Test<br/>Section</span>
+            </button>
+          </div>
+        </motion.div>
+      ) : (
+        <motion.div
+          key="test-tab"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          transition={{ duration: 0.3 }}
+        >
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-6">
+            <div className="flex items-center gap-2 bg-white/5 p-1 rounded-xl border border-white/10 backdrop-blur-xl">
+              <button 
+                onClick={() => setViewMode('month')}
+                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all
+                  ${viewMode === 'month' ? 'bg-white text-black' : 'text-white/40 hover:text-white/60'}`}
+              >
+                Month
+              </button>
+              <button 
+                onClick={() => setViewMode('week')}
+                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all
+                  ${viewMode === 'week' ? 'bg-white text-black' : 'text-white/40 hover:text-white/60'}`}
+              >
+                Week
+              </button>
+            </div>
+          </div>
+
           {/* Calendar Grid */}
           <div className="glass rounded-3xl overflow-hidden shadow-2xl mb-8">
             <div className="p-4 border-b border-white/10 bg-white/5 flex items-center justify-between">
@@ -1402,21 +1496,8 @@ const TimerPage = ({ settings }: TimerPageProps) => {
           </div>
 
           {/* Stats & Analytics */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            <div className="md:col-span-1 space-y-4">
-              <div className="p-5 rounded-2xl glass group hover:bg-white/10 transition-all">
-                <div className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Study Hours</div>
-                <div className="text-3xl font-mono font-bold text-emerald-400">{monthStudyHours}h</div>
-                <div className="mt-2 text-[9px] text-white/20 uppercase font-bold tracking-wider">This Month</div>
-              </div>
-              <div className="p-5 rounded-2xl glass group hover:bg-white/10 transition-all">
-                <div className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Questions</div>
-                <div className="text-3xl font-mono font-bold text-blue-400">{monthQuestionCount}</div>
-                <div className="mt-2 text-[9px] text-white/20 uppercase font-bold tracking-wider">This Month</div>
-              </div>
-            </div>
-
-            <div className="md:col-span-2 p-6 rounded-3xl glass">
+          <div className="grid grid-cols-1 gap-6 mb-12">
+            <div className="p-6 rounded-3xl glass">
               <div className="flex items-center gap-2 mb-6">
                 <TrendingUp className="w-4 h-4 text-purple-400" />
                 <h3 className="text-xs font-black text-white uppercase tracking-widest">Performance Analytics</h3>
@@ -1535,9 +1616,12 @@ const TimerPage = ({ settings }: TimerPageProps) => {
               )}
             </div>
           </div>
-        </div>
-      </div>
-    </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </div>
+</div>
+</div>
   );
 };
 
