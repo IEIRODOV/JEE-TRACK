@@ -23,6 +23,23 @@ import {
   addDoc
 } from 'firebase/firestore';
 
+const SUBJECT_COLORS: Record<string, string> = {
+  'Maths': '#3b82f6',
+  'Math': '#3b82f6',
+  'Physics': '#a855f7',
+  'Chemistry': '#10b981',
+  'Bio': '#f43f5e',
+  'Science': '#06b6d4',
+  'Social Science': '#f59e0b',
+  'No Data': 'rgba(255,255,255,0.05)'
+};
+
+const getSubjectColor = (subject: string, index: number) => {
+  if (SUBJECT_COLORS[subject]) return SUBJECT_COLORS[subject];
+  const defaultColors = ['#a855f7', '#10b981', '#f43f5e', '#3b82f6', '#f59e0b', '#06b6d4'];
+  return defaultColors[index % defaultColors.length];
+};
+
 const TimerPage = () => {
   const [user, setUser] = useState<any>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
@@ -37,6 +54,7 @@ const TimerPage = () => {
   const [dailyQuestionCounts, setDailyQuestionCounts] = useState<Record<string, number>>({});
   const [dailyStudySeconds, setDailyStudySeconds] = useState<Record<string, number>>({});
   const [subjectStudySeconds, setSubjectStudySeconds] = useState<Record<string, Record<string, number>>>({});
+  const [subjectQuestionCounts, setSubjectQuestionCounts] = useState<Record<string, Record<string, number>>>({});
   const [globalStats, setGlobalStats] = useState({ totalStudents: 0, totalQuestions: 0 });
   
   const [targetHours, setTargetHours] = useState<number>(6);
@@ -126,6 +144,7 @@ const TimerPage = () => {
       const newQuestionCounts: Record<string, number> = {};
       const newStudySeconds: Record<string, number> = {};
       const newSubjectSeconds: Record<string, Record<string, number>> = {};
+      const newSubjectQuestions: Record<string, Record<string, number>> = {};
       const newMockTestDates: string[] = [];
       const newMockTestDetails: Record<string, { completed: boolean, marks: string }> = {};
       const newCompletedStudy: string[] = [];
@@ -138,6 +157,7 @@ const TimerPage = () => {
         if (data.questionsSolved !== undefined) newQuestionCounts[dateStr] = data.questionsSolved;
         if (data.studySeconds !== undefined) newStudySeconds[dateStr] = data.studySeconds;
         if (data.subjectSeconds !== undefined) newSubjectSeconds[dateStr] = data.subjectSeconds;
+        if (data.subjectQuestions !== undefined) newSubjectQuestions[dateStr] = data.subjectQuestions;
         
         if (data.isMockTest) {
           newMockTestDates.push(dateStr);
@@ -158,6 +178,7 @@ const TimerPage = () => {
       setDailyQuestionCounts(newQuestionCounts);
       setDailyStudySeconds(newStudySeconds);
       setSubjectStudySeconds(newSubjectSeconds);
+      setSubjectQuestionCounts(newSubjectQuestions);
       setMockTestDates(newMockTestDates);
       setMockTestDetails(newMockTestDetails);
       setCompletedStudyDays(newCompletedStudy);
@@ -499,8 +520,20 @@ const TimerPage = () => {
     const newCounts = { ...dailyQuestionCounts, [today]: val };
     setDailyQuestionCounts(newCounts);
 
+    // Update subject-wise question counts
+    let updatedSubjectQuestions = { ...(subjectQuestionCounts[today] || {}) };
+    if (selectedSubject) {
+      const prevSubCount = updatedSubjectQuestions[selectedSubject] || 0;
+      updatedSubjectQuestions[selectedSubject] = Math.max(0, prevSubCount + diff);
+      setSubjectQuestionCounts(prev => ({
+        ...prev,
+        [today]: updatedSubjectQuestions
+      }));
+    }
+
     await saveToFirestore(today, {
       questionsSolved: val,
+      subjectQuestions: updatedSubjectQuestions,
       date: today
     });
 
@@ -998,88 +1031,162 @@ const TimerPage = () => {
             </motion.div>
           </div>
 
-          {/* Subject Distribution Donut Chart */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="p-8 rounded-[40px] glass border border-white/10 mb-12 relative overflow-hidden"
-          >
-            <div className="flex items-center gap-2 mb-8">
-              <div className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
-              <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Subject Time Distribution</span>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-              <div className="h-64 w-full relative">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={(() => {
-                        const today = new Date().toDateString();
-                        const todaySubjects = subjectStudySeconds[today] || {};
-                        const data = Object.entries(todaySubjects).map(([name, seconds]) => ({
-                          name,
-                          value: seconds
-                        }));
-                        return data.length > 0 ? data : [{ name: 'No Data', value: 1 }];
-                      })()}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {(() => {
-                        const today = new Date().toDateString();
-                        const todaySubjects = subjectStudySeconds[today] || {};
-                        const colors = ['#a855f7', '#10b981', '#f43f5e', '#3b82f6', '#f59e0b', '#06b6d4'];
-                        return Object.keys(todaySubjects).map((_, index) => (
-                          <Cell key={`cell-${index}`} fill={colors[index % colors.length]} stroke="none" />
-                        ));
-                      })()}
-                      {Object.keys(subjectStudySeconds[new Date().toDateString()] || {}).length === 0 && (
-                        <Cell fill="rgba(255,255,255,0.05)" stroke="none" />
-                      )}
-                    </Pie>
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
-                      itemStyle={{ color: '#fff', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
-                      formatter={(value: number) => [`${(value / 3600).toFixed(1)}h`, 'Time']}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Total</span>
-                  <span className="text-2xl font-mono font-black text-white">
-                    {((dailyStudySeconds[new Date().toDateString()] || 0) / 3600).toFixed(1)}h
-                  </span>
+          {/* Distribution Charts */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+            {/* Subject Time Distribution */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-8 rounded-[40px] glass border border-white/10 relative overflow-hidden"
+            >
+              <div className="flex items-center gap-2 mb-8">
+                <div className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
+                <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Subject Time Distribution</span>
+              </div>
+              
+              <div className="flex flex-col items-center">
+                <div className="h-64 w-full relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={(() => {
+                          const today = new Date().toDateString();
+                          const todaySubjects = subjectStudySeconds[today] || {};
+                          const data = Object.entries(todaySubjects).map(([name, seconds]) => ({
+                            name,
+                            value: seconds
+                          }));
+                          return data.length > 0 ? data : [{ name: 'No Data', value: 1 }];
+                        })()}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {(() => {
+                          const today = new Date().toDateString();
+                          const todaySubjects = subjectStudySeconds[today] || {};
+                          const data = Object.entries(todaySubjects);
+                          if (data.length === 0) {
+                            return <Cell fill="rgba(255,255,255,0.05)" stroke="none" />;
+                          }
+                          return data.map(([name, _], index) => (
+                            <Cell key={`cell-${index}`} fill={getSubjectColor(name, index)} stroke="none" />
+                          ));
+                        })()}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                        itemStyle={{ color: '#fff', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
+                        formatter={(value: number) => [`${(value / 3600).toFixed(1)}h`, 'Time']}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Total</span>
+                    <span className="text-2xl font-mono font-black text-white">
+                      {((dailyStudySeconds[new Date().toDateString()] || 0) / 3600).toFixed(1)}h
+                    </span>
+                  </div>
+                </div>
+
+                <div className="w-full mt-6 space-y-2">
+                  {(() => {
+                    const today = new Date().toDateString();
+                    const todaySubjects = subjectStudySeconds[today] || {};
+                    return Object.entries(todaySubjects).map(([name, seconds], index) => (
+                      <div key={name} className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/10">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getSubjectColor(name, index) }} />
+                          <span className="text-[10px] font-bold text-white/80 uppercase tracking-wider">{name}</span>
+                        </div>
+                        <span className="text-[10px] font-mono font-bold text-white">{(Number(seconds) / 3600).toFixed(1)}h</span>
+                      </div>
+                    ));
+                  })()}
                 </div>
               </div>
+            </motion.div>
 
-              <div className="space-y-3">
-                {(() => {
-                  const today = new Date().toDateString();
-                  const todaySubjects = subjectStudySeconds[today] || {};
-                  const colors = ['#a855f7', '#10b981', '#f43f5e', '#3b82f6', '#f59e0b', '#06b6d4'];
-                  return Object.entries(todaySubjects).map(([name, seconds], index) => (
-                    <div key={name} className="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/10">
-                      <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
-                        <span className="text-xs font-bold text-white/80">{name}</span>
-                      </div>
-                      <span className="text-xs font-mono font-bold text-white">{(Number(seconds) / 3600).toFixed(1)}h</span>
-                    </div>
-                  ));
-                })()}
-                {Object.keys(subjectStudySeconds[new Date().toDateString()] || {}).length === 0 && (
-                  <div className="text-center py-8">
-                    <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">No subject data for today</p>
-                  </div>
-                )}
+            {/* Subject Question Distribution */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-8 rounded-[40px] glass border border-white/10 relative overflow-hidden"
+            >
+              <div className="flex items-center gap-2 mb-8">
+                <div className="w-1.5 h-1.5 bg-rose-500 rounded-full" />
+                <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Subject Question Distribution</span>
               </div>
-            </div>
-          </motion.div>
+              
+              <div className="flex flex-col items-center">
+                <div className="h-64 w-full relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={(() => {
+                          const today = new Date().toDateString();
+                          const todaySubjects = subjectQuestionCounts[today] || {};
+                          const data = Object.entries(todaySubjects).map(([name, count]) => ({
+                            name,
+                            value: count
+                          }));
+                          return data.length > 0 ? data : [{ name: 'No Data', value: 1 }];
+                        })()}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {(() => {
+                          const today = new Date().toDateString();
+                          const todaySubjects = subjectQuestionCounts[today] || {};
+                          const data = Object.entries(todaySubjects);
+                          if (data.length === 0) {
+                            return <Cell fill="rgba(255,255,255,0.05)" stroke="none" />;
+                          }
+                          return data.map(([name, _], index) => (
+                            <Cell key={`cell-q-${index}`} fill={getSubjectColor(name, index)} stroke="none" />
+                          ));
+                        })()}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                        itemStyle={{ color: '#fff', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
+                        formatter={(value: number) => [value, 'Questions']}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Total</span>
+                    <span className="text-2xl font-mono font-black text-white">
+                      {dailyQuestionCounts[new Date().toDateString()] || 0}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="w-full mt-6 space-y-2">
+                  {(() => {
+                    const today = new Date().toDateString();
+                    const todaySubjects = subjectQuestionCounts[today] || {};
+                    return Object.entries(todaySubjects).map(([name, count], index) => (
+                      <div key={name} className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/10">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getSubjectColor(name, index) }} />
+                          <span className="text-[10px] font-bold text-white/80 uppercase tracking-wider">{name}</span>
+                        </div>
+                        <span className="text-[10px] font-mono font-bold text-white">{count} Qs</span>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+            </motion.div>
+          </div>
 
           {/* Bar Graphs Section */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">

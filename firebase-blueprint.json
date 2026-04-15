@@ -106,6 +106,8 @@
       "properties": {
         "studySeconds": { "type": "number" },
         "questionsSolved": { "type": "integer" },
+        "subjectSeconds": { "type": "object" },
+        "subjectQuestions": { "type": "object" },
         "isMockTest": { "type": "boolean" },
         "mockTestCompleted": { "type": "boolean" },
         "mockTestMarks": { "type": "string" },
