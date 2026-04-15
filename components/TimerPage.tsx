@@ -91,6 +91,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   const [startTime, setStartTime] = useState<number | null>(null);
   const [accumulatedSeconds, setAccumulatedSeconds] = useState<number>(0);
   const [isTimerLoading, setIsTimerLoading] = useState(true);
+  const [isStatsLoaded, setIsStatsLoaded] = useState(false);
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
 
   // Refs to avoid stale closures in timer and async operations
@@ -217,13 +218,22 @@ const TimerPage = ({ settings }: TimerPageProps) => {
 
       // Update current day's values
       const today = new Date().toDateString();
+      const firestoreTodaySeconds = newStudySeconds[today] || 0;
       setCurrentQuestions(newQuestionCounts[today] || 0);
       
-      // Only set elapsed seconds if the timer is not running to avoid flicker
-      if (!isTimerRunning) {
-        setElapsedSeconds(newStudySeconds[today] || 0);
-      }
+      // Critical Fix: Sync elapsedSeconds from Firestore if it's higher than local (prevents reset to 0)
+      // or if we haven't loaded stats yet.
+      setElapsedSeconds(prev => {
+        if (!isTimerRunning) return firestoreTodaySeconds;
+        // If timer is running, only update if local is 0 (initial load) 
+        // or if Firestore is significantly ahead (sync from other device)
+        if (prev === 0 || firestoreTodaySeconds > prev + 60) {
+          return firestoreTodaySeconds;
+        }
+        return prev;
+      });
 
+      setIsStatsLoaded(true);
       setIsSyncing(false);
       setLastSyncTime(new Date());
     }, (error) => {
@@ -312,13 +322,35 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     if (isTimerRunning && startTime) {
       interval = setInterval(() => {
         const now = Date.now();
+        const today = new Date().toDateString();
         
+        // Midnight carryover fix: If the day has changed, reset the session
+        const sessionStartTime = new Date(startTime);
+        if (sessionStartTime.toDateString() !== today) {
+          console.log("Day changed mid-session. Resetting timer for new day.");
+          // Save the time for the previous day (up to midnight)
+          const midnight = new Date();
+          midnight.setHours(0, 0, 0, 0);
+          const secondsUntilMidnight = Math.floor((midnight.getTime() - startTime) / 1000);
+          const totalForPrevDay = accumulatedSeconds + secondsUntilMidnight;
+          
+          saveToFirestore(sessionStartTime.toDateString(), {
+            studySeconds: totalForPrevDay,
+            date: sessionStartTime.toDateString()
+          });
+
+          // Reset for new day
+          setStartTime(midnight.getTime());
+          setAccumulatedSeconds(0);
+          setElapsedSeconds(0);
+          return;
+        }
+
         const sessionSeconds = Math.floor((now - startTime) / 1000);
         const totalElapsed = accumulatedSeconds + sessionSeconds;
         
         setElapsedSeconds(totalElapsed);
         
-        const today = new Date().toDateString();
         const newSeconds = { ...dailyStudySecondsRef.current, [today]: totalElapsed };
         setDailyStudySeconds(newSeconds);
 
@@ -346,17 +378,17 @@ const TimerPage = ({ settings }: TimerPageProps) => {
 
       // Periodic save to Firestore every 30 seconds to prevent data loss
       periodicSave = setInterval(async () => {
-        const today = new Date().toDateString();
         const now = Date.now();
         const sessionSeconds = Math.floor((now - startTime) / 1000);
         const totalElapsed = accumulatedSeconds + sessionSeconds;
         
-        const currentSubjectSeconds = subjectStudySecondsRef.current[today] || {};
+        const todayStr = new Date().toDateString();
+        const currentSubjectSeconds = subjectStudySecondsRef.current[todayStr] || {};
 
-        await saveToFirestore(today, {
+        await saveToFirestore(todayStr, {
           studySeconds: totalElapsed,
           subjectSeconds: currentSubjectSeconds,
-          date: today
+          date: todayStr
         });
       }, 30000);
     }
@@ -524,6 +556,11 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   };
 
   const toggleTimer = async () => {
+    if (!isStatsLoaded || isTimerLoading) {
+      console.warn("Cannot toggle timer: Stats not yet loaded from Firestore.");
+      return;
+    }
+
     if (settings?.timerSoundEnabled) {
       if (settings.timerSoundType === 'tank') {
         playTankSound();
@@ -1028,10 +1065,10 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                         <Activity className="w-3 h-3 text-white" />
                       </motion.div>
                     )}
-                    {isTimerLoading ? 'Syncing...' : (isTimerRunning ? 'Stop Session' : 'Start Session')}
+                    {isTimerLoading || !isStatsLoaded ? 'Syncing...' : (isTimerRunning ? 'Stop Session' : 'Start Session')}
                   </button>
                   
-                  {!isTimerRunning && !isTimerLoading && elapsedSeconds >= 3600 && (
+                  {!isTimerRunning && !isTimerLoading && isStatsLoaded && elapsedSeconds >= 3600 && (
                     <button 
                       onClick={() => setShowDeleteConfirm(true)}
                       className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20 transition-all active:scale-95"

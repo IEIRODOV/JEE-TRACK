@@ -57,6 +57,7 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
   const [showExamCounter, setShowExamCounter] = useState(true);
   const [dailyStudySeconds, setDailyStudySeconds] = useState<Record<string, number>>({});
   const [dailyQuestions, setDailyQuestions] = useState<Record<string, number>>({});
+  const [isStatsLoaded, setIsStatsLoaded] = useState(false);
   const [stats, setStats] = useState([
     { label: "Daily Goal", value: "--", icon: <Target className="w-3 h-3" />, color: "text-emerald-400" },
     { label: "Study Time", value: "--", icon: <Clock className="w-3 h-3" />, color: "text-blue-400" },
@@ -243,6 +244,7 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
       });
       setDailyStudySeconds(secondsMap);
       setDailyQuestions(questionsMap);
+      setIsStatsLoaded(true);
     });
     return () => unsubscribe();
   }, [user]);
@@ -337,6 +339,10 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
   }, [targetHours, globalRank, timerState, dailyStudySeconds]);
 
   const toggleTimer = async () => {
+    if (!isStatsLoaded) {
+      console.warn("DemoOne: Stats not yet loaded from Firestore.");
+      return;
+    }
     playTickSound();
     if (!user) return;
     const today = new Date().toDateString();
@@ -773,10 +779,12 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
                           e.stopPropagation();
                           toggleTimer();
                         }}
+                        disabled={!isStatsLoaded}
                         className={`relative z-10 px-2 py-1 rounded-md text-[7px] font-black uppercase tracking-widest transition-all
-                          ${timerState.isRunning ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.5)]' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}
+                          ${timerState.isRunning ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.5)]' : 'bg-white/10 text-white/60 hover:bg-white/20'}
+                          ${!isStatsLoaded ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
-                        {timerState.isRunning ? 'Active' : 'Start'}
+                        {!isStatsLoaded ? 'Syncing...' : (timerState.isRunning ? 'Active' : 'Start')}
                       </button>
                     </div>
                   )}
