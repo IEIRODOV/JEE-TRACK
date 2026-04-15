@@ -318,24 +318,27 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
     const unsubscribe = onSnapshot(doc(db, 'users', user.uid), (userDoc) => {
       if (userDoc.exists()) {
         const data = userDoc.data();
-        const friendIds = data.friends || [];
+        const friendIds = Array.isArray(data.friends) ? data.friends : [];
         if (data.friendCode) setFriendCode(data.friendCode);
         
-        console.log("CompetePage: Received friend IDs from Firestore:", friendIds);
+        console.log(`CompetePage: Received ${friendIds.length} friend IDs from Firestore:`, friendIds);
         
         setFriends(prev => {
-          // Only update if IDs actually changed to prevent downstream re-renders
+          // Sort both to compare content regardless of order
           const prevIds = prev.map(f => f.uid).sort().join(',');
           const nextIds = [...friendIds].sort().join(',');
           
           if (prevIds === nextIds) {
-            console.log("CompetePage: Friend IDs unchanged, skipping state update");
+            console.log("CompetePage: Friend IDs unchanged (content-wise), skipping state update");
             return prev;
           }
           
-          console.log("CompetePage: Friend IDs changed, updating friends state");
-          // Initialize basic friend objects
-          return friendIds.map((id: string) => {
+          console.log("CompetePage: Friend IDs changed, updating friends state. Prev:", prevIds, "Next:", nextIds);
+          
+          // Use sorted IDs to ensure stable order in the UI and prevent effect re-runs
+          const sortedNextIds = [...friendIds].sort();
+          
+          return sortedNextIds.map((id: string) => {
             const existing = prev.find(p => p.uid === id);
             return existing || { 
               uid: id, 
@@ -544,11 +547,15 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
         return;
       }
 
+      if (querySnapshot.size > 1) {
+        console.warn("CompetePage: Multiple users found with same friend code!", trimmedCode);
+      }
+
       const friendDoc = querySnapshot.docs[0];
       const friendId = friendDoc.id;
       const friendData = friendDoc.data();
 
-      console.log("CompetePage: Found friend:", friendId, friendData.displayName);
+      console.log("CompetePage: Found friend to link:", friendId, friendData.displayName);
 
       if (friendId === user.uid) {
         alert("You cannot add yourself!");
@@ -556,7 +563,7 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
         return;
       }
 
-      // Check if already friends
+      // Check if already friends (using current state)
       if (friends.some(f => f.uid === friendId)) {
         alert("You are already friends with this user!");
         setIsLinking(false);
@@ -565,22 +572,37 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
 
       const batch = writeBatch(db);
       
-      console.log("CompetePage: Committing batch to link friends...");
-      batch.set(doc(db, 'users', user.uid), {
+      console.log("CompetePage: Committing batch to link friends (mutual)...");
+      
+      // Use update instead of set with merge for array operations to be more precise
+      batch.update(doc(db, 'users', user.uid), {
         friends: arrayUnion(friendId)
-      }, { merge: true });
+      });
 
-      batch.set(doc(db, 'users', friendId), {
+      batch.update(doc(db, 'users', friendId), {
         friends: arrayUnion(user.uid)
-      }, { merge: true });
+      });
 
       await batch.commit();
-      console.log("CompetePage: Batch committed successfully");
+      console.log("CompetePage: Friend link batch committed successfully");
       
       setInputCode('');
       alert(`Successfully linked with ${friendData.displayName || 'your friend'}!`);
     } catch (error) {
       console.error("CompetePage: Error linking friend:", error);
+      // If update fails because document doesn't exist (unlikely), try set with merge
+      if (error instanceof Error && error.message.includes('NOT_FOUND')) {
+        console.log("CompetePage: Document not found, falling back to set with merge...");
+        try {
+          const batch = writeBatch(db);
+          batch.set(doc(db, 'users', user.uid), { friends: arrayUnion(friendId) }, { merge: true });
+          batch.set(doc(db, 'users', friendId), { friends: arrayUnion(user.uid) }, { merge: true });
+          await batch.commit();
+          console.log("CompetePage: Fallback set successful");
+        } catch (e) {
+          console.error("CompetePage: Fallback also failed", e);
+        }
+      }
       handleFirestoreError(error, OperationType.WRITE, 'users', false);
       alert("Failed to link friend. Please try again.");
     } finally {
@@ -597,13 +619,13 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
       const friendId = removingFriendId;
       const batch = writeBatch(db);
       
-      batch.set(doc(db, 'users', user.uid), {
+      batch.update(doc(db, 'users', user.uid), {
         friends: arrayRemove(friendId)
-      }, { merge: true });
+      });
 
-      batch.set(doc(db, 'users', friendId), {
+      batch.update(doc(db, 'users', friendId), {
         friends: arrayRemove(user.uid)
-      }, { merge: true });
+      });
 
       await batch.commit();
 

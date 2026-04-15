@@ -80,10 +80,17 @@ export default function App() {
               timerSoundType: data.timerSoundType || 'f1'
             });
             
-            // Ensure friendCode exists
+            // Ensure friendCode and friends array exist
+            const updates: any = {};
             if (!data.friendCode) {
-              const shortCode = currentUser.uid.substring(0, 6).toUpperCase();
-              await setDoc(doc(db, 'users', currentUser.uid), { friendCode: shortCode }, { merge: true });
+              updates.friendCode = currentUser.uid.substring(0, 6).toUpperCase();
+            }
+            if (!data.friends) {
+              updates.friends = [];
+            }
+            
+            if (Object.keys(updates).length > 0) {
+              await setDoc(doc(db, 'users', currentUser.uid), updates, { merge: true });
             }
 
             if (!data.onboarded) {
