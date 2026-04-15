@@ -69,6 +69,13 @@ export default function App() {
               activateCommunity: data.activateCommunity !== undefined ? data.activateCommunity : (data.deactivateCommunity !== undefined ? !data.deactivateCommunity : true),
               streakGoal: data.streakGoal || 7
             });
+            
+            // Ensure friendCode exists
+            if (!data.friendCode) {
+              const shortCode = currentUser.uid.substring(0, 6).toUpperCase();
+              await setDoc(doc(db, 'users', currentUser.uid), { friendCode: shortCode }, { merge: true });
+            }
+
             if (!data.onboarded) {
               console.log("App.tsx: User needs onboarding");
               needsOnboarding = true;

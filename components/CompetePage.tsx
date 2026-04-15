@@ -295,14 +295,6 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (user) {
-      const shortCode = user.uid.substring(0, 6).toUpperCase();
-      setFriendCode(shortCode);
-      setDoc(doc(db, 'users', user.uid), { friendCode: shortCode }, { merge: true });
-    }
-  }, [user]);
-
   // User Daily Stats Listener
   useEffect(() => {
     if (!user) return;
@@ -324,7 +316,10 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
 
     const unsubscribe = onSnapshot(doc(db, 'users', user.uid), (userDoc) => {
       if (userDoc.exists()) {
-        const friendIds = userDoc.data().friends || [];
+        const data = userDoc.data();
+        const friendIds = data.friends || [];
+        if (data.friendCode) setFriendCode(data.friendCode);
+        
         setFriends(prev => {
           // Only update if IDs actually changed to prevent downstream re-renders
           const prevIds = prev.map(f => f.uid).sort().join(',');
@@ -516,17 +511,18 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
   }, [user, selectedFriend]);
 
   const handleLinkFriend = useCallback(async () => {
-    if (!user || !inputCode.trim()) return;
+    const trimmedCode = inputCode.trim().toUpperCase();
+    if (!user || !trimmedCode) return;
     setIsLinking(true);
     playTickSound();
 
     try {
       const usersRef = collection(db, 'users');
-      const q = query(usersRef, where('friendCode', '==', inputCode.trim().toUpperCase()));
+      const q = query(usersRef, where('friendCode', '==', trimmedCode));
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        alert("Invalid friend code!");
+        alert("Invalid friend code! Make sure your friend has logged in recently to activate their code.");
         setIsLinking(false);
         return;
       }
@@ -536,6 +532,13 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
 
       if (friendId === user.uid) {
         alert("You cannot add yourself!");
+        setIsLinking(false);
+        return;
+      }
+
+      // Check if already friends
+      if (friends.some(f => f.uid === friendId)) {
+        alert("You are already friends with this user!");
         setIsLinking(false);
         return;
       }
@@ -551,14 +554,14 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
       }, { merge: true });
 
       await batch.commit();
-
       setInputCode('');
+      alert("Friend linked successfully!");
     } catch (error) {
-      console.error("Error linking friend:", error);
+      handleFirestoreError(error, OperationType.WRITE, 'users', false);
     } finally {
       setIsLinking(false);
     }
-  }, [user, inputCode]);
+  }, [user, inputCode, friends]);
 
   const handleRemoveFriend = useCallback(async () => {
     if (!user || !removingFriendId) return;
@@ -843,6 +846,7 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
                         onClick={() => {
                           navigator.clipboard.writeText(friendCode);
                           playTickSound();
+                          alert("Code copied to clipboard! Share it with your friends.");
                         }}
                         className="flex items-center gap-2 px-4 py-2 bg-purple-500/10 text-purple-400 rounded-xl hover:bg-purple-500 hover:text-white transition-all border border-purple-500/20 group"
                       >
