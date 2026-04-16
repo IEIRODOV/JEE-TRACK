@@ -130,7 +130,7 @@ const WeeklyTargets = () => {
 
   return (
     <div className="w-full max-w-4xl mx-auto px-4 mb-12">
-      <div className="rounded-3xl border border-white/10 backdrop-blur-xl bg-white/5 p-6 shadow-2xl relative overflow-hidden">
+      <div className="rounded-3xl border border-white/10 backdrop-blur-lg bg-white/5 p-6 shadow-2xl relative overflow-hidden">
         {/* Background Glow */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/5 blur-[80px] -mr-32 -mt-32" />
         

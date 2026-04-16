@@ -505,11 +505,13 @@ const TimerPage = ({ settings }: TimerPageProps) => {
 
     if (isTimerRunning && startTime) {
       lastTickElapsedRef.current = elapsedSeconds;
+      let tickCount = 0;
       interval = setInterval(() => {
         const now = Date.now();
         const today = new Date().toDateString();
+        tickCount++;
         
-        // Midnight carryover fix: If the day has changed, reset the session
+        // Midnight carryover fix
         const sessionStartTime = new Date(startTime);
         if (sessionStartTime.toDateString() !== today) {
           console.log("Day changed mid-session. Resetting timer for new day.");
@@ -524,7 +526,6 @@ const TimerPage = ({ settings }: TimerPageProps) => {
             date: sessionStartTime.toDateString()
           });
 
-          // Reset for new day
           setStartTime(midnight.getTime());
           setAccumulatedSeconds(0);
           setElapsedSeconds(0);
@@ -537,30 +538,32 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         
         setElapsedSeconds(totalElapsed);
         
-        const newSeconds = { ...dailyStudySecondsRef.current, [today]: totalElapsed };
-        setDailyStudySeconds(newSeconds);
+        // Only update these every 5 seconds to reduce re-renders of heavy components
+        if (tickCount % 5 === 0) {
+          const newSeconds = { ...dailyStudySecondsRef.current, [today]: totalElapsed };
+          setDailyStudySeconds(newSeconds);
 
-        // Update subject distribution state with delta to keep in sync
-        const currentSub = selectedSubjectRef.current;
-        const delta = totalElapsed - lastTickElapsedRef.current;
-        
-        if (delta > 0 && currentSub) {
-          setSubjectStudySeconds(prev => {
-            const todaySubjects = prev[today] || {};
-            const prevSubjectSeconds = todaySubjects[currentSub] || 0;
-            return {
-              ...prev,
-              [today]: {
-                ...todaySubjects,
-                [currentSub]: prevSubjectSeconds + delta
-              }
-            };
-          });
-        }
-        lastTickElapsedRef.current = totalElapsed;
+          const currentSub = selectedSubjectRef.current;
+          const delta = totalElapsed - lastTickElapsedRef.current;
+          
+          if (delta > 0 && currentSub) {
+            setSubjectStudySeconds(prev => {
+              const todaySubjects = prev[today] || {};
+              const prevSubjectSeconds = todaySubjects[currentSub] || 0;
+              return {
+                ...prev,
+                [today]: {
+                  ...todaySubjects,
+                  [currentSub]: prevSubjectSeconds + delta
+                }
+              };
+            });
+          }
+          lastTickElapsedRef.current = totalElapsed;
 
-        if (totalElapsed >= targetHoursRef.current * 3600 && !completedStudyDaysRef.current.includes(today)) {
-          setCompletedStudyDays(prev => [...prev, today]);
+          if (totalElapsed >= targetHoursRef.current * 3600 && !completedStudyDaysRef.current.includes(today)) {
+            setCompletedStudyDays(prev => [...prev, today]);
+          }
         }
       }, 1000);
 
@@ -1978,7 +1981,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
               <div className="h-px flex-1 bg-white/10" />
             </div>
 
-            <div className="mb-8 p-8 rounded-[32px] bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-transparent border border-purple-500/20 backdrop-blur-3xl flex flex-col md:flex-row items-center gap-6 relative overflow-hidden group">
+            <div className="mb-8 p-8 rounded-[32px] bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-transparent border border-purple-500/20 backdrop-blur-xl flex flex-col md:flex-row items-center gap-6 relative overflow-hidden group">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(168,85,247,0.1),transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
               <div className="p-5 rounded-[24px] bg-purple-500/20 text-purple-400 shadow-[0_0_30px_rgba(168,85,247,0.2)] relative z-10">
                 <CalendarIcon className="w-8 h-8" />

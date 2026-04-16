@@ -634,7 +634,7 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
       >
         {/* Hero Section */}
         <motion.div variants={itemVariants} className="flex flex-col items-center justify-center mb-16 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 backdrop-blur-xl mb-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 backdrop-blur-lg mb-6">
             <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" />
             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">Mission Control</span>
           </div>

@@ -754,7 +754,7 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
                 </button>
               ) : (
                 <div className="flex items-center gap-3">
-                  <div className="flex flex-col items-start gap-1 bg-white/5 border border-white/10 p-2.5 rounded-2xl backdrop-blur-xl transition-all text-left min-w-[180px] group">
+                  <div className="flex flex-col items-start gap-1 bg-white/5 border border-white/10 p-2.5 rounded-2xl backdrop-blur-lg transition-all text-left min-w-[180px] group">
                     <div className="flex items-center gap-3 w-full">
                       <img src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=random`} className="w-8 h-8 rounded-full border border-white/20 transition-colors" alt="Profile" referrerPolicy="no-referrer" />
                       <div className="flex-1 min-w-0">
@@ -795,7 +795,7 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="mb-8 p-4 rounded-3xl border border-rose-500/20 bg-rose-500/5 backdrop-blur-xl flex items-center gap-3"
+                className="mb-8 p-4 rounded-3xl border border-rose-500/20 bg-rose-500/5 backdrop-blur-lg flex items-center gap-3"
               >
                 <div className="p-2 rounded-xl bg-rose-500/20 text-rose-400">
                   <ShieldCheck className="w-4 h-4" />

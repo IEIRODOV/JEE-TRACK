@@ -899,7 +899,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
     navigator.clipboard.writeText(url).catch(err => console.error("Failed to copy:", err));
   };
 
-  const formatTime = (timestamp: any) => {
+  const formatTime = React.useCallback((timestamp: any) => {
     if (!timestamp) return 'Just now';
     const date = timestamp.toDate();
     const now = new Date();
@@ -909,20 +909,22 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
     return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-  };
+  }, []);
 
-  const filteredPosts = posts.filter(p => {
-    const matchesCommunity = p.community === selectedCommunity;
-    const matchesCategory = filterCategory === 'all' || p.category === filterCategory;
-    return matchesCommunity && matchesCategory;
-  }).sort((a, b) => {
-    if (sortMode === 'top') {
-      const scoreA = (a.reactions?.['👍']?.length || 0) - (a.reactions?.['🔥']?.length || 0);
-      const scoreB = (b.reactions?.['👍']?.length || 0) - (b.reactions?.['🔥']?.length || 0);
-      return scoreB - scoreA;
-    }
-    return 0; // Already sorted by createdAt desc from query
-  });
+  const filteredPosts = React.useMemo(() => {
+    return posts.filter(p => {
+      const matchesCommunity = p.community === selectedCommunity;
+      const matchesCategory = filterCategory === 'all' || p.category === filterCategory;
+      return matchesCommunity && matchesCategory;
+    }).sort((a, b) => {
+      if (sortMode === 'top') {
+        const scoreA = (a.reactions?.['👍']?.length || 0) - (a.reactions?.['🔥']?.length || 0);
+        const scoreB = (b.reactions?.['👍']?.length || 0) - (b.reactions?.['🔥']?.length || 0);
+        return scoreB - scoreA;
+      }
+      return 0; // Already sorted by createdAt desc from query
+    });
+  }, [posts, selectedCommunity, filterCategory, sortMode]);
 
   if (!activateCommunity) {
     return (
@@ -948,7 +950,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/98 backdrop-blur-2xl p-4"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/98 backdrop-blur-xl p-4"
           >
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }}

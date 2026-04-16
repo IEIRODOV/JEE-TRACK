@@ -62,7 +62,10 @@ const ProgressPage = () => {
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
-  const subjects = Object.keys(SYLLABUS_DATA[examInfo.id] || SYLLABUS_DATA[examInfo.id.split('_')[0]] || SYLLABUS_DATA.jee);
+  const subjects = React.useMemo(() => 
+    Object.keys(SYLLABUS_DATA[examInfo.id] || SYLLABUS_DATA[examInfo.id.split('_')[0]] || SYLLABUS_DATA.jee),
+    [examInfo.id]
+  );
 
   useEffect(() => {
     if (subjects.length > 0 && !activeSubject) {
@@ -402,37 +405,27 @@ const ProgressPage = () => {
                           style={{ x: -10 }}
                         >
                           <div className="relative">
-                            {/* Fire Effect */}
-                            {progress > 0 && (
-                              <div className="absolute -left-8 top-1/2 -translate-y-1/2 flex gap-0.5">
-                                {[...Array(3)].map((_, i) => (
-                                  <motion.div 
-                                    key={i}
-                                    animate={{ 
-                                      scale: [1, 1.5, 1],
-                                      opacity: [0.4, 0.8, 0.4],
-                                      x: [0, -10, 0]
-                                    }}
-                                    transition={{ 
-                                      repeat: Infinity, 
-                                      duration: 0.2 + (i * 0.1),
-                                      ease: "easeOut"
-                                    }}
-                                    className={`w-${4-i} h-${3-i} bg-gradient-to-r from-orange-500 via-red-500 to-transparent blur-[2px] rounded-full`}
-                                  />
-                                ))}
-                              </div>
-                            )}
+                             {/* Fire Effect */}
+                             {progress > 0 && (
+                               <div className="absolute -left-8 top-1/2 -translate-y-1/2 flex gap-0.5">
+                                 {[...Array(3)].map((_, i) => (
+                                   <div 
+                                     key={i}
+                                     className={`w-${4-i} h-${3-i} bg-gradient-to-r from-orange-500 via-red-500 to-transparent blur-[2px] rounded-full animate-pulse`}
+                                     style={{ animationDelay: `${i * 0.1}s` }}
+                                   />
+                                 ))}
+                               </div>
+                             )}
 
                             {/* Speed Lines */}
                             {progress > 0 && (
                               <div className="absolute -left-12 top-0 bottom-0 flex flex-col justify-around">
                                 {[...Array(3)].map((_, i) => (
-                                  <motion.div 
+                                  <div 
                                     key={i}
-                                    animate={{ x: [0, -20], opacity: [0, 1, 0] }}
-                                    transition={{ repeat: Infinity, duration: 0.3, delay: i * 0.1 }}
-                                    className="w-8 h-px bg-white/20"
+                                    className="w-8 h-px bg-white/10 animate-pulse"
+                                    style={{ animationDelay: `${i * 0.1}s` }}
                                   />
                                 ))}
                               </div>

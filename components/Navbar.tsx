@@ -20,7 +20,7 @@ const Navbar = ({ activeTab, setActiveTab, activateCommunity = true }: NavbarPro
 
   return (
     <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 px-4 w-full max-w-fit flex items-center gap-3">
-      <div className="flex items-center gap-1 p-1.5 rounded-[24px] border border-white/10 backdrop-blur-3xl bg-black/40 shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-1 ring-white/5">
+      <div className="flex items-center gap-1 p-1.5 rounded-[24px] border border-white/10 backdrop-blur-xl bg-black/40 shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-1 ring-white/5">
         {tabs.map((tab, idx) => (
           <React.Fragment key={tab.id}>
             <button
