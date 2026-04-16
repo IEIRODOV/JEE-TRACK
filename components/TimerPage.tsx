@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, TrendingUp, Zap, Trash2, Cloud, CloudOff, Loader2, Activity, Clock, Target } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, TrendingUp, Zap, Trash2, Cloud, CloudOff, Loader2, Activity, Clock, Target, Shield, Rocket, ZapIcon, History } from 'lucide-react';
 import { playTickSound, playF1Sound, playTankSound, playJetSound } from '@/src/lib/sounds';
 import { motion, AnimatePresence } from 'motion/react';
 import AnoAI from "@/components/ui/animated-shader-background";
@@ -36,6 +36,109 @@ const SUBJECT_COLORS: Record<string, string> = {
   'Hindi': '#f97316',
   'No Data': 'rgba(255,255,255,0.05)'
 };
+
+const MOTIVATIONAL_QUOTES = [
+  "The only way to do great work is to love what you do. – Steve Jobs",
+  "Success is not final, failure is not fatal: it is the courage to continue that counts. – Winston Churchill",
+  "Believe you can and you're halfway there. – Theodore Roosevelt",
+  "Your time is limited, so don't waste it living someone else's life. – Steve Jobs",
+  "The future belongs to those who believe in the beauty of their dreams. – Eleanor Roosevelt",
+  "It does not matter how slowly you go as long as you do not stop. – Confucius",
+  "Everything you've ever wanted is on the other side of fear. – George Addair",
+  "Success is walking from failure to failure with no loss of enthusiasm. – Winston Churchill",
+  "Hardships often prepare ordinary people for an extraordinary destiny. – C.S. Lewis",
+  "Dream big and dare to fail. – Norman Vaughan",
+  "The only limit to our realization of tomorrow will be our doubts of today. – Franklin D. Roosevelt",
+  "What you get by achieving your goals is not as important as what you become by achieving your goals. – Zig Ziglar",
+  "Act as if what you do makes a difference. It does. – William James",
+  "Success usually comes to those who are too busy to be looking for it. – Henry David Thoreau",
+  "Don't be afraid to give up the good to go for the great. – John D. Rockefeller",
+  "I find that the harder I work, the more luck I seem to have. – Thomas Jefferson",
+  "The road to success and the road to failure are almost exactly the same. – Colin R. Davis",
+  "Success is not the key to happiness. Happiness is the key to success. – Albert Schweitzer",
+  "The only place where success comes before work is in the dictionary. – Vidal Sassoon",
+  "Don't watch the clock; do what it does. Keep going. – Sam Levenson",
+  "The way to get started is to quit talking and begin doing. – Walt Disney",
+  "If you are not willing to risk the usual, you will have to settle for the ordinary. – Jim Rohn",
+  "The ones who are crazy enough to think they can change the world are the ones who do. – Steve Jobs",
+  "Do one thing every day that scares you. – Eleanor Roosevelt",
+  "All our dreams can come true if we have the courage to pursue them. – Walt Disney",
+  "Opportunities don't happen. You create them. – Chris Grosser",
+  "Don't let the fear of losing be greater than the excitement of winning. – Robert Kiyosaki",
+  "If you really look closely, most overnight successes took a long time. – Steve Jobs",
+  "The real test is not whether you avoid this failure, because you won't. It's whether you let it harden or shame you into inaction, or whether you learn from it; whether you choose to persevere. – Barack Obama",
+  "There are no secrets to success. It is the result of preparation, hard work, and learning from failure. – Colin Powell",
+  "Success is not how high you have climbed, but how you make a positive difference to the world. – Roy T. Bennett",
+  "The only person you are destined to become is the person you decide to be. – Ralph Waldo Emerson",
+  "Go confidently in the direction of your dreams! Live the life you've imagined. – Henry David Thoreau",
+  "In the middle of every difficulty lies opportunity. – Albert Einstein",
+  "The best way to predict the future is to create it. – Peter Drucker",
+  "Your life only gets better when you get better. – Brian Tracy",
+  "Happiness is not something ready-made. It comes from your own actions. – Dalai Lama",
+  "It's not whether you get knocked down, it's whether you get up. – Vince Lombardi",
+  "If you want to achieve greatness stop asking for permission. – Anonymous",
+  "Things work out best for those who make the best of how things work out. – John Wooden",
+  "To live a creative life, we must lose our fear of being wrong. – Anonymous",
+  "If you are not willing to risk the usual you will have to settle for the ordinary. – Jim Rohn",
+  "Trust because you are willing to accept the risk, not because it's safe or certain. – Anonymous",
+  "Take up one idea. Make that one idea your life--think of it, dream of it, live on that idea. Let the brain, muscles, nerves, every part of your body, be full of that idea, and just leave every other idea alone. This is the way to success. – Swami Vivekananda",
+  "All our dreams can come true if we have the courage to pursue them. – Walt Disney",
+  "Good things come to people who wait, but better things come to those who go out and get them. – Anonymous",
+  "If you do what you always did, you will get what you always got. – Anonymous",
+  "Success is the sum of small efforts, repeated day-in and day-out. – Robert Collier",
+  "As we look ahead into the next century, leaders will be those who empower others. – Bill Gates",
+  "Our greatest fear should not be of failure but of succeeding at things in life that don't really matter. – Francis Chan",
+  "You have to learn the rules of the game. And then you have to play better than anyone else. – Albert Einstein",
+  "The starting point of all achievement is desire. – Napoleon Hill",
+  "Success is liking yourself, liking what you do, and liking how you do it. – Maya Angelou",
+  "Coming together is a beginning; keeping together is progress; working together is success. – Henry Ford",
+  "If you want to fly, you have to give up the things that weigh you down. – Toni Morrison",
+  "The only thing standing between you and your goal is the story you keep telling yourself as to why you can't achieve it. – Jordan Belfort",
+  "Character cannot be developed in ease and quiet. Only through experience of trial and suffering can the soul be strengthened, ambition inspired, and success achieved. – Helen Keller",
+  "Don't be distracted by criticism. Remember--the only taste of success some people get is to take a bite out of you. – Zig Ziglar",
+  "To be successful you must accept all challenges that come your way. You can't just accept the ones you like. – Mike Gafka",
+  "Success is not just about what you accomplish in your life; it's about what you inspire others to do. – Anonymous",
+  "The secret of success is to do the common thing uncommonly well. – John D. Rockefeller Jr.",
+  "I never dreamed about success, I worked for it. – Estee Lauder",
+  "I find that when you have a real interest in life and a curious life, that sleep is not the most important thing. – Martha Stewart",
+  "The only way to achieve the impossible is to believe it is possible. – Charles Kingsleigh",
+  "The question isn't who is going to let me; it's who is going to stop me. – Ayn Rand",
+  "Success is not final; failure is not fatal: It is the courage to continue that counts. – Winston S. Churchill",
+  "Hard work beats talent when talent doesn't work hard. – Tim Notke",
+  "If you want to live a happy life, tie it to a goal, not to people or things. – Albert Einstein",
+  "The distance between insanity and genius is measured only by success. – Bruce Feirstein",
+  "When you stop chasing the wrong things, you give the right things a chance to catch you. – Lolly Daskal",
+  "Don't be afraid to give up the good to go for the great. – John D. Rockefeller",
+  "No masterpiece was ever created by a lazy artist. – Anonymous",
+  "If you can't explain it simply, you don't understand it well enough. – Albert Einstein",
+  "Blessed are those who can give without remembering and take without forgetting. – Elizabeth Bibesco",
+  "Do what you can, where you are, with what you have. – Teddy Roosevelt",
+  "The only person you should try to be better than is the person you were yesterday. – Anonymous",
+  "A person who never made a mistake never tried anything new. – Albert Einstein",
+  "The best revenge is massive success. – Frank Sinatra",
+  "I have not failed. I've just found 10,000 ways that won't work. – Thomas A. Edison",
+  "A successful man is one who can lay a firm foundation with the bricks others have thrown at him. – David Brinkley",
+  "No one can make you feel inferior without your consent. – Eleanor Roosevelt",
+  "If you're going through hell, keep going. – Winston Churchill",
+  "The function of leadership is to produce more leaders, not more followers. – Ralph Nader",
+  "Success is not the key to happiness. Happiness is the key to success. If you love what you are doing, you will be successful. – Albert Schweitzer",
+  "The only way to do great work is to love what you do. – Steve Jobs",
+  "If you can dream it, you can do it. – Walt Disney",
+  "Your time is limited, so don't waste it living someone else's life. – Steve Jobs",
+  "The only limit to our realization of tomorrow will be our doubts of today. – Franklin D. Roosevelt",
+  "The future belongs to those who believe in the beauty of their dreams. – Eleanor Roosevelt",
+  "Believe you can and you're halfway there. – Theodore Roosevelt",
+  "The only person you are destined to become is the person you decide to be. – Ralph Waldo Emerson",
+  "Go confidently in the direction of your dreams! Live the life you've imagined. – Henry David Thoreau",
+  "In the middle of every difficulty lies opportunity. – Albert Einstein",
+  "The best way to predict the future is to create it. – Peter Drucker",
+  "Your life only gets better when you get better. – Brian Tracy",
+  "Happiness is not something ready-made. It comes from your own actions. – Dalai Lama",
+  "It's not whether you get knocked down, it's whether you get up. – Vince Lombardi",
+  "If you want to achieve greatness stop asking for permission. – Anonymous",
+  "Things work out best for those who make the best of how things work out. – John Wooden",
+  "To live a creative life, we must lose our fear of being wrong. – Anonymous"
+];
 
 const getSubjectColor = (subject: string, index: number) => {
   if (SUBJECT_COLORS[subject]) return SUBJECT_COLORS[subject];
@@ -92,7 +195,9 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   const [currentQuestions, setCurrentQuestions] = useState<number>(0);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [selectedSubject, setSelectedSubject] = useState<string>(localStorage.getItem('pulse_selected_subject') || '');
+  const [selectedChapter, setSelectedChapter] = useState<string>(localStorage.getItem('pulse_selected_chapter') || '');
   const [availableSubjects, setAvailableSubjects] = useState<string[]>([]);
+  const [availableChapters, setAvailableChapters] = useState<{id: string, name: string}[]>([]);
   
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -102,6 +207,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   const [isStatsLoaded, setIsStatsLoaded] = useState(false);
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [activeTab, setActiveTab] = useState<'timer' | 'test'>('timer');
+  const [currentQuote, setCurrentQuote] = useState(MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)]);
 
   // Refs to avoid stale closures in timer and async operations
   const dailyStudySecondsRef = useRef(dailyStudySeconds);
@@ -110,6 +216,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   const subjectStudySecondsRef = useRef(subjectStudySeconds);
   const subjectQuestionCountsRef = useRef(subjectQuestionCounts);
   const selectedSubjectRef = useRef(selectedSubject);
+  const selectedChapterRef = useRef(selectedChapter);
   const currentQuestionsRef = useRef(currentQuestions);
   const elapsedSecondsRef = useRef(elapsedSeconds);
   const lastTickElapsedRef = useRef(0);
@@ -121,6 +228,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     subjectStudySecondsRef.current = subjectStudySeconds;
     subjectQuestionCountsRef.current = subjectQuestionCounts;
     selectedSubjectRef.current = selectedSubject;
+    selectedChapterRef.current = selectedChapter;
     currentQuestionsRef.current = currentQuestions;
     elapsedSecondsRef.current = elapsedSeconds;
   }, [dailyStudySeconds, completedStudyDays, targetHours, subjectStudySeconds, subjectQuestionCounts, selectedSubject, currentQuestions, elapsedSeconds]);
@@ -133,7 +241,38 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     return () => unsubscribe();
   }, []);
 
-  // Real-time sync from Firestore or localStorage
+  useEffect(() => {
+    if (selectedSubject) {
+      const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
+      const year = localStorage.getItem('pulse_user_year') || '2027';
+      const examId = `${exam}_${year}`;
+      const subjectData = SYLLABUS_DATA[examId]?.[selectedSubject] || SYLLABUS_DATA[examId.split('_')[0]]?.[selectedSubject] || SYLLABUS_DATA.jee[selectedSubject];
+      
+      if (subjectData) {
+        const chapters = Object.entries(subjectData)
+          .filter(([key]) => key !== 'hidden')
+          .map(([id, name]) => ({ id, name: name as string }));
+        setAvailableChapters(chapters);
+        
+        // Auto-select first chapter if none selected or if selected chapter not in new subject
+        if (!selectedChapter || !chapters.find(c => c.id === selectedChapter)) {
+          setSelectedChapter(chapters[0]?.id || '');
+        }
+      } else {
+        setAvailableChapters([]);
+        setSelectedChapter('');
+      }
+    } else {
+      setAvailableChapters([]);
+      setSelectedChapter('');
+    }
+  }, [selectedSubject]);
+
+  useEffect(() => {
+    if (selectedChapter) {
+      localStorage.setItem('pulse_selected_chapter', selectedChapter);
+    }
+  }, [selectedChapter]);
   useEffect(() => {
     if (!user) {
       const localData = JSON.parse(localStorage.getItem('pulse_calendar_data') || '{}');
@@ -296,6 +435,41 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     });
     return () => unsubscribe();
   }, []);
+
+  // Motivational Quote Rotation - Once a day
+  useEffect(() => {
+    const today = new Date().toDateString();
+    let hash = 0;
+    for (let i = 0; i < today.length; i++) {
+      hash = today.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % MOTIVATIONAL_QUOTES.length;
+    setCurrentQuote(MOTIVATIONAL_QUOTES[index]);
+  }, []);
+
+  // Midnight Reset Watcher
+  useEffect(() => {
+    const checkMidnight = () => {
+      const now = new Date();
+      if (now.getHours() === 0 && now.getMinutes() === 0) {
+        const today = now.toDateString();
+        console.log("Midnight detected. Resetting daily stats.");
+        setElapsedSeconds(0);
+        setCurrentQuestions(0);
+        setDailyStudySeconds(prev => ({ ...prev, [today]: 0 }));
+        setDailyQuestionCounts(prev => ({ ...prev, [today]: 0 }));
+        
+        // If timer was running, reset it too
+        if (isTimerRunning) {
+          setStartTime(now.getTime());
+          setAccumulatedSeconds(0);
+        }
+      }
+    };
+
+    const interval = setInterval(checkMidnight, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, [isTimerRunning]);
 
   // Load available subjects from syllabus
   useEffect(() => {
@@ -601,18 +775,55 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       setAccumulatedSeconds(0);
       await saveTimerState(false, null, 0);
       
-      const sessionHours = (elapsedSeconds - accumulatedSeconds) / 3600;
+      const secondsToAdd = elapsedSeconds - accumulatedSeconds;
+      const sessionHours = secondsToAdd / 3600;
       if (sessionHours > 0) {
         await syncGlobalProgress(0, sessionHours);
       }
 
       // Final save on stop
       const currentSubjectSeconds = subjectStudySecondsRef.current[today] || {};
-      await saveToFirestore(today, {
+      
+      if (!user) {
+        await saveToFirestore(today, {
+          studySeconds: elapsedSeconds,
+          subjectSeconds: currentSubjectSeconds,
+          date: today
+        });
+        return;
+      }
+
+      const batch = writeBatch(db);
+      const statsRef = doc(db, 'users', user.uid, 'dailyStats', today);
+      batch.set(statsRef, {
         studySeconds: elapsedSeconds,
         subjectSeconds: currentSubjectSeconds,
-        date: today
-      });
+        lastUpdated: serverTimestamp()
+      }, { merge: true });
+
+      // Update chapter-specific study time in progress data
+      const currentSub = selectedSubjectRef.current;
+      if (selectedChapterRef.current && currentSub && secondsToAdd > 0) {
+        const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
+        const year = localStorage.getItem('pulse_user_year') || '2027';
+        const examId = `${exam}_${year}`;
+        const progressRef = doc(db, 'users', user.uid, 'data', `progress-${examId}`);
+        batch.set(progressRef, {
+          progress: {
+            [currentSub]: {
+              [selectedChapterRef.current]: {
+                studyTime: increment(secondsToAdd)
+              }
+            }
+          }
+        }, { merge: true });
+      }
+
+      try {
+        await batch.commit();
+      } catch (error) {
+        handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/dailyStats/${today}`);
+      }
     }
   };
 
@@ -636,11 +847,45 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       }));
     }
 
-    await saveToFirestore(today, {
+    if (!user) {
+      const localData = JSON.parse(localStorage.getItem('pulse_calendar_data') || '{}');
+      if (!localData[today]) localData[today] = {};
+      localData[today].questionsSolved = val;
+      localData[today].subjectQuestions = updatedSubjectQuestions;
+      localStorage.setItem('pulse_calendar_data', JSON.stringify(localData));
+      return;
+    }
+
+    const batch = writeBatch(db);
+    const statsRef = doc(db, 'users', user.uid, 'dailyStats', today);
+    batch.set(statsRef, {
       questionsSolved: val,
       subjectQuestions: updatedSubjectQuestions,
-      date: today
-    });
+      lastUpdated: serverTimestamp()
+    }, { merge: true });
+
+    // Update chapter-specific questions in progress data
+    if (selectedChapterRef.current && currentSub) {
+      const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
+      const year = localStorage.getItem('pulse_user_year') || '2027';
+      const examId = `${exam}_${year}`;
+      const progressRef = doc(db, 'users', user.uid, 'data', `progress-${examId}`);
+      batch.set(progressRef, {
+        progress: {
+          [currentSub]: {
+            [selectedChapterRef.current]: {
+              questions: increment(diff)
+            }
+          }
+        }
+      }, { merge: true });
+    }
+
+    try {
+      await batch.commit();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/dailyStats/${today}`);
+    }
 
     if (diff > 0) {
       await syncGlobalProgress(diff, 0);
@@ -771,7 +1016,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
           ${isQuestionMet && !isStudyMet ? 'bg-pink-500/10' : ''}
           ${isStudyMet && !isQuestionMet ? 'bg-emerald-500/10' : ''}
           ${isQuestionMet && isStudyMet ? 'bg-gradient-to-br from-pink-500/15 to-emerald-500/15' : ''}
-          ${isMockTest ? 'border-blue-500/50 bg-blue-500/5' : ''}
+          ${isMockTest ? 'border-blue-400/50 bg-blue-400/30 shadow-[0_0_15px_rgba(96,165,250,0.2)]' : ''}
           ${hasActivity ? 'shadow-[inset_0_0_10px_rgba(255,255,255,0.02)]' : ''}`}
       >
         <div className="flex justify-between items-start relative z-10">
@@ -924,55 +1169,126 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       <div className="relative z-10 flex flex-col items-center pt-16 pb-24 px-4">
         <div className="w-full max-w-4xl">
           {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/20">
-                <CalendarIcon className="w-5 h-5" />
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-6">
+            <div className="flex items-center gap-6">
+              <div className="relative">
+                <div className="w-16 h-16 rounded-3xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center group overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <Activity className="w-8 h-8 text-purple-400 group-hover:scale-110 transition-transform relative z-10" />
+                </div>
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-black animate-pulse" />
               </div>
               <div>
-                <h1 className="text-2xl md:text-3xl font-black text-white tracking-tighter font-heading uppercase">{monthName} {year}</h1>
+                <h1 className="text-3xl font-black text-white tracking-tighter uppercase">Timer</h1>
                 <div className="flex items-center gap-2">
-                  <p className="text-white/40 tracking-[0.3em] uppercase text-[9px] font-bold">Study Schedule</p>
-                  <div className="h-3 w-px bg-white/10 mx-1" />
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[9px] font-black text-emerald-400/80 uppercase tracking-widest">
-                      {globalStats.totalStudents.toLocaleString()} Students Online
-                    </span>
-                  </div>
-                  {isSyncing ? (
-                    <PulseLoader size={12} />
-                  ) : (
-                    <div className="flex items-center gap-1">
-                      <Cloud className="w-3 h-3 text-emerald-400/50" />
-                      {lastSyncTime && (
-                        <span className="text-[8px] text-white/20 font-bold uppercase">
-                          Synced {lastSyncTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      )}
-                    </div>
-                  )}
+                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+                  <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">System Online • v2.4.0</p>
                 </div>
               </div>
             </div>
             
-            <div className="flex items-center gap-2 bg-white/5 p-1 rounded-xl border border-white/10 backdrop-blur-xl">
+            <div className="flex items-center gap-3 bg-white/5 p-1.5 rounded-2xl border border-white/10 backdrop-blur-xl w-full md:w-auto">
               <button 
                 onClick={() => setActiveTab('timer')}
-                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all
-                  ${activeTab === 'timer' ? 'bg-purple-600 text-white' : 'text-white/40 hover:text-white/60'}`}
+                className={`flex-1 md:flex-none px-8 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2
+                  ${activeTab === 'timer' ? 'bg-purple-600 text-white shadow-[0_10px_20px_rgba(147,51,234,0.3)]' : 'text-white/40 hover:text-white/60 hover:bg-white/5'}`}
               >
+                <Clock className="w-4 h-4" />
                 Timer
               </button>
               <button 
                 onClick={() => setActiveTab('test')}
-                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all
-                  ${activeTab === 'test' ? 'bg-purple-600 text-white' : 'text-white/40 hover:text-white/60'}`}
+                className={`flex-1 md:flex-none px-8 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2
+                  ${activeTab === 'test' ? 'bg-purple-600 text-white shadow-[0_10px_20px_rgba(147,51,234,0.3)]' : 'text-white/40 hover:text-white/60 hover:bg-white/5'}`}
               >
+                <CalendarIcon className="w-4 h-4" />
                 Tests
               </button>
             </div>
           </div>
+
+          {/* Motivational Quote Banner */}
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full mb-12 relative group"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 via-blue-600/20 to-purple-600/20 rounded-[40px] blur-2xl opacity-50 group-hover:opacity-100 transition-opacity duration-700" />
+            <div className="relative p-12 md:p-20 rounded-[50px] bg-black/40 backdrop-blur-3xl border border-white/10 overflow-hidden flex flex-col items-center text-center shadow-[0_0_100px_rgba(147,51,234,0.15)]">
+              {/* Animated Background Elements */}
+              <div className="absolute inset-0 pointer-events-none">
+                <motion.div 
+                  animate={{ 
+                    scale: [1, 1.4, 1],
+                    rotate: [0, 180, 0],
+                    opacity: [0.1, 0.3, 0.1]
+                  }}
+                  transition={{ duration: 15, repeat: Infinity }}
+                  className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-purple-500/30 to-transparent rounded-full blur-[120px]"
+                />
+                <motion.div 
+                  animate={{ 
+                    scale: [1, 1.5, 1],
+                    rotate: [0, -180, 0],
+                    opacity: [0.1, 0.3, 0.1]
+                  }}
+                  transition={{ duration: 18, repeat: Infinity }}
+                  className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-tl from-blue-500/30 to-transparent rounded-full blur-[120px]"
+                />
+              </div>
+
+              <div className="relative z-10 w-full">
+                <motion.div
+                  animate={{ 
+                    y: [0, -10, 0],
+                    filter: ["drop-shadow(0 0 10px rgba(168,85,247,0.3))", "drop-shadow(0 0 25px rgba(168,85,247,0.6))", "drop-shadow(0 0 10px rgba(168,85,247,0.3))"]
+                  }}
+                  transition={{ duration: 3, repeat: Infinity }}
+                  className="mb-10"
+                >
+                  <div className="inline-block p-5 rounded-3xl bg-gradient-to-br from-purple-500/30 to-blue-500/30 border border-white/20 shadow-2xl backdrop-blur-md">
+                    <Zap className="w-10 h-10 text-purple-400" />
+                  </div>
+                </motion.div>
+
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={currentQuote}
+                    initial={{ opacity: 0, y: 20, filter: 'blur(10px)' }}
+                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                    exit={{ opacity: 0, y: -20, filter: 'blur(10px)' }}
+                    transition={{ duration: 1, ease: [0.23, 1, 0.32, 1] }}
+                  >
+                    <p className="text-2xl md:text-4xl font-black text-white tracking-tight leading-[1.1] max-w-5xl mx-auto drop-shadow-2xl">
+                      {currentQuote.split(' – ')[0]}
+                    </p>
+                    <div className="mt-8 flex items-center justify-center gap-4">
+                      <div className="h-px w-12 bg-gradient-to-r from-transparent to-purple-500/50" />
+                      <p className="text-sm md:text-lg font-black text-purple-400 uppercase tracking-[0.5em] drop-shadow-lg">
+                        {currentQuote.split(' – ')[1]}
+                      </p>
+                      <div className="h-px w-12 bg-gradient-to-l from-transparent to-purple-500/50" />
+                    </div>
+                  </motion.div>
+                </AnimatePresence>
+
+                <div className="mt-10 flex items-center justify-center gap-3">
+                  <div className="h-px w-12 bg-gradient-to-r from-transparent to-white/10" />
+                  <div className="flex gap-1">
+                    {[1, 2, 3].map(i => (
+                      <motion.div 
+                        key={i}
+                        animate={{ opacity: [0.2, 1, 0.2] }}
+                        transition={{ duration: 2, repeat: Infinity, delay: i * 0.3 }}
+                        className="w-1.5 h-1.5 bg-purple-500 rounded-full shadow-[0_0_10px_rgba(168,85,247,0.5)]" 
+                      />
+                    ))}
+                  </div>
+                  <div className="h-px w-12 bg-gradient-to-l from-transparent to-white/10" />
+                </div>
+              </div>
+            </div>
+          </motion.div>
 
           <AnimatePresence mode="wait">
             {activeTab === 'timer' ? (
@@ -1017,171 +1333,332 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                 </div>
 
                 {/* Trackers Section */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-            {/* Stopwatch Card */}
-            <motion.div 
-              whileHover={{ y: -5 }}
-              className="p-8 rounded-[40px] bg-black border border-white/10 flex flex-col items-center justify-center text-center group relative overflow-hidden"
-            >
-              {/* RGB Border Animation */}
-              <div className="absolute inset-0 p-[2px] overflow-hidden">
-                <motion.div
-                  animate={{ 
-                    rotate: [0, 360]
-                  }}
-                  transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200%] h-[200%] bg-[conic-gradient(from_0deg,#ff0000,#ff7300,#fffb00,#48ff00,#00ffd5,#002bff,#7a00ff,#ff00c8,#ff0000)] opacity-20"
-                />
-              </div>
-              {/* Fast Moving White Light Border */}
-              {isTimerRunning && (
-                <div className="absolute inset-0 p-[2px] overflow-hidden">
-                  <motion.div
-                    animate={{ 
-                      rotate: [0, 360]
-                    }}
-                    transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] bg-[conic-gradient(from_0deg,transparent_0deg,transparent_160deg,#ffffff_180deg,transparent_200deg,transparent_360deg)] opacity-60"
-                  />
-                </div>
-              )}
-              <div className="absolute inset-[1px] bg-black rounded-[39px] z-0" />
-
-              <div className="relative z-10 flex flex-col items-center w-full">
-                <div className="flex flex-col w-full mb-8">
-                  <div className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mb-4">Focus Subject</div>
-                  <div className="flex flex-wrap gap-2">
-                    {availableSubjects.map(sub => (
-                      <button
-                        key={sub}
-                        onClick={() => {
-                          if (!isTimerRunning) {
-                            setSelectedSubject(sub);
-                            localStorage.setItem('pulse_selected_subject', sub);
-                          }
-                        }}
-                        disabled={isTimerRunning}
-                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border
-                          ${selectedSubject === sub 
-                            ? 'bg-purple-600 border-purple-400 text-white shadow-[0_0_20px_rgba(147,51,234,0.3)]' 
-                            : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10 hover:text-white'}
-                          ${isTimerRunning ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer active:scale-95'}`}
-                      >
-                        {sub}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                
-                <div className="relative mb-8">
-                  {isTimerLoading ? (
-                    <PulseLoader size={48} />
-                  ) : (
-                    <div className="relative">
-                      {isTimerRunning && (
-                        <>
-                          <motion.div
-                            animate={{ 
-                              scale: [1, 1.5, 1],
-                              opacity: [0.2, 0.5, 0.2]
-                            }}
-                            transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut" }}
-                            className="absolute inset-0 bg-red-500/20 rounded-full blur-xl"
-                          />
-                          <motion.div
-                            animate={{ scale: [1, 1.2, 1] }}
-                            transition={{ repeat: Infinity, duration: 0.6 }}
-                            className="absolute -top-8 left-1/2 -translate-x-1/2"
-                          >
-                            <Activity className="w-6 h-6 text-red-500" />
-                          </motion.div>
-                        </>
-                      )}
-                      <div className="flex flex-col items-center">
-                        <div className="text-6xl font-mono font-black text-white tracking-tighter tabular-nums relative">
-                          {formatTime(elapsedSeconds)}
+                <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr_1fr] gap-8 mb-12 items-start">
+                  {/* Left Column: Stats & Metrics */}
+                  <div className="space-y-6 order-2 lg:order-1">
+                    <motion.div 
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="p-6 rounded-[32px] glass border border-white/10"
+                    >
+                      <div className="flex items-center gap-2 mb-6">
+                        <TrendingUp className="w-4 h-4 text-emerald-400" />
+                        <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Performance Metrics</span>
+                      </div>
+                      <div className="space-y-4">
+                        <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                          <div className="flex justify-between items-end mb-2">
+                            <div className="text-[8px] font-black text-white/20 uppercase tracking-widest">Efficiency</div>
+                            <div className="text-lg font-mono font-bold text-emerald-400">
+                              {Math.min(100, Math.round((elapsedSeconds / Math.max(1, targetHours * 3600)) * 100))}%
+                            </div>
+                          </div>
+                          <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                            <motion.div 
+                              animate={{ width: `${Math.min(100, (elapsedSeconds / Math.max(1, targetHours * 3600)) * 100)}%` }}
+                              className="h-full bg-emerald-500"
+                            />
+                          </div>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                          <div className="flex justify-between items-end mb-2">
+                            <div className="text-[8px] font-black text-white/20 uppercase tracking-widest">Focus Score</div>
+                            <div className="text-lg font-mono font-bold text-blue-400">
+                              {(Math.min(10, (currentQuestions / Math.max(1, elapsedSeconds / 3600)) / 5)).toFixed(1)}
+                            </div>
+                          </div>
+                          <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                            <motion.div 
+                              animate={{ width: `${Math.min(100, ((currentQuestions / Math.max(1, elapsedSeconds / 3600)) / 5) * 10)}%` }}
+                              className="h-full bg-blue-500"
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                </div>
+                    </motion.div>
 
-                <div className="flex items-center gap-4 w-full">
-                  <button 
-                    onClick={toggleTimer}
-                    disabled={isTimerLoading}
-                    className={`flex-1 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2
-                      ${isTimerRunning ? 'bg-red-600 text-white shadow-[0_0_30px_rgba(220,38,38,0.4)]' : 'bg-white text-black hover:bg-white/90 shadow-[0_0_30px_rgba(255,255,255,0.1)]'}`}
-                  >
-                    {isTimerRunning && (
-                      <motion.div
-                        animate={{ scale: [1, 1.2, 1] }}
-                        transition={{ repeat: Infinity, duration: 0.8 }}
-                      >
-                        <Activity className="w-3 h-3 text-white" />
-                      </motion.div>
-                    )}
-                    {isTimerLoading || !isStatsLoaded ? 'Syncing...' : (isTimerRunning ? 'Stop Session' : 'Start Session')}
-                  </button>
-                  
-                  {!isTimerRunning && !isTimerLoading && isStatsLoaded && elapsedSeconds >= 3600 && (
-                    <button 
-                      onClick={() => setShowDeleteConfirm(true)}
-                      className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20 transition-all active:scale-95"
-                      title="Delete 1 Hour"
+                    <motion.div 
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.1 }}
+                      className="p-6 rounded-[32px] glass border border-white/10"
                     >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-            
-            {/* Question Tracker Card */}
-            <motion.div 
-              whileHover={{ y: -5 }}
-              className="p-8 rounded-[40px] bg-black border border-white/10 flex flex-col items-center justify-center text-center group relative overflow-hidden"
-            >
-              {/* RGB Border Animation */}
-              <div className="absolute inset-0 p-[2px] overflow-hidden">
-                <motion.div
-                  animate={{ 
-                    rotate: [0, 360]
-                  }}
-                  transition={{ duration: 4, repeat: Infinity, ease: "linear", delay: 1 }}
-                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200%] h-[200%] bg-[conic-gradient(from_0deg,#00ffd5,#002bff,#7a00ff,#ff00c8,#ff0000,#ff7300,#fffb00,#48ff00,#00ffd5)] opacity-20"
-                />
-              </div>
-              <div className="absolute inset-[1px] bg-black rounded-[39px] z-0" />
+                      <div className="flex items-center gap-2 mb-4">
+                        <Zap className="w-4 h-4 text-amber-400" />
+                        <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Daily Streak</span>
+                      </div>
+                      <div className="flex flex-col gap-4">
+                        <div className="flex items-end gap-2">
+                          <div className="text-4xl font-black text-white tracking-tighter">
+                            {(() => {
+                              const sortedDays = Object.entries(dailyStudySeconds)
+                                .filter(([_, seconds]) => (seconds as number) >= 1800)
+                                .map(([date]) => new Date(date))
+                                .sort((a, b) => b.getTime() - a.getTime());
+                              
+                              let streak = 0;
+                              let current = new Date();
+                              current.setHours(0,0,0,0);
 
-              <div className="relative z-10 flex flex-col items-center w-full">
-                <div className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mb-4">Questions Solved</div>
-                <div className="text-6xl font-mono font-black text-white tracking-tighter mb-8 tabular-nums">
-                  {currentQuestions}
+                              for (let i = 0; i < sortedDays.length; i++) {
+                                const day = sortedDays[i];
+                                day.setHours(0,0,0,0);
+                                
+                                const diff = (current.getTime() - day.getTime()) / (1000 * 60 * 60 * 24);
+                                if (diff <= 1) {
+                                  streak++;
+                                  current = day;
+                                } else {
+                                  break;
+                                }
+                              }
+                              return streak;
+                            })()}
+                          </div>
+                          <div className="text-[10px] font-black text-white/20 uppercase tracking-widest mb-1.5">Days</div>
+                        </div>
+                        <div className="flex gap-1.5">
+                          {[...Array(7)].map((_, i) => {
+                            const date = new Date();
+                            date.setDate(date.getDate() - (6 - i));
+                            const dateStr = date.toDateString();
+                            const isDone = (dailyStudySeconds[dateStr] || 0) >= 1800;
+                            return (
+                              <div 
+                                key={i} 
+                                className={`flex-1 h-2 rounded-full transition-all duration-500 ${isDone ? 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]' : 'bg-white/5'}`}
+                                title={dateStr}
+                              />
+                            );
+                          })}
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[9px] font-bold text-white/20 uppercase tracking-wider">30 min study = 1 day streak</p>
+                          <p className="text-[8px] font-medium text-amber-500/60 leading-tight">Complete 30 minutes of focused study to maintain your daily streak.</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  </div>
+
+                  {/* Center Column: Futuristic Stopwatch */}
+                  <div className="order-1 lg:order-2">
+                    <motion.div 
+                      whileHover={{ scale: 1.02 }}
+                      className="p-10 rounded-[60px] bg-black border border-white/10 flex flex-col items-center justify-center text-center group relative overflow-hidden w-full max-w-[450px] mx-auto"
+                    >
+                      {/* Animated Background Rings */}
+                      <div className="absolute inset-0 z-0">
+                        <motion.div 
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] border border-white/5 rounded-full border-dashed"
+                        />
+                        <motion.div 
+                          animate={{ rotate: -360 }}
+                          transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+                          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] h-[90%] border border-white/5 rounded-full border-dashed"
+                        />
+                      </div>
+
+                      {/* RGB Border Animation */}
+                      <div className="absolute inset-0 p-[2px] overflow-hidden">
+                        <motion.div
+                          animate={{ rotate: [0, 360] }}
+                          transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200%] h-[200%] bg-[conic-gradient(from_0deg,#ff0000,#ff7300,#fffb00,#48ff00,#00ffd5,#002bff,#7a00ff,#ff00c8,#ff0000)] opacity-20"
+                        />
+                      </div>
+
+                      {/* Fast Moving White Light Border */}
+                      {isTimerRunning && (
+                        <div className="absolute inset-0 p-[2px] overflow-hidden">
+                          <motion.div
+                            animate={{ rotate: [0, 360] }}
+                            transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] bg-[conic-gradient(from_0deg,transparent_0deg,transparent_160deg,#ffffff_180deg,transparent_200deg,transparent_360deg)] opacity-60"
+                          />
+                        </div>
+                      )}
+                      
+                      <div className="absolute inset-[2px] bg-black rounded-[58px] z-0" />
+
+                      <div className="relative z-10 flex flex-col items-center w-full">
+                        <div className="flex flex-col w-full mb-10">
+                          <div className="flex items-center justify-center gap-2 mb-4">
+                            <Rocket className="w-4 h-4 text-purple-400" />
+                            <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.4em]">Mission Status</span>
+                          </div>
+                          
+                          {/* Subject Selection */}
+                          <div className="flex flex-wrap justify-center gap-2 mb-6">
+                            {availableSubjects.map(sub => (
+                              <button
+                                key={sub}
+                                onClick={() => {
+                                  if (!isTimerRunning) {
+                                    setSelectedSubject(sub);
+                                    localStorage.setItem('pulse_selected_subject', sub);
+                                  }
+                                }}
+                                disabled={isTimerRunning}
+                                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border
+                                  ${selectedSubject === sub 
+                                    ? 'bg-purple-600 border-purple-400 text-white shadow-[0_0_20px_rgba(147,51,234,0.3)]' 
+                                    : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10 hover:text-white'}
+                                  ${isTimerRunning ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer active:scale-95'}`}
+                              >
+                                {sub}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Chapter Dropdown */}
+                          {selectedSubject && availableChapters.length > 0 && (
+                            <motion.div 
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="w-full px-4"
+                            >
+                              <div className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-2 text-left ml-2">Active Chapter</div>
+                              <select
+                                value={selectedChapter}
+                                onChange={(e) => setSelectedChapter(e.target.value)}
+                                disabled={isTimerRunning}
+                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-black text-white/80 uppercase tracking-widest focus:outline-none focus:border-purple-500/50 transition-all appearance-none cursor-pointer disabled:opacity-50"
+                              >
+                                {availableChapters.map(chapter => (
+                                  <option key={chapter.id} value={chapter.id} className="bg-zinc-900 text-white">
+                                    {chapter.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </motion.div>
+                          )}
+                        </div>
+                        
+                        <div className="relative mb-10">
+                          {isTimerLoading ? (
+                            <PulseLoader size={64} />
+                          ) : (
+                            <div className="relative">
+                              {isTimerRunning && (
+                                <>
+                                  <motion.div
+                                    animate={{ 
+                                      scale: [1, 1.8, 1],
+                                      opacity: [0.1, 0.4, 0.1]
+                                    }}
+                                    transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+                                    className="absolute inset-0 bg-purple-500/30 rounded-full blur-3xl"
+                                  />
+                                  <motion.div
+                                    animate={{ rotate: 360 }}
+                                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                                    className="absolute -inset-8 border-2 border-dashed border-purple-500/20 rounded-full"
+                                  />
+                                </>
+                              )}
+                              <div className="flex flex-col items-center">
+                                <div className="text-7xl font-mono font-black text-white tracking-tighter tabular-nums relative drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
+                                  {formatTime(elapsedSeconds)}
+                                </div>
+                                <div className="mt-2 text-[10px] font-black text-white/20 uppercase tracking-[0.5em]">Elapsed Time</div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-4 w-full">
+                          <button 
+                            onClick={toggleTimer}
+                            disabled={isTimerLoading}
+                            className={`flex-1 py-5 rounded-2xl font-black uppercase tracking-widest text-[11px] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3
+                              ${isTimerRunning ? 'bg-red-600 text-white shadow-[0_0_40px_rgba(220,38,38,0.4)]' : 'bg-white text-black hover:bg-white/90 shadow-[0_0_40px_rgba(255,255,255,0.1)]'}`}
+                          >
+                            {isTimerRunning ? <Activity className="w-4 h-4 animate-pulse" /> : <ZapIcon className="w-4 h-4" />}
+                            {isTimerLoading || !isStatsLoaded ? 'Syncing...' : (isTimerRunning ? 'Abort Mission' : 'Initiate Session')}
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  </div>
+
+                  {/* Right Column: Question Tracker */}
+                  <div className="space-y-6 order-3">
+                    <motion.div 
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="p-8 rounded-[40px] bg-black border border-white/10 flex flex-col items-center justify-center text-center group relative overflow-hidden"
+                    >
+                      <div className="absolute inset-0 p-[2px] overflow-hidden">
+                        <motion.div
+                          animate={{ rotate: [0, 360] }}
+                          transition={{ duration: 4, repeat: Infinity, ease: "linear", delay: 1 }}
+                          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200%] h-[200%] bg-[conic-gradient(from_0deg,#00ffd5,#002bff,#7a00ff,#ff00c8,#ff0000,#ff7300,#fffb00,#48ff00,#00ffd5)] opacity-20"
+                        />
+                      </div>
+                      <div className="absolute inset-[1px] bg-black rounded-[39px] z-0" />
+
+                      <div className="relative z-10 flex flex-col items-center w-full">
+                        <div className="flex items-center gap-2 mb-4">
+                          <Target className="w-4 h-4 text-blue-400" />
+                          <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Question Solved</span>
+                        </div>
+                        <div className="text-6xl font-mono font-black text-white tracking-tighter mb-8 tabular-nums drop-shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                          {currentQuestions}
+                        </div>
+                        <div className="flex items-center gap-4 w-full">
+                          <button 
+                            onClick={() => {
+                              playTickSound();
+                              updateQuestions(Math.max(0, currentQuestions - 1));
+                            }}
+                            className="flex-1 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 transition-all active:scale-95"
+                          >
+                            -
+                          </button>
+                          <button 
+                            onClick={() => {
+                              playTickSound();
+                              updateQuestions(currentQuestions + 1);
+                            }}
+                            className="flex-1 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 transition-all active:scale-95"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+
+                    <motion.div 
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.1 }}
+                      className="p-6 rounded-[32px] glass border border-white/10"
+                    >
+                      <div className="flex items-center gap-2 mb-6">
+                        <Shield className="w-4 h-4 text-emerald-400" />
+                        <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">System Status</span>
+                      </div>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-white/40">Database</span>
+                          <span className="text-[10px] font-black text-emerald-400 uppercase">Synced</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-white/40">Timer Engine</span>
+                          <span className={`text-[10px] font-black uppercase ${isTimerRunning ? 'text-emerald-400' : 'text-blue-400'}`}>
+                            {isTimerRunning ? 'Active' : 'Standby'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-white/40">Auth Module</span>
+                          <span className="text-[10px] font-black text-emerald-400 uppercase">Verified</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-4 w-full">
-                  <button 
-                    onClick={() => {
-                      playTickSound();
-                      updateQuestions(Math.max(0, currentQuestions - 1));
-                    }}
-                    className="flex-1 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 transition-all active:scale-95"
-                  >
-                    -
-                  </button>
-                  <button 
-                    onClick={() => {
-                      playTickSound();
-                      updateQuestions(currentQuestions + 1);
-                    }}
-                    className="flex-1 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 transition-all active:scale-95"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
 
           {/* Distribution Charts */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">

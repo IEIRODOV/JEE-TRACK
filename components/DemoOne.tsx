@@ -582,24 +582,6 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
                         <p className="text-[8px] text-white/20 uppercase tracking-widest">Enable global feed</p>
                       </div>
 
-                      <div className="space-y-2 pt-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-white/60">Streak Goal</span>
-                          <div className="px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                            <span className="text-[10px] font-black text-emerald-400">{settings?.streakGoal || 7}H</span>
-                          </div>
-                        </div>
-                        <input 
-                          type="range"
-                          min="1"
-                          max="18"
-                          value={settings?.streakGoal || 7}
-                          onChange={(e) => updateSettings?.({ streakGoal: parseInt(e.target.value) })}
-                          className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-                        />
-                        <p className="text-[8px] text-white/20 uppercase tracking-widest leading-tight">Daily target study hours</p>
-                      </div>
-
                       <div className="h-px bg-white/5 my-2" />
 
                       <div className="space-y-3">
@@ -774,18 +756,9 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
                           </motion.div>
                         </>
                       )}
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleTimer();
-                        }}
-                        disabled={!isStatsLoaded}
-                        className={`relative z-10 px-2 py-1 rounded-md text-[7px] font-black uppercase tracking-widest transition-all
-                          ${timerState.isRunning ? 'bg-red-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.5)]' : 'bg-white/10 text-white/60 hover:bg-white/20'}
-                          ${!isStatsLoaded ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      >
-                        {!isStatsLoaded ? 'Syncing...' : (timerState.isRunning ? 'Active' : 'Start')}
-                      </button>
+                      <div className="px-2 py-1 rounded-md text-[7px] font-black uppercase tracking-widest bg-white/5 text-white/40 border border-white/10">
+                        {timerState.isRunning ? 'Running' : 'Use Timer Tab'}
+                      </div>
                     </div>
                   )}
                 </div>

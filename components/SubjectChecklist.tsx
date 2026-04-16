@@ -7,6 +7,8 @@ interface Chapter {
   id: string;
   name: string;
   completed: boolean;
+  pyqMains: boolean;
+  pyqAdvanced: boolean;
 }
 
 interface Subject {
@@ -98,12 +100,14 @@ const SubjectChecklist = ({ category, examId }: SubjectChecklistProps) => {
         .filter(chName => !hidden.includes(chName))
         .map(chName => {
           const prog = subjectData[chName];
-          const completed = prog ? (prog.theoryLecture === 100 && prog.module && prog.pyq) : false;
+          const completed = prog ? (prog.theoryLecture === 100 && prog.module && (prog.pyqMains || prog.pyqAdvanced || prog.pyq)) : false;
           const displayName = prog?.customName || chName;
           return { 
             id: chName, 
             name: displayName, 
-            completed 
+            completed,
+            pyqMains: prog?.pyqMains || false,
+            pyqAdvanced: prog?.pyqAdvanced || false
           };
         });
 
@@ -113,7 +117,9 @@ const SubjectChecklist = ({ category, examId }: SubjectChecklistProps) => {
         .map(([id, data]: [string, any]) => ({
           id,
           name: data.customName || id,
-          completed: data.theoryLecture === 100 && data.module && data.pyq
+          completed: data.theoryLecture === 100 && data.module && (data.pyqMains || data.pyqAdvanced || data.pyq),
+          pyqMains: data.pyqMains || false,
+          pyqAdvanced: data.pyqAdvanced || false
         }));
 
       let allChapters = [...defaultChapters, ...customChapters];
@@ -205,15 +211,26 @@ const SubjectChecklist = ({ category, examId }: SubjectChecklistProps) => {
               {subject.chapters.map((chapter) => (
                 <div
                   key={chapter.id}
-                  className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group
-                    ${chapter.completed ? 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-400' : 'text-white/60 bg-white/5 border border-white/10'}`}
+                  className={`w-full flex items-center justify-between p-3 rounded-xl transition-all duration-200 group
+                    ${chapter.completed ? 'bg-emerald-500/10 border border-emerald-500/20' : 'text-white/60 bg-white/5 border border-white/10'}`}
                 >
-                  {chapter.completed && (
-                    <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  )}
-                  <span className={`text-sm font-bold leading-tight ${chapter.completed ? '' : ''}`}>
-                    {chapter.name}
-                  </span>
+                  <div className="flex items-center gap-3 min-w-0">
+                    {chapter.completed && (
+                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                    )}
+                    <span className={`text-sm font-bold leading-tight truncate ${chapter.completed ? 'text-emerald-400' : ''}`}>
+                      {chapter.name}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                    {chapter.pyqMains && (
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" title="Mains PYQ Done" />
+                    )}
+                    {chapter.pyqAdvanced && (
+                      <div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]" title="Advanced PYQ Done" />
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

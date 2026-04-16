@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle2, Circle, BookOpen, Activity, Plus, Pencil, Trash2, CheckSquare, Square, Check, ChevronUp, ChevronDown, GripVertical } from 'lucide-react';
+import { CheckCircle2, Circle, BookOpen, Activity, Plus, Pencil, Trash2, CheckSquare, Square, Check, ChevronUp, ChevronDown, GripVertical, Clock, Target } from 'lucide-react';
 import { auth, db, doc, onSnapshot, setDoc, handleFirestoreError, OperationType } from '@/src/firebase';
 import { SYLLABUS_DATA } from '@/src/constants/syllabus';
 import { playTickSound, playCheckSound } from '@/src/lib/sounds';
@@ -8,12 +8,18 @@ import { playTickSound, playCheckSound } from '@/src/lib/sounds';
 interface ChapterProgress {
   theoryLecture: number;
   module: boolean;
-  pyq: boolean;
-  pyqYears?: number[];
+  pyqMains: boolean;
+  pyqAdvanced: boolean;
+  pyqMainsYears?: number[];
+  pyqAdvancedYears?: number[];
   revisionCount: number;
   level: string;
   customName?: string;
   isCustom?: boolean;
+  pyq?: boolean;
+  pyqYears?: number[];
+  studyTime?: number; // in seconds
+  questions?: number;
 }
 
 interface SubjectProgressData {
@@ -33,6 +39,7 @@ const ProgressPage = () => {
   };
 
   const [examInfo, setExamInfo] = useState(getExamInfo());
+  const [subExam, setSubExam] = useState(localStorage.getItem('pulse_user_subexam') || 'mains');
   const [activeSubject, setActiveSubject] = useState<string>('');
   const [progressData, setProgressData] = useState<Record<string, SubjectProgressData>>({});
   const [chapterOrder, setChapterOrder] = useState<Record<string, string[]>>({});
@@ -45,10 +52,11 @@ const ProgressPage = () => {
     return () => unsubscribe();
   }, []);
 
-  // Sync exam info from localStorage
+  // Sync exam info and subExam from localStorage
   useEffect(() => {
     const handleStorage = () => {
       setExamInfo(getExamInfo());
+      setSubExam(localStorage.getItem('pulse_user_subexam') || 'mains');
     };
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
@@ -90,8 +98,10 @@ const ProgressPage = () => {
       newProgress[subject][chapterId] = { 
         theoryLecture: 0,
         module: false, 
-        pyq: false, 
-        pyqYears: [],
+        pyqMains: false,
+        pyqAdvanced: false,
+        pyqMainsYears: [],
+        pyqAdvancedYears: [],
         revisionCount: 0,
         level: levels[0]
       };
@@ -130,8 +140,10 @@ const ProgressPage = () => {
     newProgress[subject][chapterId] = {
       theoryLecture: 0,
       module: false,
-      pyq: false,
-      pyqYears: [],
+      pyqMains: false,
+      pyqAdvanced: false,
+      pyqMainsYears: [],
+      pyqAdvancedYears: [],
       revisionCount: 0,
       level: levels[0],
       customName: newChapterName,
@@ -297,10 +309,27 @@ const ProgressPage = () => {
       const prog = subjectData[id];
       if (prog) {
         let chapterProgress = 0;
-        chapterProgress += (prog.theoryLecture || 0) * 0.25;
-        chapterProgress += (prog.module ? 25 : 0);
-        chapterProgress += (prog.pyq ? 25 : 0);
-        chapterProgress += (Math.min(prog.revisionCount || 0, 3) / 3) * 25;
+        chapterProgress += (prog.theoryLecture || 0) * 0.2; // 20%
+        chapterProgress += (prog.module ? 20 : 0); // 20%
+        
+        // PYQ Checklist (20% total)
+        let pyqCheckProg = 0;
+        if (prog.pyqMains) pyqCheckProg += 10;
+        if (prog.pyqAdvanced) pyqCheckProg += 10;
+        
+        // Fallback for legacy data
+        if (!prog.pyqMains && !prog.pyqAdvanced && prog.pyq) {
+          pyqCheckProg = 20;
+        }
+        chapterProgress += pyqCheckProg;
+
+        // PYQ Years (20% total, max 3 years per chapter)
+        const mainsYears = (prog.pyqMainsYears || []).length;
+        const advYears = (prog.pyqAdvancedYears || []).length;
+        const totalYears = Math.min(mainsYears + advYears, 3); 
+        chapterProgress += (totalYears / 3) * 20;
+        
+        chapterProgress += (Math.min(prog.revisionCount || 0, 3) / 3) * 20; // 20%
         totalProgress += chapterProgress;
       }
     });
@@ -337,29 +366,100 @@ const ProgressPage = () => {
             </h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {subjects.map((subject) => {
-              const progress = calculateSubjectProgress(subject);
-              return (
-                <div key={subject} className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl">
-                  <div className="flex justify-between items-end mb-4">
-                    <div>
-                      <h4 className="text-white/40 text-[9px] font-black uppercase tracking-widest mb-1">{subject}</h4>
-                      <div className="text-2xl font-black text-white tracking-tighter">{progress}%</div>
+              {Object.keys(SYLLABUS_DATA[examInfo.id] || SYLLABUS_DATA[examInfo.id.split('_')[0]] || SYLLABUS_DATA.jee).map((subject) => {
+                const progress = calculateSubjectProgress(subject);
+                return (
+                  <div key={subject} className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl relative overflow-hidden group">
+                    <div className="flex justify-between items-end mb-6 relative z-10">
+                      <div>
+                        <h4 className="text-white/40 text-[9px] font-black uppercase tracking-widest mb-1">{subject}</h4>
+                        <div className="text-2xl font-black text-white tracking-tighter">{progress}%</div>
+                      </div>
+                      <div className="text-[9px] font-black text-purple-400 uppercase tracking-widest bg-purple-500/10 px-2 py-1 rounded-lg border border-purple-500/20">
+                        Readiness
+                      </div>
                     </div>
-                    <div className="text-[9px] font-black text-purple-400 uppercase tracking-widest bg-purple-500/10 px-2 py-1 rounded-lg border border-purple-500/20">
-                      Readiness
+                    
+                    {/* Car Progress Bar UI */}
+                    <div className="relative w-full h-16 bg-white/5 rounded-2xl border border-white/10 overflow-hidden flex items-center px-2">
+                      <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 to-blue-500/5" />
+                      
+                      {/* Road Markings */}
+                      <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-around opacity-10">
+                        {[...Array(10)].map((_, i) => (
+                          <div key={i} className="w-4 h-0.5 bg-white" />
+                        ))}
+                      </div>
+
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${progress}%` }}
+                        className="h-1 bg-gradient-to-r from-purple-600 to-blue-500 relative"
+                      >
+                        {/* Car Icon with Fire */}
+                        <motion.div 
+                          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-20"
+                          style={{ x: -10 }}
+                        >
+                          <div className="relative">
+                            {/* Fire Effect */}
+                            {progress > 0 && (
+                              <div className="absolute -left-8 top-1/2 -translate-y-1/2 flex gap-0.5">
+                                {[...Array(3)].map((_, i) => (
+                                  <motion.div 
+                                    key={i}
+                                    animate={{ 
+                                      scale: [1, 1.5, 1],
+                                      opacity: [0.4, 0.8, 0.4],
+                                      x: [0, -10, 0]
+                                    }}
+                                    transition={{ 
+                                      repeat: Infinity, 
+                                      duration: 0.2 + (i * 0.1),
+                                      ease: "easeOut"
+                                    }}
+                                    className={`w-${4-i} h-${3-i} bg-gradient-to-r from-orange-500 via-red-500 to-transparent blur-[2px] rounded-full`}
+                                  />
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Speed Lines */}
+                            {progress > 0 && (
+                              <div className="absolute -left-12 top-0 bottom-0 flex flex-col justify-around">
+                                {[...Array(3)].map((_, i) => (
+                                  <motion.div 
+                                    key={i}
+                                    animate={{ x: [0, -20], opacity: [0, 1, 0] }}
+                                    transition={{ repeat: Infinity, duration: 0.3, delay: i * 0.1 }}
+                                    className="w-8 h-px bg-white/20"
+                                  />
+                                ))}
+                              </div>
+                            )}
+
+                            <div className="bg-white p-2 rounded-xl shadow-[0_0_25px_rgba(255,255,255,0.4)] border border-white/50">
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-black">
+                                <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
+                                <circle cx="7" cy="17" r="2" />
+                                <path d="M9 17h6" />
+                                <circle cx="17" cy="17" r="2" />
+                              </svg>
+                            </div>
+                          </div>
+                        </motion.div>
+                      </motion.div>
+
+                      {/* Finish Line */}
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-1">
+                        {[1, 2, 3].map(i => (
+                          <div key={i} className="w-1 h-1 bg-white/20 rounded-full" />
+                        ))}
+                      </div>
                     </div>
                   </div>
-                  <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: `${progress}%` }}
-                      className="h-full bg-gradient-to-r from-purple-600 to-blue-500"
-                    />
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         </div>
 
@@ -396,13 +496,14 @@ const ProgressPage = () => {
                 const progress = progressData[activeSubject]?.[chapter.id] || { 
                   theoryLecture: 0,
                   module: false, 
-                  pyq: false, 
+                  pyqMains: false,
+                  pyqAdvanced: false,
                   revisionCount: 0,
                   level: masteryLevels[0]
                 };
-                const isFullyMastered = progress.theoryLecture === 100 && progress.module && progress.pyq;
+                const isFullyMastered = progress.theoryLecture === 100 && progress.module && (progress.pyqMains || progress.pyqAdvanced || progress.pyq);
                 const displayName = progress.customName || chapter.name || 'Untitled Chapter';
-                const pyqYears = Array.from({ length: 10 }, (_, i) => 2017 + i);
+                const pyqYears = Array.from({ length: 8 }, (_, i) => 2019 + i);
 
                 return (
                   <motion.div 
@@ -459,25 +560,42 @@ const ProgressPage = () => {
                                 className="bg-white/10 border border-purple-500/50 rounded px-3 py-2 text-white w-full outline-none font-bold"
                               />
                             ) : (
-                              <div className="flex items-center gap-3 group/name min-w-0">
-                                <h4 
-                                  className={`font-bold text-lg flex-1 ${isFullyMastered ? 'text-emerald-400' : 'text-white'}`}
-                                >
-                                  {displayName}
-                                </h4>
-                                <div className="flex items-center gap-1 opacity-0 group-hover/name:opacity-100 transition-opacity">
-                                  <button 
-                                    onClick={() => setEditingChapter({ subject: activeSubject, id: chapter.id, name: displayName })}
-                                    className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-purple-400 hover:bg-purple-500/10 transition-all"
+                              <div className="flex flex-col gap-1 min-w-0">
+                                <div className="flex items-center gap-3 group/name min-w-0">
+                                  <h4 
+                                    className={`font-bold text-lg flex-1 ${isFullyMastered ? 'text-emerald-400' : 'text-white'}`}
                                   >
-                                    <Pencil className="w-3 h-3" />
-                                  </button>
-                                  <button 
-                                    onClick={() => deleteChapter(activeSubject, chapter.id)}
-                                    className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </button>
+                                    {displayName}
+                                  </h4>
+                                  <div className="flex items-center gap-1 opacity-0 group-hover/name:opacity-100 transition-opacity">
+                                    <button 
+                                      onClick={() => setEditingChapter({ subject: activeSubject, id: chapter.id, name: displayName })}
+                                      className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-purple-400 hover:bg-purple-500/10 transition-all"
+                                    >
+                                      <Pencil className="w-3 h-3" />
+                                    </button>
+                                    <button 
+                                      onClick={() => deleteChapter(activeSubject, chapter.id)}
+                                      className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                </div>
+                                {/* Chapter Stats */}
+                                <div className="flex items-center gap-4">
+                                  <div className="flex items-center gap-1.5">
+                                    <Clock className="w-3 h-3 text-emerald-400" />
+                                    <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">
+                                      {Math.floor((progress.studyTime || 0) / 3600)}h {Math.floor(((progress.studyTime || 0) % 3600) / 60)}m
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    <Target className="w-3 h-3 text-rose-400" />
+                                    <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">
+                                      {progress.questions || 0} Questions
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
                             )}
@@ -522,42 +640,85 @@ const ProgressPage = () => {
                               </button>
                             ))}
 
-                            {/* PYQ with Year Selection */}
-                            <div className="flex flex-col gap-2">
-                              <button
-                                onClick={() => updateProgress(activeSubject, chapter.id, 'pyq', !progress.pyq)}
-                                className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all
-                                  ${progress.pyq 
-                                    ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' 
-                                    : 'bg-white/5 border-white/10 text-white/20 hover:border-white/40'}`}
-                              >
-                                {progress.pyq ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4 opacity-20" />}
-                                <span className="text-[10px] font-black uppercase tracking-widest">PYQ</span>
-                              </button>
-                              
-                              {progress.pyq && (
-                                <div className="grid grid-cols-5 gap-1 p-1.5 bg-black/40 rounded-xl border border-white/5">
-                                  {pyqYears.map(year => {
-                                    const isSelected = (progress.pyqYears || []).includes(year);
-                                    return (
-                                      <button
-                                        key={year}
-                                        onClick={() => {
-                                          const currentYears = progress.pyqYears || [];
-                                          const newYears = isSelected 
-                                            ? currentYears.filter(y => y !== year)
-                                            : [...currentYears, year];
-                                          updateProgress(activeSubject, chapter.id, 'pyqYears', newYears);
-                                        }}
-                                        className={`flex items-center justify-center px-1 py-1 rounded-md border text-[8px] font-black transition-all duration-200
-                                          ${isSelected 
-                                            ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]' 
-                                            : 'bg-white/5 border-white/10 text-white/20 hover:border-white/30 hover:text-white/40'}`}
-                                      >
-                                        {year.toString().slice(-2)}
-                                      </button>
-                                    );
-                                  })}
+                            {/* PYQ Section Updated */}
+                            <div className="flex flex-wrap items-center gap-4">
+                              {subExam === 'mains' ? (
+                                <div className="flex flex-col gap-2">
+                                  <button
+                                    onClick={() => updateProgress(activeSubject, chapter.id, 'pyqMains', !progress.pyqMains)}
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all
+                                      ${progress.pyqMains 
+                                        ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' 
+                                        : 'bg-white/5 border-white/10 text-white/20 hover:border-white/40'}`}
+                                  >
+                                    {progress.pyqMains ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4 opacity-20" />}
+                                    <span className="text-[10px] font-black uppercase tracking-widest">Mains PYQ</span>
+                                  </button>
+                                  
+                                  {progress.pyqMains && (
+                                    <div className="grid grid-cols-4 gap-1 p-1.5 bg-black/40 rounded-xl border border-white/5">
+                                      {pyqYears.map(year => {
+                                        const isSelected = (progress.pyqMainsYears || []).includes(year);
+                                        return (
+                                          <button
+                                            key={year}
+                                            onClick={() => {
+                                              const currentYears = progress.pyqMainsYears || [];
+                                              const newYears = isSelected 
+                                                ? currentYears.filter(y => y !== year)
+                                                : [...currentYears, year];
+                                              updateProgress(activeSubject, chapter.id, 'pyqMainsYears', newYears);
+                                            }}
+                                            className={`flex items-center justify-center px-1 py-1 rounded-md border text-[8px] font-black transition-all duration-200
+                                              ${isSelected 
+                                                ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]' 
+                                                : 'bg-white/5 border-white/10 text-white/20 hover:border-white/30 hover:text-white/40'}`}
+                                          >
+                                            {year.toString().slice(-2)}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="flex flex-col gap-2">
+                                  <button
+                                    onClick={() => updateProgress(activeSubject, chapter.id, 'pyqAdvanced', !progress.pyqAdvanced)}
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all
+                                      ${progress.pyqAdvanced 
+                                        ? 'bg-rose-500/20 border-rose-500 text-rose-400' 
+                                        : 'bg-white/5 border-white/10 text-white/20 hover:border-white/40'}`}
+                                  >
+                                    {progress.pyqAdvanced ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4 opacity-20" />}
+                                    <span className="text-[10px] font-black uppercase tracking-widest">Advanced PYQ</span>
+                                  </button>
+                                  
+                                  {progress.pyqAdvanced && (
+                                    <div className="grid grid-cols-4 gap-1 p-1.5 bg-black/40 rounded-xl border border-white/5">
+                                      {pyqYears.map(year => {
+                                        const isSelected = (progress.pyqAdvancedYears || []).includes(year);
+                                        return (
+                                          <button
+                                            key={year}
+                                            onClick={() => {
+                                              const currentYears = progress.pyqAdvancedYears || [];
+                                              const newYears = isSelected 
+                                                ? currentYears.filter(y => y !== year)
+                                                : [...currentYears, year];
+                                              updateProgress(activeSubject, chapter.id, 'pyqAdvancedYears', newYears);
+                                            }}
+                                            className={`flex items-center justify-center px-1 py-1 rounded-md border text-[8px] font-black transition-all duration-200
+                                              ${isSelected 
+                                                ? 'bg-rose-500/20 border-rose-500 text-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.2)]' 
+                                                : 'bg-white/5 border-white/10 text-white/20 hover:border-white/30 hover:text-white/40'}`}
+                                          >
+                                            {year.toString().slice(-2)}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -586,7 +747,7 @@ const ProgressPage = () => {
                           {/* Mastery Level */}
                           <div className="flex items-center gap-1 bg-white/5 p-1.5 rounded-xl border border-white/10">
                             {masteryLevels.map((lvl) => {
-                              const isCompleted = (progress.theoryLecture || 0) === 100 && progress.module && progress.pyq;
+                              const isCompleted = (progress.theoryLecture || 0) === 100 && progress.module && (progress.pyqMains || progress.pyqAdvanced || progress.pyq);
                               const isDisabled = !isCompleted;
                               
                               return (
