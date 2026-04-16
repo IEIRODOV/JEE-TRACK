@@ -1209,83 +1209,47 @@ const TimerPage = ({ settings }: TimerPageProps) => {
 
           {/* Motivational Quote Banner */}
           <motion.div 
-            initial={{ opacity: 0, y: -20 }}
+            initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="w-full mb-12 relative group"
+            className="w-full mb-8 relative group"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 via-blue-600/20 to-purple-600/20 rounded-[40px] blur-2xl opacity-50 group-hover:opacity-100 transition-opacity duration-700" />
-            <div className="relative p-12 md:p-20 rounded-[50px] bg-black/40 backdrop-blur-3xl border border-white/10 overflow-hidden flex flex-col items-center text-center shadow-[0_0_100px_rgba(147,51,234,0.15)]">
-              {/* Animated Background Elements */}
-              <div className="absolute inset-0 pointer-events-none">
-                <motion.div 
-                  animate={{ 
-                    scale: [1, 1.4, 1],
-                    rotate: [0, 180, 0],
-                    opacity: [0.1, 0.3, 0.1]
-                  }}
-                  transition={{ duration: 15, repeat: Infinity }}
-                  className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-purple-500/30 to-transparent rounded-full blur-[120px]"
-                />
-                <motion.div 
-                  animate={{ 
-                    scale: [1, 1.5, 1],
-                    rotate: [0, -180, 0],
-                    opacity: [0.1, 0.3, 0.1]
-                  }}
-                  transition={{ duration: 18, repeat: Infinity }}
-                  className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-tl from-blue-500/30 to-transparent rounded-full blur-[120px]"
-                />
-              </div>
-
-              <div className="relative z-10 w-full">
-                <motion.div
-                  animate={{ 
-                    y: [0, -10, 0],
-                    filter: ["drop-shadow(0 0 10px rgba(168,85,247,0.3))", "drop-shadow(0 0 25px rgba(168,85,247,0.6))", "drop-shadow(0 0 10px rgba(168,85,247,0.3))"]
-                  }}
-                  transition={{ duration: 3, repeat: Infinity }}
-                  className="mb-10"
-                >
-                  <div className="inline-block p-5 rounded-3xl bg-gradient-to-br from-purple-500/30 to-blue-500/30 border border-white/20 shadow-2xl backdrop-blur-md">
-                    <Zap className="w-10 h-10 text-purple-400" />
-                  </div>
-                </motion.div>
-
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={currentQuote}
-                    initial={{ opacity: 0, y: 20, filter: 'blur(10px)' }}
-                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                    exit={{ opacity: 0, y: -20, filter: 'blur(10px)' }}
-                    transition={{ duration: 1, ease: [0.23, 1, 0.32, 1] }}
-                  >
-                    <p className="text-2xl md:text-4xl font-black text-white tracking-tight leading-[1.1] max-w-5xl mx-auto drop-shadow-2xl">
-                      {currentQuote.split(' – ')[0]}
-                    </p>
-                    <div className="mt-8 flex items-center justify-center gap-4">
-                      <div className="h-px w-12 bg-gradient-to-r from-transparent to-purple-500/50" />
-                      <p className="text-sm md:text-lg font-black text-purple-400 uppercase tracking-[0.5em] drop-shadow-lg">
-                        {currentQuote.split(' – ')[1]}
-                      </p>
-                      <div className="h-px w-12 bg-gradient-to-l from-transparent to-purple-500/50" />
-                    </div>
-                  </motion.div>
-                </AnimatePresence>
-
-                <div className="mt-10 flex items-center justify-center gap-3">
-                  <div className="h-px w-12 bg-gradient-to-r from-transparent to-white/10" />
-                  <div className="flex gap-1">
-                    {[1, 2, 3].map(i => (
-                      <motion.div 
-                        key={i}
-                        animate={{ opacity: [0.2, 1, 0.2] }}
-                        transition={{ duration: 2, repeat: Infinity, delay: i * 0.3 }}
-                        className="w-1.5 h-1.5 bg-purple-500 rounded-full shadow-[0_0_10px_rgba(168,85,247,0.5)]" 
-                      />
-                    ))}
-                  </div>
-                  <div className="h-px w-12 bg-gradient-to-l from-transparent to-white/10" />
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-600/10 via-blue-600/10 to-purple-600/10 rounded-2xl blur-xl opacity-50" />
+            <div className="relative py-6 px-10 rounded-xl bg-black/60 backdrop-blur-xl border border-white/10 overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
+              <div className="flex items-center gap-6 flex-1 min-w-0">
+                <div className="hidden md:flex p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
+                  <Zap className="w-5 h-5 text-purple-400" />
                 </div>
+                <div className="flex-1 min-w-0">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={currentQuote}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 10 }}
+                      transition={{ duration: 0.5 }}
+                    >
+                      <p className="text-base md:text-lg font-serif italic text-white/90 leading-relaxed tracking-wide">
+                        "{currentQuote.split(' – ')[0]}"
+                      </p>
+                      <p className="mt-1 text-[9px] font-black text-purple-400 uppercase tracking-[0.4em]">
+                        — {currentQuote.split(' – ')[1]}
+                      </p>
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="h-px w-8 bg-white/10" />
+                <div className="flex gap-1">
+                  {[1, 2, 3].map(i => (
+                    <div 
+                      key={i}
+                      className="w-1 h-1 bg-purple-500/40 rounded-full" 
+                    />
+                  ))}
+                </div>
+                <div className="h-px w-8 bg-white/10" />
               </div>
             </div>
           </motion.div>
@@ -1462,11 +1426,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
 
                       {/* RGB Border Animation */}
                       <div className="absolute inset-0 p-[2px] overflow-hidden">
-                        <motion.div
-                          animate={{ rotate: [0, 360] }}
-                          transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200%] h-[200%] bg-[conic-gradient(from_0deg,#ff0000,#ff7300,#fffb00,#48ff00,#00ffd5,#002bff,#7a00ff,#ff00c8,#ff0000)] opacity-20"
-                        />
+                        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-purple-500/10 opacity-50" />
                       </div>
 
                       {/* Fast Moving White Light Border */}
@@ -1591,11 +1551,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                       className="p-8 rounded-[40px] bg-black border border-white/10 flex flex-col items-center justify-center text-center group relative overflow-hidden"
                     >
                       <div className="absolute inset-0 p-[2px] overflow-hidden">
-                        <motion.div
-                          animate={{ rotate: [0, 360] }}
-                          transition={{ duration: 4, repeat: Infinity, ease: "linear", delay: 1 }}
-                          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200%] h-[200%] bg-[conic-gradient(from_0deg,#00ffd5,#002bff,#7a00ff,#ff00c8,#ff0000,#ff7300,#fffb00,#48ff00,#00ffd5)] opacity-20"
-                        />
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-blue-500/10 opacity-50" />
                       </div>
                       <div className="absolute inset-[1px] bg-black rounded-[39px] z-0" />
 

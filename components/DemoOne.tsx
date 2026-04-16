@@ -699,23 +699,7 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
                 {stat.label === "Study Time" && timerState.isRunning && (
                   <>
                     <div className="absolute inset-0 p-[1px] overflow-hidden">
-                      <motion.div
-                        animate={{ 
-                          rotate: [0, 360]
-                        }}
-                        transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200%] h-[200%] bg-[conic-gradient(from_0deg,#ff0000,#ff7300,#fffb00,#48ff00,#00ffd5,#002bff,#7a00ff,#ff00c8,#ff0000)] opacity-20"
-                      />
-                    </div>
-                    {/* Fast Moving White Light Border */}
-                    <div className="absolute inset-0 p-[1px] overflow-hidden">
-                      <motion.div
-                        animate={{ 
-                          rotate: [0, 360]
-                        }}
-                        transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] bg-[conic-gradient(from_0deg,transparent_0deg,transparent_160deg,#ffffff_180deg,transparent_200deg,transparent_360deg)] opacity-60"
-                      />
+                      <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-purple-500/10 opacity-50" />
                     </div>
                     <div className="absolute inset-[1px] bg-black/80 rounded-2xl z-0" />
                   </>
@@ -736,25 +720,9 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
                   {stat.label === "Study Time" && (
                     <div className="relative">
                       {timerState.isRunning && (
-                        <>
-                          <motion.div 
-                            animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
-                            transition={{ repeat: Infinity, duration: 1.5 }}
-                            className="absolute inset-0 bg-red-500/30 rounded-full blur-md"
-                          />
-                          <motion.div 
-                            animate={{ scale: [1, 2], opacity: [0.3, 0] }}
-                            transition={{ repeat: Infinity, duration: 1.5, delay: 0.5 }}
-                            className="absolute inset-0 bg-red-500/20 rounded-full blur-lg"
-                          />
-                          <motion.div
-                            animate={{ scale: [1, 1.2, 1] }}
-                            transition={{ repeat: Infinity, duration: 0.6 }}
-                            className="absolute -top-6 left-1/2 -translate-x-1/2"
-                          >
-                            <Activity className="w-4 h-4 text-red-500" />
-                          </motion.div>
-                        </>
+                        <div className="absolute -top-6 left-1/2 -translate-x-1/2">
+                          <Activity className="w-4 h-4 text-red-500 animate-pulse" />
+                        </div>
                       )}
                       <div className="px-2 py-1 rounded-md text-[7px] font-black uppercase tracking-widest bg-white/5 text-white/40 border border-white/10">
                         {timerState.isRunning ? 'Running' : 'Use Timer Tab'}

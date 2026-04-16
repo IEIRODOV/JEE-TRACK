@@ -13,24 +13,12 @@ const PulseLoader = ({ fullScreen = false, size = 40 }: PulseLoaderProps) => {
       <div className="fixed inset-0 bg-black flex flex-col items-center justify-center z-[9999] overflow-hidden">
         {/* RGB Border Animation */}
         <div className="absolute inset-0 p-[2px] overflow-hidden">
-          <motion.div
-            animate={{ 
-              rotate: [0, 360]
-            }}
-            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200%] h-[200%] bg-[conic-gradient(from_0deg,#ff0000,#ff7300,#fffb00,#48ff00,#00ffd5,#002bff,#7a00ff,#ff00c8,#ff0000)] opacity-30"
-          />
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-purple-500/10 opacity-30" />
         </div>
 
         {/* Fast Moving White Light Border */}
         <div className="absolute inset-0 p-[2px] overflow-hidden">
-          <motion.div
-            animate={{ 
-              rotate: [0, 360]
-            }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] bg-[conic-gradient(from_0deg,transparent_0deg,transparent_160deg,#ffffff_180deg,transparent_200deg,transparent_360deg)] opacity-60"
-          />
+          <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-white/10 to-white/5 opacity-40" />
         </div>
         
         <div className="absolute inset-[2px] bg-black z-0" />
