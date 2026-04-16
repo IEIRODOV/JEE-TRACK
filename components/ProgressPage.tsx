@@ -553,14 +553,32 @@ const ProgressPage = () => {
                                 className="bg-white/10 border border-purple-500/50 rounded px-3 py-2 text-white w-full outline-none font-bold"
                               />
                             ) : (
-                              <div className="flex flex-col gap-1 min-w-0">
-                                <div className="flex items-center gap-3 group/name min-w-0">
-                                  <h4 
-                                    className={`font-bold text-lg flex-1 ${isFullyMastered ? 'text-emerald-400' : 'text-white'}`}
-                                  >
-                                    {displayName}
-                                  </h4>
-                                  <div className="flex items-center gap-1 opacity-0 group-hover/name:opacity-100 transition-opacity">
+                              <div className="flex flex-col gap-1 min-w-0 flex-1">
+                                <div className="flex items-center justify-between gap-3 group/name min-w-0">
+                                  <div className="flex items-center gap-4 min-w-0 flex-1">
+                                    <h4 
+                                      className={`font-bold text-lg ${isFullyMastered ? 'text-emerald-400' : 'text-white'}`}
+                                    >
+                                      {displayName}
+                                    </h4>
+                                    
+                                    {/* Chapter Stats - Integrated */}
+                                    <div className="hidden lg:flex items-center gap-3 shrink-0">
+                                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+                                        <Clock className="w-2.5 h-2.5 text-emerald-400/70" />
+                                        <span className="text-[9px] font-black text-emerald-400/70 uppercase tracking-widest">
+                                          {Math.floor((progress.studyTime || 0) / 3600)}h {Math.floor(((progress.studyTime || 0) % 3600) / 60)}m
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-rose-500/5 border border-rose-500/10">
+                                        <Target className="w-2.5 h-2.5 text-rose-400/70" />
+                                        <span className="text-[9px] font-black text-rose-400/70 uppercase tracking-widest">
+                                          {progress.questions || 0} Qs
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-1 opacity-0 group-hover/name:opacity-100 transition-opacity shrink-0">
                                     <button 
                                       onClick={() => setEditingChapter({ subject: activeSubject, id: chapter.id, name: displayName })}
                                       className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-purple-400 hover:bg-purple-500/10 transition-all"
@@ -575,18 +593,19 @@ const ProgressPage = () => {
                                     </button>
                                   </div>
                                 </div>
-                                {/* Chapter Stats */}
-                                <div className="flex items-center gap-4">
+                                
+                                {/* Mobile Stats */}
+                                <div className="flex lg:hidden items-center gap-4 mt-0.5">
                                   <div className="flex items-center gap-1.5">
-                                    <Clock className="w-3 h-3 text-emerald-400" />
-                                    <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">
+                                    <Clock className="w-2.5 h-2.5 text-emerald-400/50" />
+                                    <span className="text-[9px] font-black text-white/30 uppercase tracking-widest">
                                       {Math.floor((progress.studyTime || 0) / 3600)}h {Math.floor(((progress.studyTime || 0) % 3600) / 60)}m
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-1.5">
-                                    <Target className="w-3 h-3 text-rose-400" />
-                                    <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">
-                                      {progress.questions || 0} Questions
+                                    <Target className="w-2.5 h-2.5 text-rose-400/50" />
+                                    <span className="text-[9px] font-black text-white/30 uppercase tracking-widest">
+                                      {progress.questions || 0} Qs
                                     </span>
                                   </div>
                                 </div>

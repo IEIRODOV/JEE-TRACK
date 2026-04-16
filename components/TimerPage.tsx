@@ -220,6 +220,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   const currentQuestionsRef = useRef(currentQuestions);
   const elapsedSecondsRef = useRef(elapsedSeconds);
   const lastTickElapsedRef = useRef(0);
+  const lastSavedProgressSecondsRef = useRef(0);
 
   useEffect(() => {
     dailyStudySecondsRef.current = dailyStudySeconds;
@@ -231,6 +232,10 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     selectedChapterRef.current = selectedChapter;
     currentQuestionsRef.current = currentQuestions;
     elapsedSecondsRef.current = elapsedSeconds;
+    // Initialize lastSavedProgressSecondsRef when elapsedSeconds is first loaded
+    if (lastSavedProgressSecondsRef.current === 0 && elapsedSeconds > 0) {
+      lastSavedProgressSecondsRef.current = elapsedSeconds;
+    }
   }, [dailyStudySeconds, completedStudyDays, targetHours, subjectStudySeconds, subjectQuestionCounts, selectedSubject, currentQuestions, elapsedSeconds]);
 
   useEffect(() => {
@@ -373,11 +378,14 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       // Critical Fix: Sync elapsedSeconds from Firestore if it's higher than local (prevents reset to 0)
       // or if we haven't loaded stats yet.
       setElapsedSeconds(prev => {
-        if (!isTimerRunning) return firestoreTodaySeconds;
+        // Hard cap at 24 hours (86400 seconds)
+        const cappedFirestoreSeconds = Math.min(firestoreTodaySeconds, 86400);
+        
+        if (!isTimerRunning) return cappedFirestoreSeconds;
         // If timer is running, only update if local is 0 (initial load) 
         // or if Firestore is significantly ahead (sync from other device)
-        if (prev === 0 || firestoreTodaySeconds > prev + 60) {
-          return firestoreTodaySeconds;
+        if (prev === 0 || cappedFirestoreSeconds > prev + 60) {
+          return cappedFirestoreSeconds;
         }
         return prev;
       });
@@ -520,16 +528,40 @@ const TimerPage = ({ settings }: TimerPageProps) => {
           midnight.setHours(0, 0, 0, 0);
           const secondsUntilMidnight = Math.floor((midnight.getTime() - startTime) / 1000);
           const totalForPrevDay = accumulatedSeconds + secondsUntilMidnight;
+          const deltaForPrevDay = totalForPrevDay - lastSavedProgressSecondsRef.current;
           
           saveToFirestore(sessionStartTime.toDateString(), {
             studySeconds: totalForPrevDay,
             date: sessionStartTime.toDateString()
           });
 
+          // Save final progress for the previous day
+          const currentSub = selectedSubjectRef.current;
+          const currentChap = selectedChapterRef.current;
+          if (user && currentChap && currentSub && deltaForPrevDay > 0) {
+            const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
+            const year = localStorage.getItem('pulse_user_year') || '2027';
+            const examId = `${exam}_${year}`;
+            const progressRef = doc(db, 'users', user.uid, 'data', `progress-${examId}`);
+            setDoc(progressRef, {
+              progress: {
+                [currentSub]: {
+                  [currentChap]: {
+                    studyTime: increment(deltaForPrevDay)
+                  }
+                }
+              }
+            }, { merge: true }).catch(err => console.error("Midnight progress save failed:", err));
+          }
+
           setStartTime(midnight.getTime());
           setAccumulatedSeconds(0);
           setElapsedSeconds(0);
           lastTickElapsedRef.current = 0;
+          lastSavedProgressSecondsRef.current = 0;
+          
+          // CRITICAL: Save the reset state to Firestore/localStorage so refreshes don't restore old session
+          saveTimerState(true, midnight.getTime(), 0);
           return;
         }
 
@@ -581,15 +613,85 @@ const TimerPage = ({ settings }: TimerPageProps) => {
           subjectSeconds: currentSubjectSeconds,
           date: todayStr
         });
+
+        // Also update chapter-specific progress
+        const currentSub = selectedSubjectRef.current;
+        const currentChap = selectedChapterRef.current;
+        const delta = totalElapsed - lastSavedProgressSecondsRef.current;
+        
+        if (user && currentChap && currentSub && delta > 0) {
+          const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
+          const year = localStorage.getItem('pulse_user_year') || '2027';
+          const examId = `${exam}_${year}`;
+          const progressRef = doc(db, 'users', user.uid, 'data', `progress-${examId}`);
+          
+          try {
+            await setDoc(progressRef, {
+              progress: {
+                [currentSub]: {
+                  [currentChap]: {
+                    studyTime: increment(delta)
+                  }
+                }
+              }
+            }, { merge: true });
+            lastSavedProgressSecondsRef.current = totalElapsed;
+          } catch (error) {
+            console.error("Error saving periodic chapter progress:", error);
+          }
+        }
       }, 30000);
     }
     return () => {
       clearInterval(interval);
       clearInterval(periodicSave);
+      
+      // Final save on unmount if timer was running
+      if (isTimerRunning && startTime) {
+        const now = Date.now();
+        const sessionSeconds = Math.floor((now - startTime) / 1000);
+        const totalElapsed = accumulatedSeconds + sessionSeconds;
+        const todayStr = new Date().toDateString();
+        const currentSub = selectedSubjectRef.current;
+        const currentChap = selectedChapterRef.current;
+        const delta = totalElapsed - lastSavedProgressSecondsRef.current;
+
+        if (user) {
+          const batch = writeBatch(db);
+          const statsRef = doc(db, 'users', user.uid, 'dailyStats', todayStr);
+          batch.set(statsRef, {
+            studySeconds: totalElapsed,
+            lastUpdated: serverTimestamp()
+          }, { merge: true });
+
+          if (currentChap && currentSub && delta > 0) {
+            const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
+            const year = localStorage.getItem('pulse_user_year') || '2027';
+            const examId = `${exam}_${year}`;
+            const progressRef = doc(db, 'users', user.uid, 'data', `progress-${examId}`);
+            batch.set(progressRef, {
+              progress: {
+                [currentSub]: {
+                  [currentChap]: {
+                    studyTime: increment(delta)
+                  }
+                }
+              }
+            }, { merge: true });
+          }
+          batch.commit().catch(err => console.error("Final unmount save failed:", err));
+        }
+      }
     };
   }, [isTimerRunning, startTime, accumulatedSeconds, selectedSubject]);
 
   const saveToFirestore = async (dateStr: string, data: any) => {
+    // Safety check: Prevent saving unrealistic study time (more than 24 hours)
+    if (data.studySeconds && data.studySeconds > 86400) {
+      console.error("Unrealistic study time detected:", data.studySeconds);
+      data.studySeconds = 86400; // Cap at 24 hours
+    }
+
     if (!user) {
       // Update local state immediately for guest users
       if (data.questionsSolved !== undefined) {
@@ -806,7 +908,10 @@ const TimerPage = ({ settings }: TimerPageProps) => {
 
       // Update chapter-specific study time in progress data
       const currentSub = selectedSubjectRef.current;
-      if (selectedChapterRef.current && currentSub && secondsToAdd > 0) {
+      const currentChap = selectedChapterRef.current;
+      const deltaForProgress = elapsedSeconds - lastSavedProgressSecondsRef.current;
+
+      if (currentChap && currentSub && deltaForProgress > 0) {
         const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
         const year = localStorage.getItem('pulse_user_year') || '2027';
         const examId = `${exam}_${year}`;
@@ -814,12 +919,13 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         batch.set(progressRef, {
           progress: {
             [currentSub]: {
-              [selectedChapterRef.current]: {
-                studyTime: increment(secondsToAdd)
+              [currentChap]: {
+                studyTime: increment(deltaForProgress)
               }
             }
           }
         }, { merge: true });
+        lastSavedProgressSecondsRef.current = elapsedSeconds;
       }
 
       try {
