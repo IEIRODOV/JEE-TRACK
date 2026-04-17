@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, TrendingUp, Zap, Trash2, Cloud, CloudOff, Loader2, Activity, Clock, Target, Shield, Rocket, ZapIcon, History, Check } from 'lucide-react';
 import { playTickSound, playF1Sound, playTankSound, playJetSound } from '@/src/lib/sounds';
 import { motion, AnimatePresence } from 'motion/react';
@@ -22,6 +22,360 @@ import {
   increment,
   addDoc
 } from 'firebase/firestore';
+
+// --- High Performance Sub-components ---
+
+const PerformanceNode = React.memo(({ elapsedSeconds, targetHours, currentQuestions }: { elapsedSeconds: number, targetHours: number, currentQuestions: number }) => (
+  <motion.div 
+    initial={{ opacity: 0, x: -20 }}
+    animate={{ opacity: 1, x: 0 }}
+    className="p-6 rounded-[32px] glass border border-white/5 bg-white/[0.01] will-change-transform"
+  >
+    <div className="flex items-center gap-2 mb-8">
+      <TrendingUp className="w-3 h-3 text-green-400" />
+      <span className="text-[9px] font-black text-green-400/30 uppercase tracking-[0.4em] font-mono">Performance Node</span>
+    </div>
+    <div className="space-y-6">
+      <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+        <div className="flex justify-between items-end mb-3">
+          <div className="text-[8px] font-black text-white/20 uppercase tracking-widest font-mono">Efficiency</div>
+          <div className="text-lg font-mono font-bold text-green-400">
+            {Math.min(100, Math.round((elapsedSeconds / Math.max(1, targetHours * 3600)) * 100))}%
+          </div>
+        </div>
+        <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+          <motion.div 
+            animate={{ width: `${Math.min(100, (elapsedSeconds / Math.max(1, targetHours * 3600)) * 100)}%` }}
+            className="h-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.3)]"
+          />
+        </div>
+      </div>
+      <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+        <div className="flex justify-between items-end mb-3">
+          <div className="text-[8px] font-black text-white/20 uppercase tracking-widest font-mono">Focus Index</div>
+          <div className="text-lg font-mono font-bold text-pink-400">
+            {(Math.min(10, (currentQuestions / Math.max(1, elapsedSeconds / 3600)) / 5)).toFixed(1)}
+          </div>
+        </div>
+        <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+          <motion.div 
+            animate={{ width: `${Math.min(100, ((currentQuestions / Math.max(1, elapsedSeconds / 3600)) / 5) * 10)}%` }}
+            className="h-full bg-pink-500 shadow-[0_0_10px_rgba(236,72,153,0.3)]"
+          />
+        </div>
+      </div>
+    </div>
+  </motion.div>
+));
+
+const StreakBox = React.memo(({ streak, dailyStudySeconds }: { streak: number, dailyStudySeconds: Record<string, number> }) => (
+  <motion.div 
+    initial={{ opacity: 0, x: -20 }}
+    animate={{ opacity: 1, x: 0 }}
+    transition={{ delay: 0.2 }}
+    className="p-8 rounded-[48px] bg-white/[0.02] border border-white/10 relative overflow-hidden group will-change-transform"
+  >
+    <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+    <div className="flex items-center gap-3 mb-10">
+      <div className="w-8 h-8 rounded-full bg-yellow-500/10 flex items-center justify-center">
+        <Zap className="w-4 h-4 text-yellow-500" />
+      </div>
+      <span className="text-[10px] font-black text-yellow-500 uppercase tracking-[0.4em] font-mono">Persistence Engine</span>
+    </div>
+    <div className="flex flex-col gap-8 relative z-10">
+      <div className="flex items-end gap-4">
+        <div className="text-7xl font-mono font-black text-white tracking-tighter drop-shadow-[0_0_20px_rgba(234,179,8,0.3)]">
+          {streak}
+        </div>
+        <div className="flex flex-col mb-2">
+          <div className="text-[10px] font-black text-white/40 uppercase tracking-widest font-mono">DAY</div>
+          <div className="text-[12px] font-black text-yellow-500 uppercase tracking-[0.2em] font-mono">STREAK</div>
+        </div>
+      </div>
+      <div className="grid grid-cols-7 gap-2">
+        {[...Array(7)].map((_, i) => {
+          const date = new Date();
+          date.setDate(date.getDate() - (6 - i));
+          const dateStr = date.toDateString();
+          const isDone = (dailyStudySeconds[dateStr] || 0) >= 1800;
+          const dayName = date.toLocaleDateString('en-US', { weekday: 'narrow' });
+          return (
+            <div key={i} className="flex flex-col items-center gap-2">
+              <div 
+                className={`w-full h-8 rounded-xl transition-all duration-700 flex items-center justify-center
+                  ${isDone ? 'bg-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.4)]' : 'bg-white/5 border border-white/5'}`}
+              >
+                {isDone && <Check className="w-3 h-3 text-black font-black" />}
+              </div>
+              <span className={`text-[8px] font-black font-mono transition-colors ${isDone ? 'text-yellow-500' : 'text-white/20'}`}>{dayName}</span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="p-5 rounded-3xl bg-white/[0.03] border border-white/5 backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse" />
+          <p className="text-[9px] font-mono font-bold text-white/40 uppercase tracking-[0.1em] leading-relaxed">
+            Maintain 30m daily study depth.
+          </p>
+        </div>
+      </div>
+    </div>
+  </motion.div>
+));
+
+const QuestionLab = React.memo(({ currentQuestions, updateQuestions, playTickSound }: any) => (
+  <div className="space-y-6 order-3">
+    <motion.div 
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      whileHover={{ scale: 1.01 }}
+      className="p-12 rounded-[50px] bg-zinc-950/80 border-2 border-pink-500/20 flex flex-col items-center justify-center text-center group relative overflow-hidden min-h-[400px] will-change-transform"
+    >
+      <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 bg-gradient-to-b from-pink-500/10 via-transparent to-transparent opacity-40" />
+        <motion.div 
+          animate={{ 
+            opacity: [0.1, 0.3, 0.1],
+            scale: [1, 1.2, 1]
+          }}
+          transition={{ duration: 4, repeat: Infinity }}
+          className="absolute -top-20 -right-20 w-64 h-64 bg-pink-500/20 rounded-full blur-[100px]"
+        />
+      </div>
+
+      <div className="relative z-10 flex flex-col items-center w-full">
+        <div className="flex items-center gap-3 mb-8">
+          <div className="p-2 rounded-xl bg-pink-500/10 border border-pink-500/20">
+            <Target className="w-5 h-5 text-pink-500" />
+          </div>
+          <span className="text-[12px] font-black text-pink-400 uppercase tracking-[0.5em] font-mono">Question Lab</span>
+        </div>
+        
+        <div className="text-9xl font-mono font-black text-white tracking-tighter mb-12 tabular-nums drop-shadow-[0_0_40px_rgba(236,72,153,0.5)]">
+          {currentQuestions}
+        </div>
+
+        <div className="flex items-center gap-6 w-full">
+          <button 
+            onClick={() => {
+              playTickSound();
+              updateQuestions(Math.max(0, currentQuestions - 1));
+            }}
+            className="flex-1 py-6 rounded-3xl bg-white/5 border border-white/10 text-white font-black text-xl hover:bg-red-500/20 hover:border-red-500/40 transition-all active:scale-90 shadow-xl"
+          >
+            -
+          </button>
+          <button 
+            onClick={() => {
+              playTickSound();
+              updateQuestions(currentQuestions + 1);
+            }}
+            className="flex-1 py-6 rounded-3xl bg-pink-600 border border-pink-400 text-white font-black text-xl hover:bg-pink-500 hover:scale-105 transition-all active:scale-95 shadow-[0_15px_30px_rgba(236,72,153,0.4)]"
+          >
+            +
+          </button>
+        </div>
+
+        <div className="mt-8 flex items-center gap-2">
+          <div className="w-2 h-2 bg-pink-500 rounded-full animate-ping" />
+          <span className="text-[10px] font-mono font-black text-white/30 uppercase tracking-widest">Live Tracking Active</span>
+        </div>
+      </div>
+    </motion.div>
+  </div>
+));
+
+const DistributionCharts = React.memo(({ subjectStudySeconds, subjectQuestionCounts, dailyStudySeconds, dailyQuestionCounts, getSubjectColor }: any) => {
+  const today = new Date().toDateString();
+  const todayStudyData = Object.entries(subjectStudySeconds[today] || {}).map(([name, count]: any) => ({ name, value: count }));
+  const todayQuestionData = Object.entries(subjectQuestionCounts[today] || {}).map(([name, count]: any) => ({ name, value: count }));
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="p-8 rounded-[40px] glass border border-white/10 relative overflow-hidden will-change-transform"
+      >
+        <div className="flex items-center gap-2 mb-8">
+          <div className="w-1.5 h-1.5 bg-violet-500 rounded-full" />
+          <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Subject Time Distribution</span>
+        </div>
+        <div className="flex flex-col items-center">
+          <div className="h-64 w-full relative">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={todayStudyData.length > 0 ? todayStudyData : [{ name: 'No Data', value: 1 }]}
+                  cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value"
+                >
+                  {todayStudyData.length === 0 ? <Cell fill="rgba(255,255,255,0.05)" stroke="none" /> : 
+                    todayStudyData.map((entry, index) => <Cell key={`cell-${index}`} fill={getSubjectColor(entry.name, index)} stroke="none" />)}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                  itemStyle={{ color: '#fff', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
+                  formatter={(value: number) => [`${(value / 3600).toFixed(1)}h`, 'Study Time']}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Total</span>
+              <span className="text-2xl font-mono font-black text-white">
+                {((dailyStudySeconds[today] || 0) / 3600).toFixed(1)}h
+              </span>
+            </div>
+          </div>
+          <div className="w-full mt-6 space-y-2">
+            {Object.entries(subjectStudySeconds[today] || {}).map(([name, count]: any, index) => (
+              <div key={name} className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/10">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getSubjectColor(name, index) }} />
+                  <span className="text-[10px] font-bold text-white/80 uppercase tracking-wider">{name}</span>
+                </div>
+                <span className="text-[10px] font-mono font-bold text-white">{(count / 3600).toFixed(1)}h</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </motion.div>
+
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="p-8 rounded-[40px] glass border border-white/10 relative overflow-hidden will-change-transform"
+      >
+        <div className="flex items-center gap-2 mb-8">
+          <div className="w-1.5 h-1.5 bg-rose-500 rounded-full" />
+          <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Subject Question Distribution</span>
+        </div>
+        <div className="flex flex-col items-center">
+          <div className="h-64 w-full relative">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={todayQuestionData.length > 0 ? todayQuestionData : [{ name: 'No Data', value: 1 }]}
+                  cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value"
+                >
+                  {todayQuestionData.length === 0 ? <Cell fill="rgba(255,255,255,0.05)" stroke="none" /> : 
+                    todayQuestionData.map((entry, index) => <Cell key={`cell-q-${index}`} fill={getSubjectColor(entry.name, index)} stroke="none" />)}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                  itemStyle={{ color: '#fff', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
+                  formatter={(value: number) => [value, 'Questions']}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Total</span>
+              <span className="text-2xl font-mono font-black text-white">
+                {dailyQuestionCounts[today] || 0}
+              </span>
+            </div>
+          </div>
+          <div className="w-full mt-6 space-y-2">
+            {Object.entries(subjectQuestionCounts[today] || {}).map(([name, count]: any, index) => (
+              <div key={name} className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/10">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getSubjectColor(name, index) }} />
+                  <span className="text-[10px] font-bold text-white/80 uppercase tracking-wider">{name}</span>
+                </div>
+                <span className="text-[10px] font-mono font-bold text-white">{count} Qs</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+});
+
+const BarGraphs = React.memo(({ barChartData, targetHours, questionTarget }: any) => (
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="p-6 rounded-[32px] glass border border-white/10 will-change-transform"
+    >
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2">
+          <div className="w-1.5 h-1.5 bg-blue-400 rounded-full" />
+          <span className="text-[10px] font-black text-white/20 uppercase tracking-widest font-mono">Study Hours (Last 7 Days)</span>
+        </div>
+      </div>
+      <div className="h-48 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={barChartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+            <XAxis 
+              dataKey="name" 
+              axisLine={false} tickLine={false} 
+              tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 900 }} 
+            />
+            <YAxis hide />
+            <Tooltip 
+              cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+              contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
+              itemStyle={{ color: '#10b981', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
+              formatter={(value: number) => [`${value.toFixed(1)}h`, 'Hours']}
+            />
+            <Bar dataKey="hours" radius={[4, 4, 0, 0]}>
+              {barChartData.map((entry: any, index: number) => (
+                <Cell 
+                  key={`cell-${index}`} 
+                  fill={entry.hours >= targetHours ? '#10b981' : 'rgba(16,185,129,0.3)'} 
+                />
+              ))}
+            </Bar>
+            <ReferenceLine y={targetHours} stroke="#10b981" strokeDasharray="3 3" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </motion.div>
+
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="p-6 rounded-[32px] glass border border-white/10 will-change-transform"
+    >
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2">
+          <div className="w-1.5 h-1.5 bg-rose-500 rounded-full" />
+          <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Questions Solved (Last 7 Days)</span>
+        </div>
+      </div>
+      <div className="h-48 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={barChartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+            <XAxis 
+              dataKey="name" 
+              axisLine={false} tickLine={false} 
+              tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 900 }} 
+            />
+            <YAxis hide />
+            <Tooltip 
+              cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+              contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
+              itemStyle={{ color: '#f43f5e', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
+            />
+            <Bar dataKey="questions" radius={[4, 4, 0, 0]}>
+              {barChartData.map((entry: any, index: number) => (
+                <Cell 
+                  key={`cell-${index}`} 
+                  fill={entry.questions >= questionTarget ? '#f43f5e' : 'rgba(244,63,94,0.3)'} 
+                />
+              ))}
+            </Bar>
+            <ReferenceLine y={questionTarget} stroke="#f43f5e" strokeDasharray="3 3" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </motion.div>
+  </div>
+));
 
 const SUBJECT_COLORS: Record<string, string> = {
   'Maths': '#a855f7',
@@ -997,7 +1351,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     }
   };
 
-  const updateQuestions = async (val: number) => {
+  const updateQuestions = useCallback(async (val: number) => {
     const diff = val - currentQuestionsRef.current;
     const today = new Date().toDateString();
     setCurrentQuestions(val);
@@ -1061,7 +1415,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     if (diff > 0) {
       await syncGlobalProgress(diff, 0);
     }
-  };
+  }, [user, dailyQuestionCounts, syncGlobalProgress]);
 
   const toggleMockTest = async (dateStr: string) => {
     const isCurrentlyMock = mockTestDates.includes(dateStr);
@@ -1473,107 +1827,23 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                 <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr_1fr] gap-8 mb-12 items-start">
                   {/* Left Column: Stats & Metrics */}
                   <div className="space-y-6 order-2 lg:order-1">
-                    <motion.div 
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className="p-6 rounded-[32px] glass border border-white/5 bg-white/[0.01]"
-                    >
-                      <div className="flex items-center gap-2 mb-8">
-                        <TrendingUp className="w-3 h-3 text-green-400" />
-                        <span className="text-[9px] font-black text-green-400/30 uppercase tracking-[0.4em] font-mono">Performance Node</span>
-                      </div>
-                      <div className="space-y-6">
-                        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
-                          <div className="flex justify-between items-end mb-3">
-                            <div className="text-[8px] font-black text-white/20 uppercase tracking-widest font-mono">Efficiency</div>
-                            <div className="text-lg font-mono font-bold text-green-400">
-                              {Math.min(100, Math.round((elapsedSeconds / Math.max(1, targetHours * 3600)) * 100))}%
-                            </div>
-                          </div>
-                          <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                            <motion.div 
-                              animate={{ width: `${Math.min(100, (elapsedSeconds / Math.max(1, targetHours * 3600)) * 100)}%` }}
-                              className="h-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.3)]"
-                            />
-                          </div>
-                        </div>
-                        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
-                          <div className="flex justify-between items-end mb-3">
-                            <div className="text-[8px] font-black text-white/20 uppercase tracking-widest font-mono">Focus Index</div>
-                            <div className="text-lg font-mono font-bold text-pink-400">
-                              {(Math.min(10, (currentQuestions / Math.max(1, elapsedSeconds / 3600)) / 5)).toFixed(1)}
-                            </div>
-                          </div>
-                          <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                            <motion.div 
-                              animate={{ width: `${Math.min(100, ((currentQuestions / Math.max(1, elapsedSeconds / 3600)) / 5) * 10)}%` }}
-                              className="h-full bg-pink-500 shadow-[0_0_10px_rgba(236,72,153,0.3)]"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
+                    <PerformanceNode 
+                      elapsedSeconds={elapsedSeconds} 
+                      targetHours={targetHours} 
+                      currentQuestions={currentQuestions} 
+                    />
 
-                    <motion.div 
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.2 }}
-                      className="p-8 rounded-[48px] bg-white/[0.02] border border-white/10 relative overflow-hidden group"
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                      <div className="flex items-center gap-3 mb-10">
-                        <div className="w-8 h-8 rounded-full bg-yellow-500/10 flex items-center justify-center">
-                          <Zap className="w-4 h-4 text-yellow-500" />
-                        </div>
-                        <span className="text-[10px] font-black text-yellow-500 uppercase tracking-[0.4em] font-mono">Persistence</span>
-                      </div>
-                      <div className="flex flex-col gap-8 relative z-10">
-                        <div className="flex items-end gap-4">
-                          <div className="text-7xl font-mono font-black text-white tracking-tighter drop-shadow-[0_0_20px_rgba(234,179,8,0.3)]">
-                            {streak}
-                          </div>
-                          <div className="flex flex-col mb-2">
-                            <div className="text-[10px] font-black text-white/40 uppercase tracking-widest font-mono">DAY</div>
-                            <div className="text-[12px] font-black text-yellow-500 uppercase tracking-[0.2em] font-mono">STREAK</div>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-7 gap-2">
-                          {[...Array(7)].map((_, i) => {
-                            const date = new Date();
-                            date.setDate(date.getDate() - (6 - i));
-                            const dateStr = date.toDateString();
-                            const isDone = (dailyStudySeconds[dateStr] || 0) >= 1800;
-                            const dayName = date.toLocaleDateString('en-US', { weekday: 'narrow' });
-                            return (
-                              <div key={i} className="flex flex-col items-center gap-2">
-                                <div 
-                                  className={`w-full h-8 rounded-xl transition-all duration-700 flex items-center justify-center
-                                    ${isDone ? 'bg-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.4)]' : 'bg-white/5 border border-white/5'}`}
-                                >
-                                  {isDone && <Check className="w-3 h-3 text-black font-black" />}
-                                </div>
-                                <span className={`text-[8px] font-black font-mono transition-colors ${isDone ? 'text-yellow-500' : 'text-white/20'}`}>{dayName}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <div className="p-5 rounded-3xl bg-white/[0.03] border border-white/5 backdrop-blur-md">
-                          <div className="flex items-center gap-3">
-                            <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse" />
-                            <p className="text-[9px] font-mono font-bold text-white/40 uppercase tracking-[0.1em] leading-relaxed">
-                              Maintain 30m daily study depth.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
+                    <StreakBox 
+                      streak={streak} 
+                      dailyStudySeconds={dailyStudySeconds} 
+                    />
                   </div>
 
                   {/* Center Column: Futuristic Stopwatch */}
                   <div className="order-1 lg:order-2">
                     <motion.div 
                       whileHover={{ scale: 1.02 }}
-                      className="p-10 rounded-[60px] bg-black border border-white/10 flex flex-col items-center justify-center text-center group relative overflow-hidden w-full max-w-[450px] mx-auto"
+                      className="p-10 rounded-[60px] bg-neutral-950 border border-white/10 flex flex-col items-center justify-center text-center group relative overflow-hidden w-full max-w-[450px] mx-auto will-change-transform"
                     >
                       {/* Animated Background Rings */}
                       <div className="absolute inset-0 z-0">
@@ -1736,309 +2006,28 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                   </div>
 
                   {/* Right Column: Question Tracker */}
-                  <div className="space-y-6 order-3">
-                    <motion.div 
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      whileHover={{ scale: 1.02 }}
-                      className="p-12 rounded-[50px] bg-zinc-950/80 border-2 border-pink-500/20 flex flex-col items-center justify-center text-center group relative overflow-hidden min-h-[400px]"
-                    >
-                      <div className="absolute inset-0 z-0">
-                        <div className="absolute inset-0 bg-gradient-to-b from-pink-500/10 via-transparent to-transparent opacity-40" />
-                        <motion.div 
-                          animate={{ 
-                            opacity: [0.1, 0.3, 0.1],
-                            scale: [1, 1.2, 1]
-                          }}
-                          transition={{ duration: 4, repeat: Infinity }}
-                          className="absolute -top-20 -right-20 w-64 h-64 bg-pink-500/20 rounded-full blur-[100px]"
-                        />
-                      </div>
-
-                      <div className="relative z-10 flex flex-col items-center w-full">
-                        <div className="flex items-center gap-3 mb-8">
-                          <div className="p-2 rounded-xl bg-pink-500/10 border border-pink-500/20">
-                            <Target className="w-5 h-5 text-pink-500" />
-                          </div>
-                          <span className="text-[12px] font-black text-pink-400 uppercase tracking-[0.5em] font-mono">Question Lab</span>
-                        </div>
-                        
-                        <div className="text-9xl font-mono font-black text-white tracking-tighter mb-12 tabular-nums drop-shadow-[0_0_40px_rgba(236,72,153,0.5)]">
-                          {currentQuestions}
-                        </div>
-
-                        <div className="flex items-center gap-6 w-full">
-                          <button 
-                            onClick={() => {
-                              playTickSound();
-                              updateQuestions(Math.max(0, currentQuestions - 1));
-                            }}
-                            className="flex-1 py-6 rounded-3xl bg-white/5 border border-white/10 text-white font-black text-xl hover:bg-red-500/20 hover:border-red-500/40 transition-all active:scale-90 shadow-xl"
-                          >
-                            -
-                          </button>
-                          <button 
-                            onClick={() => {
-                              playTickSound();
-                              updateQuestions(currentQuestions + 1);
-                            }}
-                            className="flex-1 py-6 rounded-3xl bg-pink-600 border border-pink-400 text-white font-black text-xl hover:bg-pink-500 hover:scale-105 transition-all active:scale-95 shadow-[0_15px_30px_rgba(236,72,153,0.4)]"
-                          >
-                            +
-                          </button>
-                        </div>
-
-                        <div className="mt-8 flex items-center gap-2">
-                          <div className="w-2 h-2 bg-pink-500 rounded-full animate-ping" />
-                          <span className="text-[10px] font-mono font-black text-white/30 uppercase tracking-widest">Live Tracking Active</span>
-                        </div>
-                      </div>
-                    </motion.div>
-                  </div>
+                  <QuestionLab 
+                    currentQuestions={currentQuestions} 
+                    updateQuestions={updateQuestions} 
+                    playTickSound={playTickSound} 
+                  />
                 </div>
 
           {/* Distribution Charts */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-            {/* Subject Time Distribution */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="p-8 rounded-[40px] glass border border-white/10 relative overflow-hidden"
-            >
-              <div className="flex items-center gap-2 mb-8">
-                <div className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
-                <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Subject Time Distribution</span>
-              </div>
-              
-              <div className="flex flex-col items-center">
-                <div className="h-64 w-full relative">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={(() => {
-                          const today = new Date().toDateString();
-                          const todaySubjects = subjectStudySeconds[today] || {};
-                          const data = Object.entries(todaySubjects).map(([name, seconds]) => ({
-                            name,
-                            value: seconds
-                          }));
-                          return data.length > 0 ? data : [{ name: 'No Data', value: 1 }];
-                        })()}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {(() => {
-                          const today = new Date().toDateString();
-                          const todaySubjects = subjectStudySeconds[today] || {};
-                          const data = Object.entries(todaySubjects);
-                          if (data.length === 0) {
-                            return <Cell fill="rgba(255,255,255,0.05)" stroke="none" />;
-                          }
-                          return data.map(([name, _], index) => (
-                            <Cell key={`cell-${index}`} fill={getSubjectColor(name, index)} stroke="none" />
-                          ));
-                        })()}
-                      </Pie>
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
-                        itemStyle={{ color: '#fff', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
-                        formatter={(value: number) => [formatTime(value), 'Time']}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Total</span>
-                    <span className="text-2xl font-mono font-black text-white">
-                      {formatTime(dailyStudySeconds[new Date().toDateString()] || 0)}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="w-full mt-6 space-y-2">
-                  {(() => {
-                    const today = new Date().toDateString();
-                    const todaySubjects = subjectStudySeconds[today] || {};
-                    return Object.entries(todaySubjects).map(([name, seconds], index) => (
-                      <div key={name} className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/10">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getSubjectColor(name, index) }} />
-                          <span className="text-[10px] font-bold text-white/80 uppercase tracking-wider">{name}</span>
-                        </div>
-                        <span className="text-[10px] font-mono font-bold text-white">{formatTime(Number(seconds))}</span>
-                      </div>
-                    ));
-                  })()}
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Subject Question Distribution */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="p-8 rounded-[40px] glass border border-white/10 relative overflow-hidden"
-            >
-              <div className="flex items-center gap-2 mb-8">
-                <div className="w-1.5 h-1.5 bg-rose-500 rounded-full" />
-                <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Subject Question Distribution</span>
-              </div>
-              
-              <div className="flex flex-col items-center">
-                <div className="h-64 w-full relative">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={(() => {
-                          const today = new Date().toDateString();
-                          const todaySubjects = subjectQuestionCounts[today] || {};
-                          const data = Object.entries(todaySubjects).map(([name, count]) => ({
-                            name,
-                            value: count
-                          }));
-                          return data.length > 0 ? data : [{ name: 'No Data', value: 1 }];
-                        })()}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {(() => {
-                          const today = new Date().toDateString();
-                          const todaySubjects = subjectQuestionCounts[today] || {};
-                          const data = Object.entries(todaySubjects);
-                          if (data.length === 0) {
-                            return <Cell fill="rgba(255,255,255,0.05)" stroke="none" />;
-                          }
-                          return data.map(([name, _], index) => (
-                            <Cell key={`cell-q-${index}`} fill={getSubjectColor(name, index)} stroke="none" />
-                          ));
-                        })()}
-                      </Pie>
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
-                        itemStyle={{ color: '#fff', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
-                        formatter={(value: number) => [value, 'Questions']}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Total</span>
-                    <span className="text-2xl font-mono font-black text-white">
-                      {dailyQuestionCounts[new Date().toDateString()] || 0}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="w-full mt-6 space-y-2">
-                  {(() => {
-                    const today = new Date().toDateString();
-                    const todaySubjects = subjectQuestionCounts[today] || {};
-                    return Object.entries(todaySubjects).map(([name, count], index) => (
-                      <div key={name} className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/10">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getSubjectColor(name, index) }} />
-                          <span className="text-[10px] font-bold text-white/80 uppercase tracking-wider">{name}</span>
-                        </div>
-                        <span className="text-[10px] font-mono font-bold text-white">{count} Qs</span>
-                      </div>
-                    ));
-                  })()}
-                </div>
-              </div>
-            </motion.div>
-          </div>
+          <DistributionCharts 
+            subjectStudySeconds={subjectStudySeconds}
+            subjectQuestionCounts={subjectQuestionCounts}
+            dailyStudySeconds={dailyStudySeconds}
+            dailyQuestionCounts={dailyQuestionCounts}
+            getSubjectColor={getSubjectColor}
+          />
 
           {/* Bar Graphs Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="p-6 rounded-[32px] glass border border-white/10"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-blue-400 rounded-full" />
-                  <span className="text-[10px] font-black text-white/20 uppercase tracking-widest font-mono">Study Hours (Last 7 Days)</span>
-                </div>
-              </div>
-              <div className="h-48 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={barChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                    <XAxis 
-                      dataKey="name" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 900 }} 
-                    />
-                    <YAxis hide />
-                    <Tooltip 
-                      cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                      contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
-                      itemStyle={{ color: '#10b981', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
-                      formatter={(value: number) => [`${value.toFixed(1)}h`, 'Hours']}
-                    />
-                    <Bar dataKey="hours" radius={[4, 4, 0, 0]}>
-                      {barChartData.map((entry, index) => (
-                        <Cell 
-                          key={`cell-${index}`} 
-                          fill={entry.hours >= targetHours ? '#10b981' : 'rgba(16,185,129,0.3)'} 
-                        />
-                      ))}
-                    </Bar>
-                    <ReferenceLine y={targetHours} stroke="#10b981" strokeDasharray="3 3" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </motion.div>
-
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="p-6 rounded-[32px] glass border border-white/10"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-rose-500 rounded-full" />
-                  <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Questions Solved (Last 7 Days)</span>
-                </div>
-              </div>
-              <div className="h-48 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={barChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                    <XAxis 
-                      dataKey="name" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 900 }} 
-                    />
-                    <YAxis hide />
-                    <Tooltip 
-                      cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                      contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
-                      itemStyle={{ color: '#f43f5e', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
-                    />
-                    <Bar dataKey="questions" radius={[4, 4, 0, 0]}>
-                      {barChartData.map((entry, index) => (
-                        <Cell 
-                          key={`cell-${index}`} 
-                          fill={entry.questions >= questionTarget ? '#f43f5e' : 'rgba(244,63,94,0.3)'} 
-                        />
-                      ))}
-                    </Bar>
-                    <ReferenceLine y={questionTarget} stroke="#f43f5e" strokeDasharray="3 3" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </motion.div>
-          </div>
+          <BarGraphs 
+            barChartData={barChartData}
+            targetHours={targetHours}
+            questionTarget={questionTarget}
+          />
 
           {/* Go to Test Section Button */}
           <div className="flex justify-center mb-12">
