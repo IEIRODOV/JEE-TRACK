@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, TrendingUp, Zap, Trash2, Cloud, CloudOff, Loader2, Activity, Clock, Target, Shield, Rocket, ZapIcon, History } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, TrendingUp, Zap, Trash2, Cloud, CloudOff, Loader2, Activity, Clock, Target, Shield, Rocket, ZapIcon, History, Check } from 'lucide-react';
 import { playTickSound, playF1Sound, playTankSound, playJetSound } from '@/src/lib/sounds';
 import { motion, AnimatePresence } from 'motion/react';
 import AnoAI from "@/components/ui/animated-shader-background";
@@ -1517,88 +1517,53 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                     <motion.div 
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.15 }}
-                      className="p-6 rounded-[32px] glass border border-white/5 bg-white/[0.01]"
-                    >
-                      <div className="flex items-center gap-2 mb-8">
-                        <Target className="w-3 h-3 text-purple-400" />
-                        <span className="text-[9px] font-black text-white/20 uppercase tracking-[0.4em] font-mono">Mission Targets</span>
-                      </div>
-                      <div className="space-y-6">
-                        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
-                          <div className="flex justify-between items-center mb-3">
-                            <span className="text-[8px] font-black text-white/20 uppercase tracking-widest font-mono">Protocol Study</span>
-                            <span className="text-xs font-mono font-bold text-white tracking-widest">{targetHours}H</span>
-                          </div>
-                          <input 
-                            type="range"
-                            min="1"
-                            max="18"
-                            value={targetHours}
-                            onChange={(e) => {
-                              const val = parseInt(e.target.value);
-                              setTargetHours(val);
-                              localStorage.setItem('pulse_target_study_hours', String(val));
-                            }}
-                            className="w-full h-1 bg-white/5 rounded-full appearance-none cursor-pointer accent-purple-500"
-                          />
-                        </div>
-                        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
-                          <div className="flex justify-between items-center mb-3">
-                            <span className="text-[8px] font-black text-white/20 uppercase tracking-widest font-mono">Question Threshold</span>
-                            <span className="text-xs font-mono font-bold text-white tracking-widest">{questionTarget}</span>
-                          </div>
-                          <input 
-                            type="range"
-                            min="10"
-                            max="200"
-                            step="10"
-                            value={questionTarget}
-                            onChange={(e) => {
-                              const val = parseInt(e.target.value);
-                              setQuestionTarget(val);
-                              localStorage.setItem('pulse_target_question_count', String(val));
-                            }}
-                            className="w-full h-1 bg-white/5 rounded-full appearance-none cursor-pointer accent-blue-500"
-                          />
-                        </div>
-                      </div>
-                    </motion.div>
-
-                    <motion.div 
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.2 }}
-                      className="p-6 rounded-[32px] glass border border-white/10"
+                      className="p-8 rounded-[48px] bg-white/[0.02] border border-white/10 relative overflow-hidden group"
                     >
-                      <div className="flex items-center gap-2 mb-8">
-                        <Zap className="w-3 h-3 text-yellow-500" />
-                        <span className="text-[9px] font-black text-yellow-500/30 uppercase tracking-[0.4em] font-mono">Persistence Engine</span>
+                      <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="flex items-center gap-3 mb-10">
+                        <div className="w-8 h-8 rounded-full bg-yellow-500/10 flex items-center justify-center">
+                          <Zap className="w-4 h-4 text-yellow-500" />
+                        </div>
+                        <span className="text-[10px] font-black text-yellow-500 uppercase tracking-[0.4em] font-mono">Persistence</span>
                       </div>
-                      <div className="flex flex-col gap-6">
-                        <div className="flex items-end gap-3">
-                          <div className="text-5xl font-mono font-black text-white tracking-tighter bg-gradient-to-b from-white to-white/40 bg-clip-text text-transparent">
+                      <div className="flex flex-col gap-8 relative z-10">
+                        <div className="flex items-end gap-4">
+                          <div className="text-7xl font-mono font-black text-white tracking-tighter drop-shadow-[0_0_20px_rgba(234,179,8,0.3)]">
                             {streak}
                           </div>
-                          <div className="text-[10px] font-black text-white/20 uppercase tracking-widest mb-2 font-mono">CYCLE STREAK</div>
+                          <div className="flex flex-col mb-2">
+                            <div className="text-[10px] font-black text-white/40 uppercase tracking-widest font-mono">DAY</div>
+                            <div className="text-[12px] font-black text-yellow-500 uppercase tracking-[0.2em] font-mono">STREAK</div>
+                          </div>
                         </div>
-                        <div className="flex gap-1">
+                        <div className="grid grid-cols-7 gap-2">
                           {[...Array(7)].map((_, i) => {
                             const date = new Date();
                             date.setDate(date.getDate() - (6 - i));
                             const dateStr = date.toDateString();
                             const isDone = (dailyStudySeconds[dateStr] || 0) >= 1800;
+                            const dayName = date.toLocaleDateString('en-US', { weekday: 'narrow' });
                             return (
-                              <div 
-                                key={i} 
-                                className={`flex-1 h-1.5 rounded-full transition-all duration-500 ${isDone ? 'bg-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.6)]' : 'bg-white/5'}`}
-                                title={dateStr}
-                              />
+                              <div key={i} className="flex flex-col items-center gap-2">
+                                <div 
+                                  className={`w-full h-8 rounded-xl transition-all duration-700 flex items-center justify-center
+                                    ${isDone ? 'bg-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.4)]' : 'bg-white/5 border border-white/5'}`}
+                                >
+                                  {isDone && <Check className="w-3 h-3 text-black font-black" />}
+                                </div>
+                                <span className={`text-[8px] font-black font-mono transition-colors ${isDone ? 'text-yellow-500' : 'text-white/20'}`}>{dayName}</span>
+                              </div>
                             );
                           })}
                         </div>
-                        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
-                          <p className="text-[8px] font-mono font-bold text-white/30 uppercase tracking-[0.2em] leading-relaxed italic">Minimum 30m daily study required to sustain persistence.</p>
+                        <div className="p-5 rounded-3xl bg-white/[0.03] border border-white/5 backdrop-blur-md">
+                          <div className="flex items-center gap-3">
+                            <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse" />
+                            <p className="text-[9px] font-mono font-bold text-white/40 uppercase tracking-[0.1em] leading-relaxed">
+                              Maintain 30m daily study depth.
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </motion.div>
@@ -1775,28 +1740,40 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                     <motion.div 
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      className="p-8 rounded-[40px] bg-black border border-white/10 flex flex-col items-center justify-center text-center group relative overflow-hidden"
+                      whileHover={{ scale: 1.02 }}
+                      className="p-12 rounded-[50px] bg-zinc-950/80 border-2 border-pink-500/20 flex flex-col items-center justify-center text-center group relative overflow-hidden min-h-[400px]"
                     >
-                      <div className="absolute inset-0 p-[2px] overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-blue-500/10 opacity-50" />
+                      <div className="absolute inset-0 z-0">
+                        <div className="absolute inset-0 bg-gradient-to-b from-pink-500/10 via-transparent to-transparent opacity-40" />
+                        <motion.div 
+                          animate={{ 
+                            opacity: [0.1, 0.3, 0.1],
+                            scale: [1, 1.2, 1]
+                          }}
+                          transition={{ duration: 4, repeat: Infinity }}
+                          className="absolute -top-20 -right-20 w-64 h-64 bg-pink-500/20 rounded-full blur-[100px]"
+                        />
                       </div>
-                      <div className="absolute inset-[1px] bg-black rounded-[39px] z-0" />
 
                       <div className="relative z-10 flex flex-col items-center w-full">
-                        <div className="flex items-center gap-2 mb-4">
-                          <Target className="w-4 h-4 text-pink-500" />
-                          <span className="text-[10px] font-black text-pink-400/40 uppercase tracking-[0.3em]">Question Solved</span>
+                        <div className="flex items-center gap-3 mb-8">
+                          <div className="p-2 rounded-xl bg-pink-500/10 border border-pink-500/20">
+                            <Target className="w-5 h-5 text-pink-500" />
+                          </div>
+                          <span className="text-[12px] font-black text-pink-400 uppercase tracking-[0.5em] font-mono">Question Lab</span>
                         </div>
-                        <div className="text-6xl font-mono font-black text-white tracking-tighter mb-8 tabular-nums drop-shadow-[0_0_15px_rgba(236,72,153,0.3)]">
+                        
+                        <div className="text-9xl font-mono font-black text-white tracking-tighter mb-12 tabular-nums drop-shadow-[0_0_40px_rgba(236,72,153,0.5)]">
                           {currentQuestions}
                         </div>
-                        <div className="flex items-center gap-4 w-full">
+
+                        <div className="flex items-center gap-6 w-full">
                           <button 
                             onClick={() => {
                               playTickSound();
                               updateQuestions(Math.max(0, currentQuestions - 1));
                             }}
-                            className="flex-1 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-pink-500/10 hover:border-pink-500/30 transition-all active:scale-95"
+                            className="flex-1 py-6 rounded-3xl bg-white/5 border border-white/10 text-white font-black text-xl hover:bg-red-500/20 hover:border-red-500/40 transition-all active:scale-90 shadow-xl"
                           >
                             -
                           </button>
@@ -1805,10 +1782,15 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                               playTickSound();
                               updateQuestions(currentQuestions + 1);
                             }}
-                            className="flex-1 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-pink-500/10 hover:border-pink-500/30 transition-all active:scale-95"
+                            className="flex-1 py-6 rounded-3xl bg-pink-600 border border-pink-400 text-white font-black text-xl hover:bg-pink-500 hover:scale-105 transition-all active:scale-95 shadow-[0_15px_30px_rgba(236,72,153,0.4)]"
                           >
                             +
                           </button>
+                        </div>
+
+                        <div className="mt-8 flex items-center gap-2">
+                          <div className="w-2 h-2 bg-pink-500 rounded-full animate-ping" />
+                          <span className="text-[10px] font-mono font-black text-white/30 uppercase tracking-widest">Live Tracking Active</span>
                         </div>
                       </div>
                     </motion.div>
