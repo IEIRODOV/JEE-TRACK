@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle2, Circle, BookOpen, Activity, Plus, Pencil, Trash2, CheckSquare, Square, Check, ChevronUp, ChevronDown, GripVertical, Clock, Target } from 'lucide-react';
-import { auth, db, doc, onSnapshot, setDoc, handleFirestoreError, OperationType } from '@/src/firebase';
+import { CheckCircle2, Circle, BookOpen, Activity, Plus, Pencil, Trash2, CheckSquare, Square, Check, ChevronUp, ChevronDown, GripVertical, Clock, Target, Info } from 'lucide-react';
+import { auth, db, doc, onSnapshot, setDoc, updateDoc, handleFirestoreError, OperationType } from '@/src/firebase';
 import { SYLLABUS_DATA } from '@/src/constants/syllabus';
 import { playTickSound, playCheckSound } from '@/src/lib/sounds';
 
@@ -46,6 +46,7 @@ const ProgressPage = () => {
   const [hiddenChapters, setHiddenChapters] = useState<Record<string, string[]>>({});
   const [editingChapter, setEditingChapter] = useState<{ subject: string, id: string, name: string } | null>(null);
   const [newChapterName, setNewChapterName] = useState('');
+  const [showChapterStats, setShowChapterStats] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((u) => setUser(u));
@@ -94,6 +95,7 @@ const ProgressPage = () => {
   const updateProgress = async (subject: string, chapterId: string, field: keyof ChapterProgress, value: any) => {
     if (!user) return;
 
+    // Optimistically update pulse state
     const newProgress = { ...progressData };
     if (!newProgress[subject]) newProgress[subject] = {};
     if (!newProgress[subject][chapterId]) {
@@ -106,7 +108,9 @@ const ProgressPage = () => {
         pyqMainsYears: [],
         pyqAdvancedYears: [],
         revisionCount: 0,
-        level: levels[0]
+        level: levels[0],
+        studyTime: 0,
+        questions: 0
       };
     }
 
@@ -125,7 +129,26 @@ const ProgressPage = () => {
     setProgressData(newProgress);
 
     try {
-      await setDoc(doc(db, 'users', user.uid, 'data', `progress-${examInfo.id}`), { progress: newProgress }, { merge: true });
+      // CRITICAL FIX: Use dot notation to avoid overwriting fields like 'studyTime' and 'questions'
+      // which are managed by the Timer page.
+      const docRef = doc(db, 'users', user.uid, 'data', `progress-${examInfo.id}`);
+      
+      // If the subject/chapter doesn't exist yet, we must initialize it
+      // Standard setDoc {merge: true} replaces the whole chapter object if we pass { progress: { [subject]: { [chapterId]: ... } } }
+      // So we use updateDoc with a dynamic path.
+      await updateDoc(docRef, {
+        [`progress.${subject}.${chapterId}.${field}`]: value
+      }).catch(async (err) => {
+        // If updateDoc fails (e.g. nested path doesn't exist), fall back to setDoc
+        // but ONLY if the error suggests a missing path.
+        if (err.code === 'not-found' || err.message.includes('not found')) {
+           await setDoc(docRef, { 
+             progress: { [subject]: { [chapterId]: newProgress[subject][chapterId] } } 
+           }, { merge: true });
+        } else {
+          throw err;
+        }
+      });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/data/progress-${examInfo.id}`);
     }
@@ -561,22 +584,6 @@ const ProgressPage = () => {
                                     >
                                       {displayName}
                                     </h4>
-                                    
-                                    {/* Chapter Stats - Integrated */}
-                                    <div className="hidden lg:flex items-center gap-3 shrink-0">
-                                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
-                                        <Clock className="w-2.5 h-2.5 text-emerald-400/70" />
-                                        <span className="text-[9px] font-black text-emerald-400/70 uppercase tracking-widest">
-                                          {Math.floor((progress.studyTime || 0) / 3600)}h {Math.floor(((progress.studyTime || 0) % 3600) / 60)}m
-                                        </span>
-                                      </div>
-                                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-rose-500/5 border border-rose-500/10">
-                                        <Target className="w-2.5 h-2.5 text-rose-400/70" />
-                                        <span className="text-[9px] font-black text-rose-400/70 uppercase tracking-widest">
-                                          {progress.questions || 0} Qs
-                                        </span>
-                                      </div>
-                                    </div>
                                   </div>
                                   <div className="flex items-center gap-1 opacity-0 group-hover/name:opacity-100 transition-opacity shrink-0">
                                     <button 
@@ -594,19 +601,28 @@ const ProgressPage = () => {
                                   </div>
                                 </div>
                                 
-                                {/* Mobile Stats */}
-                                <div className="flex lg:hidden items-center gap-4 mt-0.5">
-                                  <div className="flex items-center gap-1.5">
-                                    <Clock className="w-2.5 h-2.5 text-emerald-400/50" />
-                                    <span className="text-[9px] font-black text-white/30 uppercase tracking-widest">
-                                      {Math.floor((progress.studyTime || 0) / 3600)}h {Math.floor(((progress.studyTime || 0) % 3600) / 60)}m
-                                    </span>
+                                <div className="flex flex-col sm:flex-row items-center gap-4 py-3 px-4 mt-2 rounded-2xl bg-purple-500/10 border border-purple-500/20 w-full mb-1">
+                                  <div className="flex items-center gap-3 border-r border-white/5 pr-6 w-full sm:w-auto">
+                                    <div className="p-2 rounded-xl bg-emerald-500/20">
+                                      <Clock className="w-4 h-4 text-emerald-400" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className="text-xs font-black text-white uppercase tracking-widest whitespace-nowrap">
+                                        {Math.floor((progress.studyTime || 0) / 3600)}h {Math.floor(((progress.studyTime || 0) % 3600) / 60)}m
+                                      </span>
+                                      <span className="text-[8px] font-bold text-white/40 uppercase tracking-[0.2em]">Focused Study</span>
+                                    </div>
                                   </div>
-                                  <div className="flex items-center gap-1.5">
-                                    <Target className="w-2.5 h-2.5 text-rose-400/50" />
-                                    <span className="text-[9px] font-black text-white/30 uppercase tracking-widest">
-                                      {progress.questions || 0} Qs
-                                    </span>
+                                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                                    <div className="p-2 rounded-xl bg-rose-500/20">
+                                      <Target className="w-4 h-4 text-rose-400" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className="text-xs font-black text-white uppercase tracking-widest whitespace-nowrap">
+                                        {progress.questions || 0} Questions
+                                      </span>
+                                      <span className="text-[8px] font-bold text-white/40 uppercase tracking-[0.2em]">Solved Success</span>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -615,168 +631,114 @@ const ProgressPage = () => {
                         </div>
 
                         {/* Controls Group */}
-                        <div className="flex flex-wrap items-center justify-center gap-6 md:gap-8">
+                        <div className="flex flex-col xl:flex-row items-center justify-between gap-6 w-full">
                           {/* Slidebars */}
-                          <div className="flex flex-col gap-4 w-full md:w-48">
-                            <div className="space-y-1">
-                              <div className="flex justify-between items-center">
-                                <span className="text-[9px] font-black uppercase tracking-widest text-white/30">Theory & Lecture</span>
-                                <span className="text-[10px] font-bold text-purple-400">{progress.theoryLecture || 0}%</span>
-                              </div>
-                              <input 
-                                type="range"
-                                min="0"
-                                max="100"
-                                value={progress.theoryLecture || 0}
-                                onChange={(e) => updateProgress(activeSubject, chapter.id, 'theoryLecture', parseInt(e.target.value))}
-                                className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-purple-500"
-                              />
+                          <div className="flex flex-col gap-2 w-full xl:w-64">
+                            <div className="flex justify-between items-center px-1">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-white/30">Theory & Lecture</span>
+                              <span className="text-xs font-bold text-purple-400">{progress.theoryLecture || 0}%</span>
                             </div>
+                            <input 
+                              type="range"
+                              min="0"
+                              max="100"
+                              value={progress.theoryLecture || 0}
+                              onChange={(e) => updateProgress(activeSubject, chapter.id, 'theoryLecture', parseInt(e.target.value))}
+                              className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                            />
                           </div>
 
-                          {/* Ticks */}
-                          <div className="flex flex-wrap items-center gap-6">
-                            {[
-                              { id: 'module', label: 'Module' }
-                            ].map((item) => (
-                              <button
-                                key={item.id}
-                                onClick={() => updateProgress(activeSubject, chapter.id, item.id as any, !progress[item.id as keyof ChapterProgress])}
-                                className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all
-                                  ${progress[item.id as keyof ChapterProgress] 
-                                    ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' 
-                                    : 'bg-white/5 border-white/10 text-white/20 hover:border-white/40'}`}
-                              >
-                                {progress[item.id as keyof ChapterProgress] ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4 opacity-20" />}
-                                <span className="text-[10px] font-black uppercase tracking-widest">{item.label}</span>
-                              </button>
-                            ))}
-
-                            {/* PYQ Section Updated */}
-                            <div className="flex flex-wrap items-center gap-4">
-                              {subExam === 'mains' ? (
-                                <div className="flex flex-col gap-2">
-                                  <button
-                                    onClick={() => updateProgress(activeSubject, chapter.id, 'pyqMains', !progress.pyqMains)}
-                                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all
-                                      ${progress.pyqMains 
-                                        ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' 
-                                        : 'bg-white/5 border-white/10 text-white/20 hover:border-white/40'}`}
-                                  >
-                                    {progress.pyqMains ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4 opacity-20" />}
-                                    <span className="text-[10px] font-black uppercase tracking-widest">Mains PYQ</span>
-                                  </button>
-                                  
-                                  {progress.pyqMains && (
-                                    <div className="grid grid-cols-4 gap-1 p-1.5 bg-black/40 rounded-xl border border-white/5">
-                                      {pyqYears.map(year => {
-                                        const isSelected = (progress.pyqMainsYears || []).includes(year);
-                                        return (
-                                          <button
-                                            key={year}
-                                            onClick={() => {
-                                              const currentYears = progress.pyqMainsYears || [];
-                                              const newYears = isSelected 
-                                                ? currentYears.filter(y => y !== year)
-                                                : [...currentYears, year];
-                                              updateProgress(activeSubject, chapter.id, 'pyqMainsYears', newYears);
-                                            }}
-                                            className={`flex items-center justify-center px-1 py-1 rounded-md border text-[8px] font-black transition-all duration-200
-                                              ${isSelected 
-                                                ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]' 
-                                                : 'bg-white/5 border-white/10 text-white/20 hover:border-white/30 hover:text-white/40'}`}
-                                          >
-                                            {year.toString().slice(-2)}
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <div className="flex flex-col gap-2">
-                                  <button
-                                    onClick={() => updateProgress(activeSubject, chapter.id, 'pyqAdvanced', !progress.pyqAdvanced)}
-                                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all
-                                      ${progress.pyqAdvanced 
-                                        ? 'bg-rose-500/20 border-rose-500 text-rose-400' 
-                                        : 'bg-white/5 border-white/10 text-white/20 hover:border-white/40'}`}
-                                  >
-                                    {progress.pyqAdvanced ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4 opacity-20" />}
-                                    <span className="text-[10px] font-black uppercase tracking-widest">Advanced PYQ</span>
-                                  </button>
-                                  
-                                  {progress.pyqAdvanced && (
-                                    <div className="grid grid-cols-4 gap-1 p-1.5 bg-black/40 rounded-xl border border-white/5">
-                                      {pyqYears.map(year => {
-                                        const isSelected = (progress.pyqAdvancedYears || []).includes(year);
-                                        return (
-                                          <button
-                                            key={year}
-                                            onClick={() => {
-                                              const currentYears = progress.pyqAdvancedYears || [];
-                                              const newYears = isSelected 
-                                                ? currentYears.filter(y => y !== year)
-                                                : [...currentYears, year];
-                                              updateProgress(activeSubject, chapter.id, 'pyqAdvancedYears', newYears);
-                                            }}
-                                            className={`flex items-center justify-center px-1 py-1 rounded-md border text-[8px] font-black transition-all duration-200
-                                              ${isSelected 
-                                                ? 'bg-rose-500/20 border-rose-500 text-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.2)]' 
-                                                : 'bg-white/5 border-white/10 text-white/20 hover:border-white/30 hover:text-white/40'}`}
-                                          >
-                                            {year.toString().slice(-2)}
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Revision Count */}
-                          <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-xl border border-white/10">
-                            <span className="text-[9px] font-black uppercase tracking-widest text-white/30">Revisions</span>
-                            <div className="flex items-center gap-3">
+                          <div className="flex flex-wrap items-center justify-center gap-6">
+                            {/* Action Items */}
+                            <div className="flex items-center gap-4">
                               <button 
-                                onClick={() => updateProgress(activeSubject, chapter.id, 'revisionCount', Math.max(0, (progress.revisionCount || 0) - 1))}
-                                className="w-6 h-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                                onClick={() => updateProgress(activeSubject, chapter.id, 'module', !progress.module)}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${progress.module ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'bg-white/5 border-white/10 text-white/30 hover:border-white/40'}`}
                               >
-                                <motion.span whileTap={{ scale: 0.8 }}>-</motion.span>
+                                {progress.module ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4 opacity-20" />}
+                                <span className="text-[10px] font-black uppercase tracking-widest">Module</span>
                               </button>
-                              <span className="text-xs font-black text-white w-4 text-center">{progress.revisionCount || 0}</span>
-                              <button 
-                                onClick={() => updateProgress(activeSubject, chapter.id, 'revisionCount', (progress.revisionCount || 0) + 1)}
-                                className="w-6 h-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all"
-                              >
-                                <motion.span whileTap={{ scale: 0.8 }}>+</motion.span>
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Mastery Level */}
-                          <div className="flex items-center gap-1 bg-white/5 p-1.5 rounded-xl border border-white/10">
-                            {masteryLevels.map((lvl) => {
-                              const isCompleted = (progress.theoryLecture || 0) === 100 && progress.module && (progress.pyqMains || progress.pyqAdvanced || progress.pyq);
-                              const isDisabled = !isCompleted;
                               
-                              return (
-                                <button
-                                  key={lvl}
-                                  disabled={isDisabled}
-                                  onClick={() => updateProgress(activeSubject, chapter.id, 'level', lvl)}
-                                  className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all
-                                    ${progress.level === lvl 
-                                      ? (lvl === 'mains' || lvl === 'perfect') ? 'bg-purple-500 text-white shadow-[0_0_10px_rgba(168,85,247,0.5)]' :
-                                        'bg-rose-500 text-white shadow-[0_0_10px_rgba(244,63,94,0.5)]'
-                                      : isDisabled ? 'text-white/5 cursor-not-allowed' : 'text-white/20 hover:text-white/40'}`}
+                              <div className="flex flex-col gap-2">
+                                <div className="flex items-center bg-white/5 rounded-xl border border-white/10 p-1 gap-1">
+                                  <button 
+                                    onClick={() => updateProgress(activeSubject, chapter.id, 'pyq', !progress.pyq)}
+                                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${progress.pyq ? 'bg-blue-500 text-white shadow-[0_0_10px_rgba(59,130,246,0.3)]' : 'text-white/20 hover:text-white/40'}`}
+                                  >
+                                    PYQ
+                                  </button>
+                                  
+                                  {progress.pyq && (
+                                    <div className="flex items-center gap-1.5 pr-1">
+                                      <div className="w-px h-4 bg-white/10 mx-1" />
+                                      <button
+                                        onClick={() => setSubExam('mains')}
+                                        className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-tight transition-all ${subExam === 'mains' ? 'text-emerald-400 bg-emerald-400/10' : 'text-white/20'}`}
+                                      >
+                                        MN
+                                      </button>
+                                      <button
+                                        onClick={() => setSubExam('advanced')}
+                                        className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-tight transition-all ${subExam === 'advanced' ? 'text-rose-400 bg-rose-400/10' : 'text-white/20'}`}
+                                      >
+                                        AV
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {progress.pyq && (
+                                  <div className="grid grid-cols-4 gap-2 p-2 bg-black/20 rounded-xl border border-white/5 min-w-[160px]">
+                                    {Array.from({ length: 8 }, (_, i) => 2019 + i).map(year => {
+                                      const field = subExam === 'mains' ? 'pyqMainsYears' : 'pyqAdvancedYears';
+                                      const currentYears = progress[field] || [];
+                                      const isSelected = currentYears.includes(year);
+                                      const activeColor = subExam === 'mains' 
+                                        ? 'bg-emerald-500 border-emerald-500 text-white' 
+                                        : 'bg-rose-500 border-rose-500 text-white';
+                                      
+                                      return (
+                                        <button
+                                          key={year}
+                                          onClick={() => {
+                                            const newYears = isSelected 
+                                              ? currentYears.filter((y: number) => y !== year)
+                                              : [...currentYears, year];
+                                            updateProgress(activeSubject, chapter.id, field, newYears);
+                                          }}
+                                          className={`flex items-center justify-center p-2 rounded-lg border text-[10px] font-black transition-all
+                                            ${isSelected 
+                                              ? activeColor
+                                              : 'bg-white/5 border-white/10 text-white/10 hover:border-white/30'}`}
+                                        >
+                                          {year.toString().slice(-2)}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Revision Count */}
+                            <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10 shrink-0">
+                              <span className="text-[8px] font-black uppercase tracking-widest text-white/30">Rev</span>
+                              <div className="flex items-center gap-2">
+                                <button 
+                                  onClick={() => updateProgress(activeSubject, chapter.id, 'revisionCount', Math.max(0, (progress.revisionCount || 0) - 1))}
+                                  className="w-5 h-5 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all text-[10px]"
                                 >
-                                  {lvl}
+                                  -
                                 </button>
-                              );
-                            })}
+                                <span className="text-[10px] font-black text-white w-3 text-center">{progress.revisionCount || 0}</span>
+                                <button 
+                                  onClick={() => updateProgress(activeSubject, chapter.id, 'revisionCount', (progress.revisionCount || 0) + 1)}
+                                  className="w-5 h-5 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all text-[10px]"
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>

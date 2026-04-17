@@ -254,9 +254,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       const subjectData = SYLLABUS_DATA[examId]?.[selectedSubject] || SYLLABUS_DATA[examId.split('_')[0]]?.[selectedSubject] || SYLLABUS_DATA.jee[selectedSubject];
       
       if (subjectData) {
-        const chapters = Object.entries(subjectData)
-          .filter(([key]) => key !== 'hidden')
-          .map(([id, name]) => ({ id, name: name as string }));
+        const chapters = subjectData.map((name: string) => ({ id: name, name }));
         setAvailableChapters(chapters);
         
         // Auto-select first chapter if none selected or if selected chapter not in new subject
@@ -483,11 +481,11 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   useEffect(() => {
     const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
     const year = localStorage.getItem('pulse_user_year') || '2027';
-    const subExam = localStorage.getItem('pulse_user_subexam') || 'mains';
-    const examId = exam === 'jee' ? `jee_${subExam}_${year}` : `${exam}_${year}`;
+    const examBase = exam === 'jee' ? 'jee' : exam;
+    const examId = `${examBase}_${year}`;
     
     const normalizedExamId = examId.includes('boards') && !examId.endsWith('th') ? `${examId}th` : examId;
-    const syllabus = SYLLABUS_DATA[normalizedExamId] || SYLLABUS_DATA[examId] || SYLLABUS_DATA[exam] || SYLLABUS_DATA.jee;
+    const syllabus = SYLLABUS_DATA[normalizedExamId] || SYLLABUS_DATA[examId] || SYLLABUS_DATA[examBase] || SYLLABUS_DATA.jee;
     
     const subjects = Object.keys(syllabus);
     setAvailableSubjects(subjects);
@@ -541,7 +539,8 @@ const TimerPage = ({ settings }: TimerPageProps) => {
           if (user && currentChap && currentSub && deltaForPrevDay > 0) {
             const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
             const year = localStorage.getItem('pulse_user_year') || '2027';
-            const examId = `${exam}_${year}`;
+            const examBase = exam === 'jee' ? 'jee' : exam;
+            const examId = `${examBase}_${year}`;
             const progressRef = doc(db, 'users', user.uid, 'data', `progress-${examId}`);
             setDoc(progressRef, {
               progress: {
@@ -622,7 +621,8 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         if (user && currentChap && currentSub && delta > 0) {
           const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
           const year = localStorage.getItem('pulse_user_year') || '2027';
-          const examId = `${exam}_${year}`;
+          const examBase = exam === 'jee' ? 'jee' : exam;
+          const examId = `${examBase}_${year}`;
           const progressRef = doc(db, 'users', user.uid, 'data', `progress-${examId}`);
           
           try {
@@ -667,7 +667,8 @@ const TimerPage = ({ settings }: TimerPageProps) => {
           if (currentChap && currentSub && delta > 0) {
             const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
             const year = localStorage.getItem('pulse_user_year') || '2027';
-            const examId = `${exam}_${year}`;
+            const examBase = exam === 'jee' ? 'jee' : exam;
+            const examId = `${examBase}_${year}`;
             const progressRef = doc(db, 'users', user.uid, 'data', `progress-${examId}`);
             batch.set(progressRef, {
               progress: {
@@ -762,6 +763,13 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     }
   };
 
+  const [streak, setStreak] = useState(0);
+
+  // Memoized streak calculation for real-time updates
+  useEffect(() => {
+    setStreak(calculateStreak(dailyStudySeconds, targetHours));
+  }, [dailyStudySeconds, targetHours]);
+
   const calculateStreak = (secondsMap: Record<string, number>, target: number) => {
     let currentStreak = 0;
     let checkDate = new Date();
@@ -799,7 +807,36 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     try {
       const leaderboardRef = doc(db, 'leaderboard', user.uid);
       const leaderboardSnap = await getDoc(leaderboardRef);
+      const currentData = leaderboardSnap.exists() ? leaderboardSnap.data() : { totalQuestions: 0, totalHours: 0 };
       const isNewUser = !leaderboardSnap.exists();
+
+      // Calculate new totals locally for scoring
+      const newTotalQuestions = (currentData.totalQuestions || 0) + questions;
+      const newTotalHours = (currentData.totalHours || 0) + hours;
+
+      // Better Scoring Formula: A balanced average between Questions and Hours
+      // We weight 1 Hour similarly to 10 Questions for the "average" feel, then divide by 2.
+      // Final formula: (Questions + (Hours * 10)) / 2
+      
+      let finalScore = Math.round((newTotalQuestions + (newTotalHours * 10)) / 2);
+
+      // Anti-Cheat Mechanism: Eliminate HYPER-FAKE scores
+      // 1. Zero/Near-zero study time but many questions (e.g. 0hr study, 700 ques)
+      if (newTotalHours < 0.2 && newTotalQuestions > 20) {
+        finalScore = 0; // Eliminate from leaderboard completely
+      }
+      
+      // 2. Impossible Rate (e.g. >120 questions per hour consistently)
+      const globalRate = newTotalQuestions / Math.max(newTotalHours, 0.05);
+      if (globalRate > 120 && newTotalQuestions > 30) {
+        finalScore = Math.round(finalScore * 0.01); // Effectively remove from top ranks
+      }
+
+      // 3. Current session validation (e.g. adding 100 questions in 0 minutes)
+      const currentRate = questions / Math.max(hours, 0.01);
+      if (currentRate > 150 && questions > 20) {
+        finalScore = Math.round(currentData.rankScore || 0); 
+      }
 
       const newStreak = calculateStreak(dailyStudySeconds, targetHours);
 
@@ -807,9 +844,10 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       await setDoc(leaderboardRef, {
         displayName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
         photoURL: user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=random`,
-        totalQuestions: increment(questions),
-        totalHours: increment(hours),
-        streak: newStreak, // Accurate streak based on study hours
+        totalQuestions: newTotalQuestions,
+        totalHours: newTotalHours,
+        rankScore: Math.floor(finalScore),
+        streak: newStreak,
         lastUpdated: serverTimestamp()
       }, { merge: true });
 
@@ -847,6 +885,28 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       console.error("Global sync error:", error);
     }
   };
+
+  // Add specialized bootstrap function for leaderboard
+  const bootstrapLeaderboard = async () => {
+    if (!user || !isStatsLoaded) return;
+    try {
+      const today = new Date().toDateString();
+      const currentQuestions = dailyQuestionCounts[today] || 0;
+      const currentSeconds = dailyStudySeconds[today] || 0;
+      
+      // Only bootstrap if they have some data or first time
+      await syncGlobalProgress(0, 0); 
+      console.log("Leaderboard bootstrapped for user:", user.uid);
+    } catch (error) {
+      console.error("Leaderboard bootstrap error:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthReady && user && isStatsLoaded) {
+      bootstrapLeaderboard();
+    }
+  }, [isAuthReady, !!user, isStatsLoaded]);
 
   const toggleTimer = async () => {
     if (!isStatsLoaded || isTimerLoading) {
@@ -914,7 +974,8 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       if (currentChap && currentSub && deltaForProgress > 0) {
         const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
         const year = localStorage.getItem('pulse_user_year') || '2027';
-        const examId = `${exam}_${year}`;
+        const examBase = exam === 'jee' ? 'jee' : exam;
+        const examId = `${examBase}_${year}`;
         const progressRef = doc(db, 'users', user.uid, 'data', `progress-${examId}`);
         batch.set(progressRef, {
           progress: {
@@ -977,7 +1038,8 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     if (selectedChapterRef.current && currentSub) {
       const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
       const year = localStorage.getItem('pulse_user_year') || '2027';
-      const examId = `${exam}_${year}`;
+      const examBase = exam === 'jee' ? 'jee' : exam;
+      const examId = `${examBase}_${year}`;
       const progressRef = doc(db, 'users', user.uid, 'data', `progress-${examId}`);
       batch.set(progressRef, {
         progress: {
@@ -1121,44 +1183,44 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         key={key} 
         onClick={() => toggleMockTest(dateStr)}
         className={`h-14 md:h-16 border border-white/10 p-1 transition-all duration-300 hover:scale-[1.05] hover:z-20 hover:border-white/40 group relative cursor-pointer
-          ${isToday ? 'bg-white/10 border-purple-500/50 ring-1 ring-purple-500/20' : 'bg-white/2'}
+          ${isToday ? 'bg-white/10 border-blue-500/50 ring-1 ring-blue-500/20' : 'bg-white/2'}
           ${isQuestionMet && !isStudyMet ? 'bg-pink-500/10' : ''}
-          ${isStudyMet && !isQuestionMet ? 'bg-emerald-500/10' : ''}
-          ${isQuestionMet && isStudyMet ? 'bg-gradient-to-br from-pink-500/15 to-emerald-500/15' : ''}
-          ${isMockTest ? 'border-blue-400/50 bg-blue-400/30 shadow-[0_0_15px_rgba(96,165,250,0.2)]' : ''}
+          ${isStudyMet && !isQuestionMet ? 'bg-blue-400/10' : ''}
+          ${isQuestionMet && isStudyMet ? 'bg-gradient-to-br from-pink-500/15 to-blue-400/15' : ''}
+          ${isMockTest ? 'border-blue-400/50 bg-blue-400/10' : ''}
           ${hasActivity ? 'shadow-[inset_0_0_10px_rgba(255,255,255,0.02)]' : ''}`}
       >
-        <div className="flex justify-between items-start relative z-10">
-          <span className={`text-xs font-bold ${isToday ? 'text-purple-400' : 'text-white/80'}`}>
-            {d}
+        <div className="flex justify-between items-start relative z-10 font-mono">
+          <span className={`text-[10px] font-bold ${isToday ? 'text-blue-400' : 'text-white/30'}`}>
+            {d.toString().padStart(2, '0')}
           </span>
           <div className="flex flex-col gap-0.5 items-end">
             {isToday && (
-              <div className="w-1 h-1 bg-purple-500 rounded-full shadow-[0_0_8px_rgba(168,85,247,1)]" />
+              <div className="w-1 h-1 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,1)]" />
             )}
             {isQuestionMet && (
-              <div className="w-1 h-1 bg-pink-500 rounded-full shadow-[0_0_8px_rgba(236,72,153,1)]" />
+              <div className="w-1.5 h-[2px] bg-pink-500 rounded-full shadow-[0_0_8px_rgba(236,72,153,0.5)]" />
             )}
             {isStudyMet && (
-              <div className="w-1 h-1 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,1)]" />
+              <div className="w-1.5 h-[2px] bg-blue-400 rounded-full shadow-[0_0_8px_rgba(56,189,248,0.5)]" />
             )}
             {isMockTest && (
               <div className="flex flex-col items-end">
-                <div className="w-1 h-1 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,1)]" />
+                <div className="w-1.5 h-[2px] bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,1)]" />
                 <span className="text-[7px] font-black text-blue-400 uppercase tracking-tighter mt-0.5">Test</span>
               </div>
             )}
           </div>
         </div>
         
-        <div className="absolute bottom-1 right-1 flex flex-col items-end gap-0 z-10">
+        <div className="absolute bottom-1 right-1 flex flex-col items-end gap-0 z-10 font-mono">
           {studySeconds > 0 && (
-            <span className="text-[9px] font-black text-emerald-400/90 leading-none group-hover:text-emerald-400 transition-colors">
-              {studyHours}h
+            <span className="text-[8px] font-black text-blue-400/90 leading-none group-hover:text-blue-400 transition-colors">
+              {studyHours}H
             </span>
           )}
           {questionCount > 0 && (
-            <span className="text-[9px] font-black text-rose-400/90 leading-none group-hover:text-rose-400 transition-colors">
+            <span className="text-[8px] font-black text-rose-400/90 leading-none group-hover:text-rose-400 transition-colors">
               {questionCount}Q
             </span>
           )}
@@ -1171,10 +1233,10 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         </div>
         
         {hasActivity && (
-          <div className="absolute bottom-0 left-0 right-0 h-[2px] flex">
+          <div className="absolute bottom-0 left-0 right-0 h-[1px] flex">
             {studySeconds > 0 && (
               <div 
-                className="h-full bg-emerald-500/50" 
+                className="h-full bg-blue-400/50" 
                 style={{ width: `${(studySeconds > 0 && questionCount > 0) ? '50%' : '100%'}` }} 
               />
             )}
@@ -1281,36 +1343,38 @@ const TimerPage = ({ settings }: TimerPageProps) => {
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-6">
             <div className="flex items-center gap-6">
               <div className="relative">
-                <div className="w-16 h-16 rounded-3xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center group overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <Activity className="w-8 h-8 text-purple-400 group-hover:scale-110 transition-transform relative z-10" />
+                <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center group overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/20 via-pink-500/20 to-violet-500/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <Activity className="w-8 h-8 text-white group-hover:scale-110 transition-transform relative z-10" />
                 </div>
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-black animate-pulse" />
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-pink-500 rounded-full border-2 border-black" />
               </div>
               <div>
-                <h1 className="text-3xl font-black text-white tracking-tighter uppercase">Timer</h1>
+                <h1 className="text-3xl font-black text-white tracking-tighter uppercase font-sans bg-gradient-to-r from-yellow-400 via-pink-400 to-violet-400 bg-clip-text text-transparent">Mission</h1>
                 <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                  <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">System Online • v2.4.0</p>
+                  <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse" />
+                  <p className="text-[9px] font-mono font-bold text-white/30 uppercase tracking-[0.3em]">Operational • v2.5.0</p>
                 </div>
               </div>
             </div>
             
-            <div className="flex items-center gap-3 bg-white/5 p-1.5 rounded-2xl border border-white/10 backdrop-blur-xl w-full md:w-auto">
+            <div className="flex items-center gap-3 bg-white/5 p-1.5 rounded-[22px] border border-white/10 backdrop-blur-xl w-full md:w-auto">
               <button 
                 onClick={() => setActiveTab('timer')}
-                className={`flex-1 md:flex-none px-8 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2
-                  ${activeTab === 'timer' ? 'bg-purple-600 text-white shadow-[0_10px_20px_rgba(147,51,234,0.3)]' : 'text-white/40 hover:text-white/60 hover:bg-white/5'}`}
+                className={`flex-1 md:flex-none px-10 py-3.5 rounded-[18px] text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 relative overflow-hidden group
+                  ${activeTab === 'timer' ? 'bg-violet-600 text-white shadow-[0_10px_30px_rgba(139,92,246,0.4)]' : 'text-white/30 hover:text-white/60 hover:bg-white/5'}`}
               >
-                <Clock className="w-4 h-4" />
+                <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Clock className={`w-4 h-4 ${activeTab === 'timer' ? 'text-white' : 'text-violet-400'}`} />
                 Timer
               </button>
               <button 
                 onClick={() => setActiveTab('test')}
-                className={`flex-1 md:flex-none px-8 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2
-                  ${activeTab === 'test' ? 'bg-purple-600 text-white shadow-[0_10px_20px_rgba(147,51,234,0.3)]' : 'text-white/40 hover:text-white/60 hover:bg-white/5'}`}
+                className={`flex-1 md:flex-none px-10 py-3.5 rounded-[18px] text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 relative overflow-hidden group
+                  ${activeTab === 'test' ? 'bg-pink-600 text-white shadow-[0_10px_30px_rgba(236,72,153,0.4)]' : 'text-white/30 hover:text-white/60 hover:bg-white/5'}`}
               >
-                <CalendarIcon className="w-4 h-4" />
+                <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <CalendarIcon className={`w-4 h-4 ${activeTab === 'test' ? 'text-white' : 'text-pink-400'}`} />
                 Tests
               </button>
             </div>
@@ -1377,14 +1441,14 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="p-6 rounded-[32px] glass border border-white/10 flex items-center justify-between group hover:bg-white/5 transition-all"
+                    className="p-8 rounded-[40px] glass bg-white/[0.02] border border-white/5 flex items-center justify-between group hover:bg-white/[0.04] transition-all"
                   >
                     <div>
-                      <div className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Study Hours</div>
-                      <div className="text-3xl font-mono font-bold text-emerald-400">{monthStudyHours}h</div>
-                      <div className="mt-1 text-[9px] text-white/20 uppercase font-bold tracking-wider">This Month</div>
+                      <div className="text-[9px] font-black text-amber-500/40 uppercase tracking-widest mb-2 font-mono">Monthly Volume</div>
+                      <div className="text-4xl font-mono font-bold text-amber-400 tracking-tight">{monthStudyHours}H</div>
+                      <div className="mt-2 text-[8px] text-white/10 uppercase font-black tracking-widest">Time Logs Verified</div>
                     </div>
-                    <div className="p-4 rounded-2xl bg-emerald-500/10 text-emerald-400">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-500/5 border border-amber-500/20 flex items-center justify-center text-amber-400">
                       <Clock className="w-6 h-6" />
                     </div>
                   </motion.div>
@@ -1412,38 +1476,38 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                     <motion.div 
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      className="p-6 rounded-[32px] glass border border-white/10"
+                      className="p-6 rounded-[32px] glass border border-white/5 bg-white/[0.01]"
                     >
-                      <div className="flex items-center gap-2 mb-6">
-                        <TrendingUp className="w-4 h-4 text-emerald-400" />
-                        <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Performance Metrics</span>
+                      <div className="flex items-center gap-2 mb-8">
+                        <TrendingUp className="w-3 h-3 text-green-400" />
+                        <span className="text-[9px] font-black text-green-400/30 uppercase tracking-[0.4em] font-mono">Performance Node</span>
                       </div>
-                      <div className="space-y-4">
-                        <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-                          <div className="flex justify-between items-end mb-2">
-                            <div className="text-[8px] font-black text-white/20 uppercase tracking-widest">Efficiency</div>
-                            <div className="text-lg font-mono font-bold text-emerald-400">
+                      <div className="space-y-6">
+                        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+                          <div className="flex justify-between items-end mb-3">
+                            <div className="text-[8px] font-black text-white/20 uppercase tracking-widest font-mono">Efficiency</div>
+                            <div className="text-lg font-mono font-bold text-green-400">
                               {Math.min(100, Math.round((elapsedSeconds / Math.max(1, targetHours * 3600)) * 100))}%
                             </div>
                           </div>
                           <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
                             <motion.div 
                               animate={{ width: `${Math.min(100, (elapsedSeconds / Math.max(1, targetHours * 3600)) * 100)}%` }}
-                              className="h-full bg-emerald-500"
+                              className="h-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.3)]"
                             />
                           </div>
                         </div>
-                        <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-                          <div className="flex justify-between items-end mb-2">
-                            <div className="text-[8px] font-black text-white/20 uppercase tracking-widest">Focus Score</div>
-                            <div className="text-lg font-mono font-bold text-blue-400">
+                        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+                          <div className="flex justify-between items-end mb-3">
+                            <div className="text-[8px] font-black text-white/20 uppercase tracking-widest font-mono">Focus Index</div>
+                            <div className="text-lg font-mono font-bold text-pink-400">
                               {(Math.min(10, (currentQuestions / Math.max(1, elapsedSeconds / 3600)) / 5)).toFixed(1)}
                             </div>
                           </div>
                           <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
                             <motion.div 
                               animate={{ width: `${Math.min(100, ((currentQuestions / Math.max(1, elapsedSeconds / 3600)) / 5) * 10)}%` }}
-                              className="h-full bg-blue-500"
+                              className="h-full bg-pink-500 shadow-[0_0_10px_rgba(236,72,153,0.3)]"
                             />
                           </div>
                         </div>
@@ -1453,44 +1517,72 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                     <motion.div 
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.1 }}
+                      transition={{ delay: 0.15 }}
+                      className="p-6 rounded-[32px] glass border border-white/5 bg-white/[0.01]"
+                    >
+                      <div className="flex items-center gap-2 mb-8">
+                        <Target className="w-3 h-3 text-purple-400" />
+                        <span className="text-[9px] font-black text-white/20 uppercase tracking-[0.4em] font-mono">Mission Targets</span>
+                      </div>
+                      <div className="space-y-6">
+                        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+                          <div className="flex justify-between items-center mb-3">
+                            <span className="text-[8px] font-black text-white/20 uppercase tracking-widest font-mono">Protocol Study</span>
+                            <span className="text-xs font-mono font-bold text-white tracking-widest">{targetHours}H</span>
+                          </div>
+                          <input 
+                            type="range"
+                            min="1"
+                            max="18"
+                            value={targetHours}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value);
+                              setTargetHours(val);
+                              localStorage.setItem('pulse_target_study_hours', String(val));
+                            }}
+                            className="w-full h-1 bg-white/5 rounded-full appearance-none cursor-pointer accent-purple-500"
+                          />
+                        </div>
+                        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+                          <div className="flex justify-between items-center mb-3">
+                            <span className="text-[8px] font-black text-white/20 uppercase tracking-widest font-mono">Question Threshold</span>
+                            <span className="text-xs font-mono font-bold text-white tracking-widest">{questionTarget}</span>
+                          </div>
+                          <input 
+                            type="range"
+                            min="10"
+                            max="200"
+                            step="10"
+                            value={questionTarget}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value);
+                              setQuestionTarget(val);
+                              localStorage.setItem('pulse_target_question_count', String(val));
+                            }}
+                            className="w-full h-1 bg-white/5 rounded-full appearance-none cursor-pointer accent-blue-500"
+                          />
+                        </div>
+                      </div>
+                    </motion.div>
+
+                    <motion.div 
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.2 }}
                       className="p-6 rounded-[32px] glass border border-white/10"
                     >
-                      <div className="flex items-center gap-2 mb-4">
-                        <Zap className="w-4 h-4 text-amber-400" />
-                        <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Daily Streak</span>
+                      <div className="flex items-center gap-2 mb-8">
+                        <Zap className="w-3 h-3 text-yellow-500" />
+                        <span className="text-[9px] font-black text-yellow-500/30 uppercase tracking-[0.4em] font-mono">Persistence Engine</span>
                       </div>
-                      <div className="flex flex-col gap-4">
-                        <div className="flex items-end gap-2">
-                          <div className="text-4xl font-black text-white tracking-tighter">
-                            {(() => {
-                              const sortedDays = Object.entries(dailyStudySeconds)
-                                .filter(([_, seconds]) => (seconds as number) >= 1800)
-                                .map(([date]) => new Date(date))
-                                .sort((a, b) => b.getTime() - a.getTime());
-                              
-                              let streak = 0;
-                              let current = new Date();
-                              current.setHours(0,0,0,0);
-
-                              for (let i = 0; i < sortedDays.length; i++) {
-                                const day = sortedDays[i];
-                                day.setHours(0,0,0,0);
-                                
-                                const diff = (current.getTime() - day.getTime()) / (1000 * 60 * 60 * 24);
-                                if (diff <= 1) {
-                                  streak++;
-                                  current = day;
-                                } else {
-                                  break;
-                                }
-                              }
-                              return streak;
-                            })()}
+                      <div className="flex flex-col gap-6">
+                        <div className="flex items-end gap-3">
+                          <div className="text-5xl font-mono font-black text-white tracking-tighter bg-gradient-to-b from-white to-white/40 bg-clip-text text-transparent">
+                            {streak}
                           </div>
-                          <div className="text-[10px] font-black text-white/20 uppercase tracking-widest mb-1.5">Days</div>
+                          <div className="text-[10px] font-black text-white/20 uppercase tracking-widest mb-2 font-mono">CYCLE STREAK</div>
                         </div>
-                        <div className="flex gap-1.5">
+                        <div className="flex gap-1">
                           {[...Array(7)].map((_, i) => {
                             const date = new Date();
                             date.setDate(date.getDate() - (6 - i));
@@ -1499,15 +1591,14 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                             return (
                               <div 
                                 key={i} 
-                                className={`flex-1 h-2 rounded-full transition-all duration-500 ${isDone ? 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]' : 'bg-white/5'}`}
+                                className={`flex-1 h-1.5 rounded-full transition-all duration-500 ${isDone ? 'bg-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.6)]' : 'bg-white/5'}`}
                                 title={dateStr}
                               />
                             );
                           })}
                         </div>
-                        <div className="space-y-1">
-                          <p className="text-[9px] font-bold text-white/20 uppercase tracking-wider">30 min study = 1 day streak</p>
-                          <p className="text-[8px] font-medium text-amber-500/60 leading-tight">Complete 30 minutes of focused study to maintain your daily streak.</p>
+                        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+                          <p className="text-[8px] font-mono font-bold text-white/30 uppercase tracking-[0.2em] leading-relaxed italic">Minimum 30m daily study required to sustain persistence.</p>
                         </div>
                       </div>
                     </motion.div>
@@ -1560,25 +1651,43 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                           
                           {/* Subject Selection */}
                           <div className="flex flex-wrap justify-center gap-2 mb-6">
-                            {availableSubjects.map(sub => (
-                              <button
-                                key={sub}
-                                onClick={() => {
-                                  if (!isTimerRunning) {
-                                    setSelectedSubject(sub);
-                                    localStorage.setItem('pulse_selected_subject', sub);
-                                  }
-                                }}
-                                disabled={isTimerRunning}
-                                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border
-                                  ${selectedSubject === sub 
-                                    ? 'bg-purple-600 border-purple-400 text-white shadow-[0_0_20px_rgba(147,51,234,0.3)]' 
-                                    : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10 hover:text-white'}
-                                  ${isTimerRunning ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer active:scale-95'}`}
-                              >
-                                {sub}
-                              </button>
-                            ))}
+                            {availableSubjects.map((sub, idx) => {
+                              const colors = [
+                                'border-yellow-500/20 text-yellow-400 group-hover:border-yellow-500/50 group-hover:bg-yellow-500/5',
+                                'border-red-500/20 text-red-400 group-hover:border-red-500/50 group-hover:bg-red-500/5',
+                                'border-green-500/20 text-green-400 group-hover:border-green-500/50 group-hover:bg-green-500/5',
+                                'border-pink-500/20 text-pink-400 group-hover:border-pink-500/50 group-hover:bg-pink-500/5',
+                                'border-violet-500/20 text-violet-400 group-hover:border-violet-500/50 group-hover:bg-violet-500/5'
+                              ];
+                              const activeColors = [
+                                'bg-yellow-500 border-yellow-400 text-black shadow-[0_10px_30px_rgba(234,179,8,0.3)]',
+                                'bg-red-500 border-red-400 text-white shadow-[0_10px_30px_rgba(239,68,68,0.3)]',
+                                'bg-green-500 border-green-400 text-black shadow-[0_10px_30px_rgba(34,197,94,0.3)]',
+                                'bg-pink-500 border-pink-400 text-white shadow-[0_10px_30px_rgba(236,72,153,0.3)]',
+                                'bg-violet-500 border-violet-400 text-white shadow-[0_10px_30px_rgba(139,92,246,0.3)]'
+                              ];
+                              const colorIndex = idx % colors.length;
+                              
+                              return (
+                                <button
+                                  key={sub}
+                                  onClick={() => {
+                                    if (!isTimerRunning) {
+                                      setSelectedSubject(sub);
+                                      localStorage.setItem('pulse_selected_subject', sub);
+                                    }
+                                  }}
+                                  disabled={isTimerRunning}
+                                  className={`group px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all border
+                                    ${selectedSubject === sub 
+                                      ? activeColors[colorIndex]
+                                      : `bg-white/2 ${colors[colorIndex]} hover:scale-105`}
+                                    ${isTimerRunning ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer active:scale-95'}`}
+                                >
+                                  {sub}
+                                </button>
+                              );
+                            })}
                           </div>
 
                           {/* Chapter Dropdown */}
@@ -1611,28 +1720,34 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                           ) : (
                             <div className="relative">
                               {isTimerRunning && (
-                                <>
-                                  <motion.div
-                                    animate={{ 
-                                      scale: [1, 1.8, 1],
-                                      opacity: [0.1, 0.4, 0.1]
-                                    }}
-                                    transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
-                                    className="absolute inset-0 bg-purple-500/30 rounded-full blur-3xl"
-                                  />
-                                  <motion.div
-                                    animate={{ rotate: 360 }}
-                                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                                    className="absolute -inset-8 border-2 border-dashed border-purple-500/20 rounded-full"
-                                  />
-                                </>
-                              )}
-                              <div className="flex flex-col items-center">
-                                <div className="text-7xl font-mono font-black text-white tracking-tighter tabular-nums relative drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
-                                  {formatTime(elapsedSeconds)}
-                                </div>
-                                <div className="mt-2 text-[10px] font-black text-white/20 uppercase tracking-[0.5em]">Elapsed Time</div>
-                              </div>
+                            <>
+                              <motion.div
+                                animate={{ 
+                                  scale: [1, 1.8, 1],
+                                  opacity: [0.1, 0.5, 0.1]
+                                }}
+                                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                                className="absolute inset-0 bg-violet-500/30 rounded-full blur-[80px]"
+                              />
+                              <motion.div
+                                animate={{ rotate: 360 }}
+                                transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                                className="absolute -inset-10 border border-dashed border-violet-500/20 rounded-full"
+                              />
+                            </>
+                          )}
+                          <div className="flex flex-col items-center">
+                            <div className="text-8xl font-mono font-black text-white tracking-tighter tabular-nums relative">
+                              <span className="bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]">
+                                {formatTime(elapsedSeconds)}
+                              </span>
+                            </div>
+                            <div className="mt-4 flex items-center gap-3">
+                              <div className="h-px w-8 bg-gradient-to-r from-transparent to-white/10" />
+                              <div className="text-[9px] font-mono font-bold text-white/20 uppercase tracking-[0.6em]">System Active</div>
+                              <div className="h-px w-8 bg-gradient-to-l from-transparent to-white/10" />
+                            </div>
+                          </div>
                             </div>
                           )}
                         </div>
@@ -1641,11 +1756,14 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                           <button 
                             onClick={toggleTimer}
                             disabled={isTimerLoading}
-                            className={`flex-1 py-5 rounded-2xl font-black uppercase tracking-widest text-[11px] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3
-                              ${isTimerRunning ? 'bg-red-600 text-white shadow-[0_0_40px_rgba(220,38,38,0.4)]' : 'bg-white text-black hover:bg-white/90 shadow-[0_0_40px_rgba(255,255,255,0.1)]'}`}
+                            className={`flex-1 py-6 rounded-[28px] font-black uppercase tracking-[0.25em] text-[10px] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-4 group relative overflow-hidden
+                              ${isTimerRunning 
+                                ? 'bg-red-600/90 text-white shadow-[0_20px_40px_rgba(220,38,38,0.3)]' 
+                                : 'bg-violet-600 text-white shadow-[0_20px_40px_rgba(139,92,246,0.3)] hover:scale-[1.02]'}`}
                           >
-                            {isTimerRunning ? <Activity className="w-4 h-4 animate-pulse" /> : <ZapIcon className="w-4 h-4" />}
-                            {isTimerLoading || !isStatsLoaded ? 'Syncing...' : (isTimerRunning ? 'Abort Mission' : 'Initiate Session')}
+                            <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                            {isTimerRunning ? <Activity className="w-4 h-4 animate-pulse text-white" /> : <ZapIcon className="w-4 h-4 text-yellow-400 fill-yellow-400" />}
+                            {isTimerLoading || !isStatsLoaded ? 'Process Sync...' : (isTimerRunning ? 'Terminate Sequence' : 'Initialize Protocol')}
                           </button>
                         </div>
                       </div>
@@ -1666,10 +1784,10 @@ const TimerPage = ({ settings }: TimerPageProps) => {
 
                       <div className="relative z-10 flex flex-col items-center w-full">
                         <div className="flex items-center gap-2 mb-4">
-                          <Target className="w-4 h-4 text-blue-400" />
-                          <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Question Solved</span>
+                          <Target className="w-4 h-4 text-pink-500" />
+                          <span className="text-[10px] font-black text-pink-400/40 uppercase tracking-[0.3em]">Question Solved</span>
                         </div>
-                        <div className="text-6xl font-mono font-black text-white tracking-tighter mb-8 tabular-nums drop-shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                        <div className="text-6xl font-mono font-black text-white tracking-tighter mb-8 tabular-nums drop-shadow-[0_0_15px_rgba(236,72,153,0.3)]">
                           {currentQuestions}
                         </div>
                         <div className="flex items-center gap-4 w-full">
@@ -1678,7 +1796,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                               playTickSound();
                               updateQuestions(Math.max(0, currentQuestions - 1));
                             }}
-                            className="flex-1 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 transition-all active:scale-95"
+                            className="flex-1 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-pink-500/10 hover:border-pink-500/30 transition-all active:scale-95"
                           >
                             -
                           </button>
@@ -1687,38 +1805,10 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                               playTickSound();
                               updateQuestions(currentQuestions + 1);
                             }}
-                            className="flex-1 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-white/10 transition-all active:scale-95"
+                            className="flex-1 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-black hover:bg-pink-500/10 hover:border-pink-500/30 transition-all active:scale-95"
                           >
                             +
                           </button>
-                        </div>
-                      </div>
-                    </motion.div>
-
-                    <motion.div 
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.1 }}
-                      className="p-6 rounded-[32px] glass border border-white/10"
-                    >
-                      <div className="flex items-center gap-2 mb-6">
-                        <Shield className="w-4 h-4 text-emerald-400" />
-                        <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">System Status</span>
-                      </div>
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-white/40">Database</span>
-                          <span className="text-[10px] font-black text-emerald-400 uppercase">Synced</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-white/40">Timer Engine</span>
-                          <span className={`text-[10px] font-black uppercase ${isTimerRunning ? 'text-emerald-400' : 'text-blue-400'}`}>
-                            {isTimerRunning ? 'Active' : 'Standby'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-white/40">Auth Module</span>
-                          <span className="text-[10px] font-black text-emerald-400 uppercase">Verified</span>
                         </div>
                       </div>
                     </motion.div>
@@ -1891,8 +1981,8 @@ const TimerPage = ({ settings }: TimerPageProps) => {
             >
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                  <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Study Hours (Last 7 Days)</span>
+                  <div className="w-1.5 h-1.5 bg-blue-400 rounded-full" />
+                  <span className="text-[10px] font-black text-white/20 uppercase tracking-widest font-mono">Study Hours (Last 7 Days)</span>
                 </div>
               </div>
               <div className="h-48 w-full">

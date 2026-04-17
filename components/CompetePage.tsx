@@ -233,6 +233,12 @@ const LeaderboardList = memo(({
               
               <div className="flex items-center gap-3">
                 <div className="text-right">
+                  <div className={`text-[10px] font-black leading-none ${isCurrentUser ? 'text-blue-400' : 'text-purple-400'}`}>
+                    {player.rankScore || 0}
+                  </div>
+                  <div className="text-[6px] font-bold text-white/20 uppercase tracking-widest mt-0.5">Score</div>
+                </div>
+                <div className="text-right">
                   <div className={`text-xs font-black leading-none ${isCurrentUser ? 'text-blue-400' : 'text-rose-400'}`}>{player.totalQuestions}</div>
                   <div className="text-[6px] font-bold text-white/20 uppercase tracking-widest mt-0.5">Solved</div>
                 </div>
@@ -672,20 +678,66 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
 
   // Leaderboard Listener
   useEffect(() => {
+    // If the leaderboard appears empty, it might be because 'rankScore' is a new field
+    // Firestore's 'orderBy' will exclude documents that don't have the field.
     const q = query(
       collection(db, 'leaderboard'),
       orderBy('totalQuestions', 'desc'),
-      limit(10)
+      limit(50)
     );
 
     console.log('Attaching leaderboard listener...');
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
       console.log('Leaderboard snapshot received, size:', snapshot.size);
-      const players: any[] = [];
+      
+      let players: any[] = [];
       snapshot.forEach((doc) => {
-        players.push({ uid: doc.id, ...doc.data() });
+        const data = doc.data();
+        const questions = data.totalQuestions || 0;
+        const hours = data.totalHours || 0;
+        // Rearrange data based on avg of hour studied and questions solved if rankScore is 0
+        const rankScore = Math.round(data.rankScore && data.rankScore > 0 
+          ? data.rankScore 
+          : (questions / 10 + hours)); 
+        
+        players.push({ uid: doc.id, ...data, rankScore });
       });
-      setLeaderboard(players);
+
+      // Simple fallback only if completely empty
+      if (players.length === 0) {
+        try {
+          const usersQuery = query(
+            collection(db, 'users'),
+            limit(30)
+          );
+          const usersSnap = await getDocs(usersQuery);
+          
+          usersSnap.forEach(userDoc => {
+            const userData = userDoc.data();
+            players.push({
+              uid: userDoc.id,
+              displayName: userData.displayName || 'Student',
+              photoURL: userData.photoURL || `https://ui-avatars.com/api/?name=${userData.displayName}&background=random`,
+              totalQuestions: userData.totalQuestions || 0,
+              totalHours: userData.totalHours || 0,
+              rankScore: userData.rankScore || 0,
+              streak: userData.streak || 0
+            });
+          });
+        } catch (e) {
+          console.error("Fallback leaderboard fetch failed:", e);
+        }
+      }
+      
+      // Sort: rankScore first, then questions
+      players.sort((a, b) => {
+        const scoreA = a.rankScore || 0;
+        const scoreB = b.rankScore || 0;
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        return (b.totalQuestions || 0) - (a.totalQuestions || 0);
+      });
+
+      setLeaderboard(players.slice(0, 20));
       setIsLoading(false);
     }, (error) => {
       console.error('Leaderboard listener error:', error);
