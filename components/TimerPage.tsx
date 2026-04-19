@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, TrendingUp, Zap, Trash2, Cloud, CloudOff, Loader2, Activity, Clock, Target, Shield, Rocket, ZapIcon, History, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, TrendingUp, Zap, Trash2, Cloud, CloudOff, Loader2, Activity, Clock, Target, Shield, Rocket, ZapIcon, History, Check, AlertTriangle } from 'lucide-react';
 import { playTickSound, playF1Sound, playTankSound, playJetSound } from '@/src/lib/sounds';
 import { motion, AnimatePresence } from 'motion/react';
 import AnoAI from "@/components/ui/animated-shader-background";
@@ -36,20 +36,6 @@ const PerformanceNode = React.memo(({ elapsedSeconds, targetHours, currentQuesti
       <span className="text-[9px] font-black text-green-400/30 uppercase tracking-[0.4em] font-mono">Performance Node</span>
     </div>
     <div className="space-y-6">
-      <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
-        <div className="flex justify-between items-end mb-3">
-          <div className="text-[8px] font-black text-white/20 uppercase tracking-widest font-mono">Efficiency</div>
-          <div className="text-lg font-mono font-bold text-green-400">
-            {Math.min(100, Math.round((elapsedSeconds / Math.max(1, targetHours * 3600)) * 100))}%
-          </div>
-        </div>
-        <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-          <motion.div 
-            animate={{ width: `${Math.min(100, (elapsedSeconds / Math.max(1, targetHours * 3600)) * 100)}%` }}
-            className="h-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.3)]"
-          />
-        </div>
-      </div>
       <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
         <div className="flex justify-between items-end mb-3">
           <div className="text-[8px] font-black text-white/20 uppercase tracking-widest font-mono">Focus Index</div>
@@ -124,67 +110,211 @@ const StreakBox = React.memo(({ streak, dailyStudySeconds }: { streak: number, d
   </motion.div>
 ));
 
-const QuestionLab = React.memo(({ currentQuestions, updateQuestions, playTickSound }: any) => (
-  <div className="space-y-6 order-3">
-    <motion.div 
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      whileHover={{ scale: 1.01 }}
-      className="p-12 rounded-[50px] bg-zinc-950/80 border-2 border-pink-500/20 flex flex-col items-center justify-center text-center group relative overflow-hidden min-h-[400px] will-change-transform"
-    >
-      <div className="absolute inset-0 z-0">
-        <div className="absolute inset-0 bg-gradient-to-b from-pink-500/10 via-transparent to-transparent opacity-40" />
-        <motion.div 
-          animate={{ 
-            opacity: [0.1, 0.3, 0.1],
-            scale: [1, 1.2, 1]
-          }}
-          transition={{ duration: 4, repeat: Infinity }}
-          className="absolute -top-20 -right-20 w-64 h-64 bg-pink-500/20 rounded-full blur-[100px]"
-        />
-      </div>
+const QuestionLab = React.memo(({ currentQuestions, updateQuestions, playTickSound, removeOneHour }: any) => {
+  const [showConfirmDeleteTime, setShowConfirmDeleteTime] = useState(false);
+  const [holdProgress, setHoldProgress] = useState(0);
+  const holdIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-      <div className="relative z-10 flex flex-col items-center w-full">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="p-2 rounded-xl bg-pink-500/10 border border-pink-500/20">
-            <Target className="w-5 h-5 text-pink-500" />
+  const startHold = () => {
+    if (holdIntervalRef.current) return;
+    playTickSound();
+    holdIntervalRef.current = setInterval(() => {
+      setHoldProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(holdIntervalRef.current!);
+          holdIntervalRef.current = null;
+          removeOneHour();
+          setShowConfirmDeleteTime(false);
+          setHoldProgress(0);
+          return 100;
+        }
+        return prev + 1;
+      });
+    }, 20);
+  };
+
+  const cancelHold = () => {
+    if (holdIntervalRef.current) {
+      clearInterval(holdIntervalRef.current);
+      holdIntervalRef.current = null;
+    }
+    setHoldProgress(0);
+  };
+
+  return (
+    <div className="space-y-6 order-3">
+      <motion.div 
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        whileHover={{ scale: 1.01 }}
+        className="p-12 rounded-[50px] bg-zinc-950/80 border-2 border-pink-500/20 flex flex-col items-center justify-center text-center group relative overflow-hidden min-h-[400px] will-change-transform"
+      >
+        <div className="absolute inset-0 z-0">
+          <div className="absolute inset-0 bg-gradient-to-b from-pink-500/10 via-transparent to-transparent opacity-40" />
+          <motion.div 
+            animate={{ 
+              opacity: [0.1, 0.3, 0.1],
+              scale: [1, 1.2, 1]
+            }}
+            transition={{ duration: 4, repeat: Infinity }}
+            className="absolute -top-20 -right-20 w-64 h-64 bg-pink-500/20 rounded-full blur-[100px]"
+          />
+        </div>
+
+        <div className="relative z-10 flex flex-col items-center w-full">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="p-2 rounded-xl bg-pink-500/10 border border-pink-500/20">
+              <Target className="w-5 h-5 text-pink-500" />
+            </div>
+            <span className="text-[12px] font-black text-pink-400 uppercase tracking-[0.5em] font-mono">Question Lab</span>
           </div>
-          <span className="text-[12px] font-black text-pink-400 uppercase tracking-[0.5em] font-mono">Question Lab</span>
+          
+          <div className="text-9xl font-mono font-black text-white tracking-tighter mb-12 tabular-nums drop-shadow-[0_0_40px_rgba(236,72,153,0.5)]">
+            {currentQuestions}
+          </div>
+
+          <div className="flex items-center gap-6 w-full">
+            <button 
+              onClick={() => {
+                playTickSound();
+                updateQuestions(Math.max(0, currentQuestions - 1));
+              }}
+              className="flex-1 py-6 rounded-3xl bg-white/5 border border-white/10 text-white font-black text-xl hover:bg-red-500/20 hover:border-red-500/40 transition-all active:scale-90 shadow-xl"
+            >
+              -
+            </button>
+            <button 
+              onClick={() => {
+                playTickSound();
+                updateQuestions(currentQuestions + 1);
+              }}
+              className="flex-1 py-6 rounded-3xl bg-pink-600 border border-pink-400 text-white font-black text-xl hover:bg-pink-500 hover:scale-105 transition-all active:scale-95 shadow-[0_15px_30px_rgba(236,72,153,0.4)]"
+            >
+              +
+            </button>
+          </div>
+
+          <div className="mt-8 flex items-center gap-2">
+            <div className="w-2 h-2 bg-pink-500 rounded-full animate-ping" />
+            <span className="text-[10px] font-mono font-black text-white/30 uppercase tracking-widest">Live Tracking Active</span>
+          </div>
         </div>
+      </motion.div>
+
+      {/* Delete 1 Hour Option */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ 
+          opacity: 1, 
+          y: 0,
+          backgroundColor: showConfirmDeleteTime ? "rgba(220, 38, 38, 0.08)" : "rgba(255, 255, 255, 0.02)",
+          borderColor: showConfirmDeleteTime ? "rgba(220, 38, 38, 0.3)" : "rgba(255, 255, 255, 0.05)",
+          x: showConfirmDeleteTime ? [0, -1, 1, -1, 1, 0] : 0
+        }}
+        transition={{ 
+          x: showConfirmDeleteTime ? { repeat: Infinity, duration: 0.5 } : { duration: 0.3 },
+          backgroundColor: { duration: 0.5 },
+          borderColor: { duration: 0.5 }
+        }}
+        className={`p-6 rounded-[32px] border flex flex-col gap-4 overflow-hidden relative group transition-colors duration-500`}
+      >
+        {showConfirmDeleteTime && (
+          <div className="absolute inset-0 pointer-events-none opacity-20 overflow-hidden">
+            <div className="absolute inset-0 bg-[linear-gradient(rgba(220,38,38,0.1)_1px,transparent_1px)] bg-[length:100%_4px] animate-scanline" />
+          </div>
+        )}
         
-        <div className="text-9xl font-mono font-black text-white tracking-tighter mb-12 tabular-nums drop-shadow-[0_0_40px_rgba(236,72,153,0.5)]">
-          {currentQuestions}
-        </div>
+        <AnimatePresence mode="wait">
+          {!showConfirmDeleteTime ? (
+            <motion.div 
+              key="delete-btn"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.05 }}
+              className="flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-red-500/10 flex items-center justify-center">
+                  <Clock className="w-4 h-4 text-red-500/60" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-black text-white/40 uppercase tracking-wider font-mono">Time Adjustment</div>
+                  <div className="text-[9px] font-bold text-white/20 font-mono">Recalibrate session history</div>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowConfirmDeleteTime(true);
+                  playTickSound();
+                }}
+                className="px-4 py-2 rounded-xl bg-red-600 text-white text-[10px] font-black uppercase tracking-[0.2em] transition-all border border-red-400 hover:bg-red-500 hover:scale-105 shadow-[0_5px_15px_rgba(220,38,38,0.3)] active:scale-95"
+              >
+                -1 Hour
+              </button>
+            </motion.div>
+          ) : (
+            <motion.div 
+              key="confirm-delete"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ 
+                opacity: 1, 
+                x: 0,
+                transition: { type: "spring", stiffness: 300, damping: 20 }
+              }}
+              exit={{ opacity: 0, x: 20 }}
+              className="flex flex-col gap-4 relative z-10"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-500 animate-pulse" />
+                  <div className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] font-mono">Hazard: Sequence Mod</div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowConfirmDeleteTime(false);
+                    playTickSound();
+                    cancelHold();
+                  }}
+                  className="p-1 rounded-lg hover:bg-white/10 text-white/30 transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4 rotate-180" />
+                </button>
+              </div>
+              
+              <div className="text-[11px] font-bold text-white/70 leading-relaxed font-mono bg-black/40 p-3 rounded-2xl border border-white/5">
+                AUTHORIZING DELETION OF <span className="text-red-400 font-black">60m 00s</span>.
+                <div className="mt-1 text-[9px] text-white/30 lowercase italic">hold button to establish link...</div>
+              </div>
 
-        <div className="flex items-center gap-6 w-full">
-          <button 
-            onClick={() => {
-              playTickSound();
-              updateQuestions(Math.max(0, currentQuestions - 1));
-            }}
-            className="flex-1 py-6 rounded-3xl bg-white/5 border border-white/10 text-white font-black text-xl hover:bg-red-500/20 hover:border-red-500/40 transition-all active:scale-90 shadow-xl"
-          >
-            -
-          </button>
-          <button 
-            onClick={() => {
-              playTickSound();
-              updateQuestions(currentQuestions + 1);
-            }}
-            className="flex-1 py-6 rounded-3xl bg-pink-600 border border-pink-400 text-white font-black text-xl hover:bg-pink-500 hover:scale-105 transition-all active:scale-95 shadow-[0_15px_30px_rgba(236,72,153,0.4)]"
-          >
-            +
-          </button>
-        </div>
-
-        <div className="mt-8 flex items-center gap-2">
-          <div className="w-2 h-2 bg-pink-500 rounded-full animate-ping" />
-          <span className="text-[10px] font-mono font-black text-white/30 uppercase tracking-widest">Live Tracking Active</span>
-        </div>
-      </div>
-    </motion.div>
-  </div>
-));
+              <div className="flex flex-col gap-2 w-full mt-2">
+                <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${holdProgress}%` }}
+                    className="h-full bg-red-600 shadow-[0_0_15px_rgba(220,38,38,0.5)]"
+                  />
+                </div>
+                
+                <button
+                  onMouseDown={startHold}
+                  onMouseUp={cancelHold}
+                  onMouseLeave={cancelHold}
+                  onTouchStart={startHold}
+                  onTouchEnd={cancelHold}
+                  className="w-full py-4 rounded-2xl bg-red-600/10 text-red-500 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative overflow-hidden group border border-red-600/30 active:scale-95"
+                >
+                  <span className="relative z-10 transition-transform block">
+                    {holdProgress > 0 ? `Authorizing Sequence... ${Math.round(holdProgress)}%` : "Hold Key to Authorize"}
+                  </span>
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </div>
+  );
+});
 
 const DistributionCharts = React.memo(({ subjectStudySeconds, subjectQuestionCounts, dailyStudySeconds, dailyQuestionCounts, getSubjectColor }: any) => {
   const today = new Date().toDateString();
@@ -1417,6 +1547,45 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     }
   }, [user, dailyQuestionCounts, syncGlobalProgress]);
 
+  const removeOneHour = useCallback(async () => {
+    const today = new Date().toDateString();
+    const newSeconds = Math.max(0, elapsedSecondsRef.current - 3600);
+    
+    setElapsedSeconds(newSeconds);
+    setAccumulatedSeconds(prev => Math.max(0, prev - 3600));
+    setDailyStudySeconds(prev => ({ ...prev, [today]: newSeconds }));
+    
+    let updatedSubjectSeconds = { ...(subjectStudySecondsRef.current[today] || {}) };
+    const currentSub = selectedSubjectRef.current;
+    if (currentSub) {
+      updatedSubjectSeconds[currentSub] = Math.max(0, (updatedSubjectSeconds[currentSub] || 0) - 3600);
+      setSubjectStudySeconds(prev => ({
+        ...prev,
+        [today]: updatedSubjectSeconds
+      }));
+    }
+
+    if (!user) {
+      const localData = JSON.parse(localStorage.getItem('pulse_calendar_data') || '{}');
+      if (!localData[today]) localData[today] = {};
+      localData[today].studySeconds = newSeconds;
+      localData[today].subjectSeconds = updatedSubjectSeconds;
+      localStorage.setItem('pulse_calendar_data', JSON.stringify(localData));
+      return;
+    }
+
+    try {
+      const docRef = doc(db, 'users', user.uid, 'dailyStats', today);
+      await setDoc(docRef, {
+        studySeconds: newSeconds,
+        subjectSeconds: updatedSubjectSeconds,
+        lastUpdated: serverTimestamp()
+      }, { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/dailyStats/${today}`);
+    }
+  }, [user]);
+
   const toggleMockTest = async (dateStr: string) => {
     const isCurrentlyMock = mockTestDates.includes(dateStr);
     
@@ -2010,6 +2179,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                     currentQuestions={currentQuestions} 
                     updateQuestions={updateQuestions} 
                     playTickSound={playTickSound} 
+                    removeOneHour={removeOneHour}
                   />
                 </div>
 
