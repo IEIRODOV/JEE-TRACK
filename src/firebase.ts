@@ -1,6 +1,32 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, User, signOut, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail, signInAnonymously, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
-import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, limit, Timestamp, setDoc, doc, getDoc, increment, where, getDocs, deleteDoc, updateDoc, arrayUnion, arrayRemove, getDocFromServer, getCountFromServer, writeBatch } from 'firebase/firestore';
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  query, 
+  orderBy, 
+  onSnapshot, 
+  serverTimestamp, 
+  limit, 
+  Timestamp, 
+  setDoc, 
+  doc, 
+  getDoc, 
+  increment, 
+  where, 
+  getDocs, 
+  deleteDoc, 
+  updateDoc, 
+  arrayUnion, 
+  arrayRemove, 
+  getDocFromServer, 
+  getCountFromServer, 
+  writeBatch,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager
+} from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase
@@ -13,7 +39,13 @@ const dbId = firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatab
   : undefined;
 
 console.log('Initializing Firestore with database ID:', dbId || 'default');
-export const db = getFirestore(app, dbId);
+
+// Initialize Firestore with Persistence for better scale (Spark Plan optimization)
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  })
+}, dbId);
 
 // Connection test
 async function testConnection() {

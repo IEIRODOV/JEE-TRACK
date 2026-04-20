@@ -28,7 +28,8 @@ import {
   FlaskConical,
   ShieldCheck,
   Pencil,
-  Share2
+  Share2,
+  RotateCcw
 } from 'lucide-react';
 import PulseLoader from "@/components/ui/pulse-loader";
 import { 
@@ -42,6 +43,7 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   query, 
   orderBy, 
   onSnapshot, 
@@ -539,6 +541,8 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
   const [editCommentText, setEditCommentText] = useState('');
   const [showCommentInput, setShowCommentInput] = useState<string | null>(null);
   const [userRanks, setUserRanks] = useState<Record<string, any>>({});
+  const [lastRefreshTime, setLastRefreshTime] = useState<number>(Date.now());
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const REACTION_EMOJIS = ['👍', '❤️', '🔥', '😂', '👏'];
@@ -571,28 +575,59 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
   }, []);
 
   useEffect(() => {
+    const fetchPosts = async () => {
+      setIsLoading(true);
+      const q = query(
+        collection(db, 'posts'),
+        orderBy('createdAt', 'desc'),
+        limit(100)
+      );
+
+      try {
+        const snapshot = await getDocs(q);
+        const msgs: Post[] = [];
+        snapshot.forEach((doc) => {
+          msgs.push({ id: doc.id, ...doc.data() } as Post);
+        });
+        setPosts(msgs);
+        setIsLoading(false);
+        setLastRefreshTime(Date.now());
+        setError(null);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.LIST, 'posts', false);
+        setError("Failed to fetch feed.");
+        setIsLoading(false);
+      }
+    };
+
+    fetchPosts();
+    // Background refresh every 5 minutes (300,000ms) to conserve read quota
+    const interval = setInterval(fetchPosts, 300000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
     const q = query(
       collection(db, 'posts'),
       orderBy('createdAt', 'desc'),
       limit(100)
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    try {
+      const snapshot = await getDocs(q);
       const msgs: Post[] = [];
       snapshot.forEach((doc) => {
         msgs.push({ id: doc.id, ...doc.data() } as Post);
       });
       setPosts(msgs);
-      setIsLoading(false);
-      setError(null);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'posts', false);
-      setError("Failed to sync feed.");
-      setIsLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
+      setLastRefreshTime(Date.now());
+    } catch (error) {
+      console.error("Refresh error:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Optimized Rank Fetching - with Cache and Deduplication
   useEffect(() => {
@@ -1061,6 +1096,14 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
             
             <div className="hidden md:block h-8 w-px bg-white/5" />
             
+            <button 
+              onClick={handleManualRefresh}
+              disabled={isRefreshing}
+              className={`p-2 rounded-xl bg-white/5 border border-white/10 text-white/40 hover:text-purple-400 hover:bg-purple-500/10 transition-all ${isRefreshing ? 'animate-spin opacity-50' : ''}`}
+              title="Refresh Feed"
+            >
+              <RotateCcw className="w-5 h-5" />
+            </button>
             <Notifications />
           </div>
         </div>

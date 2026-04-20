@@ -1110,7 +1110,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         }
       }, 1000);
 
-      // Periodic save to Firestore every 2 minutes to minimize write quota usage
+      // Periodic save to Firestore every 10 minutes to significantly minimize write quota usage at scale
       periodicSave = setInterval(async () => {
         const now = Date.now();
         const sessionSeconds = Math.floor((now - startTime) / 1000);
@@ -1152,7 +1152,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
             console.error("Error saving periodic chapter progress:", error);
           }
         }
-      }, 120000);
+      }, 600000); // Pulse every 10 minutes
     }
     return () => {
       clearInterval(interval);
@@ -1582,7 +1582,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       } catch (error) {
         console.error("Error debounced question sync:", error);
       }
-    }, 2000);
+    }, 5000); // 5-second debounce for question updates to minimize writes
   }, [user, dailyQuestionCounts, isStatsLoaded]);
 
   const removeOneHour = useCallback(async () => {
