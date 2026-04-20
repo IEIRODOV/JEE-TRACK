@@ -12,6 +12,7 @@ import {
   doc, 
   setDoc, 
   getDoc, 
+  getDocs,
   collection, 
   onSnapshot, 
   query, 
@@ -705,6 +706,8 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   const elapsedSecondsRef = useRef(elapsedSeconds);
   const lastTickElapsedRef = useRef(0);
   const lastSavedProgressSecondsRef = useRef(0);
+  const lastSyncedQuestionsRef = useRef(currentQuestions);
+  const questionSyncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     dailyStudySecondsRef.current = dailyStudySeconds;
@@ -716,6 +719,12 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     selectedChapterRef.current = selectedChapter;
     currentQuestionsRef.current = currentQuestions;
     elapsedSecondsRef.current = elapsedSeconds;
+    
+    // Sync lastSyncedQuestionsRef on initial load
+    if (isStatsLoaded && lastSyncedQuestionsRef.current === 0 && currentQuestions > 0) {
+      lastSyncedQuestionsRef.current = currentQuestions;
+    }
+
     // Initialize lastSavedProgressSecondsRef when elapsedSeconds is first loaded
     if (lastSavedProgressSecondsRef.current === 0 && elapsedSeconds > 0) {
       lastSavedProgressSecondsRef.current = elapsedSeconds;
@@ -806,9 +815,11 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     }
 
     setIsSyncing(true);
-    const statsRef = collection(db, 'users', user.uid, 'dailyStats');
+    const statsCollectionRef = collection(db, 'users', user.uid, 'dailyStats');
+    const today = new Date().toDateString();
     
-    const unsubscribe = onSnapshot(statsRef, (snapshot) => {
+    // Step 1: Initial Load via getDocs (much cheaper than long-lived listeners for history)
+    getDocs(statsCollectionRef).then((snapshot) => {
       const newQuestionCounts: Record<string, number> = {};
       const newStudySeconds: Record<string, number> = {};
       const newSubjectSeconds: Record<string, Record<string, number>> = {};
@@ -820,7 +831,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
 
       snapshot.docs.forEach(doc => {
         const data = doc.data();
-        const dateStr = doc.id; // Using doc ID as date string
+        const dateStr = doc.id;
 
         if (data.questionsSolved !== undefined) newQuestionCounts[dateStr] = data.questionsSolved;
         if (data.studySeconds !== undefined) newStudySeconds[dateStr] = data.studySeconds;
@@ -851,33 +862,43 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       setMockTestDetails(newMockTestDetails);
       setCompletedStudyDays(newCompletedStudy);
       setCompletedQuestionDays(newCompletedQuestions);
-
-      // Update current day's values
-      const today = new Date().toDateString();
-      const firestoreTodaySeconds = newStudySeconds[today] || 0;
-      setCurrentQuestions(newQuestionCounts[today] || 0);
       
-      // Critical Fix: Sync elapsedSeconds from Firestore if it's higher than local (prevents reset to 0)
-      // or if we haven't loaded stats yet.
-      setElapsedSeconds(prev => {
-        // Hard cap at 24 hours (86400 seconds)
-        const cappedFirestoreSeconds = Math.min(firestoreTodaySeconds, 86400);
-        
-        if (!isTimerRunning) return cappedFirestoreSeconds;
-        // If timer is running, only update if local is 0 (initial load) 
-        // or if Firestore is significantly ahead (sync from other device)
-        if (prev === 0 || cappedFirestoreSeconds > prev + 60) {
-          return cappedFirestoreSeconds;
-        }
-        return prev;
-      });
-
+      setCurrentQuestions(newQuestionCounts[today] || 0);
+      setElapsedSeconds(prev => prev === 0 ? (newStudySeconds[today] || 0) : prev);
+      
       setIsStatsLoaded(true);
       setIsSyncing(false);
       setLastSyncTime(new Date());
-    }, (error) => {
-      console.error("Firestore Sync Error:", error);
+    }).catch(err => {
+      console.error("Initial Stats Load Error:", err);
       setIsSyncing(false);
+    });
+
+    // Step 2: Targeted Listener only for Today's document (saves massive reads on history)
+    const statsRef = doc(db, 'users', user.uid, 'dailyStats', today);
+    const unsubscribe = onSnapshot(statsRef, (docSnap) => {
+      if (!docSnap.exists()) return;
+      
+      const data = docSnap.data();
+      const dateStr = today;
+
+      setDailyQuestionCounts(prev => ({ ...prev, [dateStr]: data.questionsSolved || 0 }));
+      setDailyStudySeconds(prev => ({ ...prev, [dateStr]: data.studySeconds || 0 }));
+      setSubjectStudySeconds(prev => ({ ...prev, [dateStr]: data.subjectSeconds || {} }));
+      setSubjectQuestionCounts(prev => ({ ...prev, [dateStr]: data.subjectQuestions || {} }));
+      
+      setCurrentQuestions(data.questionsSolved || 0);
+      
+      setElapsedSeconds(prev => {
+        const firestoreTime = Math.min(data.studySeconds || 0, 86400);
+        if (!isTimerRunning) return firestoreTime;
+        if (prev === 0 || firestoreTime > prev + 60) return firestoreTime;
+        return prev;
+      });
+
+      setLastSyncTime(new Date());
+    }, (error) => {
+      console.error("Today's Stats Sync Error:", error);
     });
 
     return () => unsubscribe();
@@ -1082,7 +1103,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         }
       }, 1000);
 
-      // Periodic save to Firestore every 30 seconds to prevent data loss
+      // Periodic save to Firestore every 2 minutes to minimize write quota usage
       periodicSave = setInterval(async () => {
         const now = Date.now();
         const sessionSeconds = Math.floor((now - startTime) / 1000);
@@ -1124,7 +1145,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
             console.error("Error saving periodic chapter progress:", error);
           }
         }
-      }, 30000);
+      }, 120000);
     }
     return () => {
       clearInterval(interval);
@@ -1482,19 +1503,20 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   };
 
   const updateQuestions = useCallback(async (val: number) => {
-    const diff = val - currentQuestionsRef.current;
     const today = new Date().toDateString();
-    setCurrentQuestions(val);
     
+    // Update local state immediately for responsiveness
+    setCurrentQuestions(val);
     const newCounts = { ...dailyQuestionCounts, [today]: val };
     setDailyQuestionCounts(newCounts);
 
-    // Update subject-wise question counts
     let updatedSubjectQuestions = { ...(subjectQuestionCountsRef.current[today] || {}) };
     const currentSub = selectedSubjectRef.current;
+    const diff_since_last_click = val - currentQuestionsRef.current;
+
     if (currentSub) {
       const prevSubCount = updatedSubjectQuestions[currentSub] || 0;
-      updatedSubjectQuestions[currentSub] = Math.max(0, prevSubCount + diff);
+      updatedSubjectQuestions[currentSub] = Math.max(0, prevSubCount + diff_since_last_click);
       setSubjectQuestionCounts(prev => ({
         ...prev,
         [today]: updatedSubjectQuestions
@@ -1510,42 +1532,51 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       return;
     }
 
-    const batch = writeBatch(db);
-    const statsRef = doc(db, 'users', user.uid, 'dailyStats', today);
-    batch.set(statsRef, {
-      questionsSolved: val,
-      subjectQuestions: updatedSubjectQuestions,
-      lastUpdated: serverTimestamp()
-    }, { merge: true });
+    // Debounce the Firestore write (wait 2 seconds of inactivity before syncing)
+    if (questionSyncTimeoutRef.current) clearTimeout(questionSyncTimeoutRef.current);
+    
+    questionSyncTimeoutRef.current = setTimeout(async () => {
+      const finalVal = val;
+      const totalDiff = finalVal - lastSyncedQuestionsRef.current;
+      if (totalDiff === 0) return;
 
-    // Update chapter-specific questions in progress data
-    if (selectedChapterRef.current && currentSub) {
-      const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
-      const year = localStorage.getItem('pulse_user_year') || '2027';
-      const examBase = exam === 'jee' ? 'jee' : exam;
-      const examId = `${examBase}_${year}`;
-      const progressRef = doc(db, 'users', user.uid, 'data', `progress-${examId}`);
-      batch.set(progressRef, {
-        progress: {
-          [currentSub]: {
-            [selectedChapterRef.current]: {
-              questions: increment(diff)
+      try {
+        const batch = writeBatch(db);
+        const statsRef = doc(db, 'users', user.uid, 'dailyStats', today);
+        batch.set(statsRef, {
+          questionsSolved: finalVal,
+          subjectQuestions: updatedSubjectQuestions,
+          lastUpdated: serverTimestamp()
+        }, { merge: true });
+
+        if (selectedChapterRef.current && currentSub) {
+          const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
+          const year = localStorage.getItem('pulse_user_year') || '2027';
+          const examBase = exam === 'jee' ? 'jee' : exam;
+          const examId = `${examBase}_${year}`;
+          const progressRef = doc(db, 'users', user.uid, 'data', `progress-${examId}`);
+          batch.set(progressRef, {
+            progress: {
+              [currentSub]: {
+                [selectedChapterRef.current]: {
+                  questions: increment(totalDiff)
+                }
+              }
             }
-          }
+          }, { merge: true });
         }
-      }, { merge: true });
-    }
 
-    try {
-      await batch.commit();
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/dailyStats/${today}`);
-    }
-
-    if (diff > 0) {
-      await syncGlobalProgress(diff, 0);
-    }
-  }, [user, dailyQuestionCounts, syncGlobalProgress]);
+        await batch.commit();
+        lastSyncedQuestionsRef.current = finalVal;
+        
+        if (totalDiff > 0) {
+          await syncGlobalProgress(totalDiff, 0);
+        }
+      } catch (error) {
+        console.error("Error debounced question sync:", error);
+      }
+    }, 2000);
+  }, [user, dailyQuestionCounts, isStatsLoaded]);
 
   const removeOneHour = useCallback(async () => {
     const today = new Date().toDateString();
