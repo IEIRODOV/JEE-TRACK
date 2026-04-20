@@ -369,68 +369,55 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
     };
   }, [user]);
 
-  // Real-time Friends Data Listeners (Profiles, Stats, Timers)
+  // Real-time Friends Data - Optimized for Scale
+  // Instead of many onSnapshot listeners, we use periodic fetching (every 2 minutes)
   useEffect(() => {
     if (!user || friends.length === 0) return;
 
-    const friendIds = friends.map(f => f.uid);
-    
-    // 1. Listen to Profiles & Leaderboard Stats
-    const unsubscribesProfile = friendIds.map(fId => {
-      return onSnapshot(doc(db, 'users', fId), (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          setFriends(prev => prev.map(f => 
-            f.uid === fId ? { 
-              ...f, 
-              displayName: data.displayName || 'Friend',
-              photoURL: data.photoURL || `https://ui-avatars.com/api/?name=${data.displayName || 'Friend'}&background=random`
-            } : f
-          ));
-        }
-      });
-    });
+    const fetchFriendsData = async () => {
+      const friendIds = friends.map(f => f.uid);
+      const updatedFriends = [...friends];
+      const newTimerStates: Record<string, any> = {};
 
-    const unsubscribesLeaderboard = friendIds.map(fId => {
-      return onSnapshot(doc(db, 'leaderboard', fId), (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          setFriends(prev => prev.map(f => 
-            f.uid === fId ? { ...f, totalQuestions: data.totalQuestions || 0 } : f
-          ));
-        }
-      });
-    });
+      try {
+        await Promise.all(friendIds.map(async (fId) => {
+          // Fetch Profile & Stats (Using getDoc instead of onSnapshot)
+          const [userSnap, leadSnap, statsSnap, timerSnap] = await Promise.all([
+            getDoc(doc(db, 'users', fId)),
+            getDoc(doc(db, 'leaderboard', fId)),
+            getDoc(doc(db, 'users', fId, 'dailyStats', currentDate)),
+            getDoc(doc(db, 'users', fId, 'data', 'timer'))
+          ]);
 
-    // 2. Listen to Daily Stats
-    const unsubscribesStats = friendIds.map(fId => {
-      return onSnapshot(doc(db, 'users', fId, 'dailyStats', currentDate), (docSnap) => {
-        const stats = docSnap.exists() ? docSnap.data() : { studySeconds: 0, questionsSolved: 0 };
-        setFriends(prev => prev.map(f => 
-          f.uid === fId ? { ...f, stats } : f
-        ));
-      }, (error) => {
-        handleFirestoreError(error, OperationType.GET, `users/${fId}/dailyStats/${currentDate}`, false);
-      });
-    });
+          const fIndex = updatedFriends.findIndex(f => f.uid === fId);
+          if (fIndex !== -1) {
+            const userData = userSnap.exists() ? userSnap.data() : {};
+            const leadData = leadSnap.exists() ? leadSnap.data() : {};
+            const statsData = statsSnap.exists() ? statsSnap.data() : { studySeconds: 0, questionsSolved: 0 };
+            
+            updatedFriends[fIndex] = {
+              ...updatedFriends[fIndex],
+              displayName: userData.displayName || updatedFriends[fIndex].displayName || 'Friend',
+              photoURL: userData.photoURL || updatedFriends[fIndex].photoURL || `https://ui-avatars.com/api/?name=${userData.displayName || 'Friend'}&background=random`,
+              totalQuestions: leadData.totalQuestions || 0,
+              stats: statsData
+            };
+          }
 
-    // 3. Listen to Timers
-    const unsubscribesTimer = friendIds.map(fId => {
-      return onSnapshot(doc(db, 'users', fId, 'data', 'timer'), (docSnap) => {
-        const timerData = docSnap.exists() ? docSnap.data() : { isRunning: false, startTime: null, accumulatedSeconds: 0 };
-        setFriendsTimerStates(prev => ({ ...prev, [fId]: timerData }));
-      }, (error) => {
-        handleFirestoreError(error, OperationType.GET, `users/${fId}/data/timer`, false);
-      });
-    });
+          newTimerStates[fId] = timerSnap.exists() ? timerSnap.data() : { isRunning: false, startTime: null, accumulatedSeconds: 0 };
+        }));
 
-    return () => {
-      unsubscribesProfile.forEach(unsub => unsub());
-      unsubscribesLeaderboard.forEach(unsub => unsub());
-      unsubscribesStats.forEach(unsub => unsub());
-      unsubscribesTimer.forEach(unsub => unsub());
+        setFriends(updatedFriends);
+        setFriendsTimerStates(newTimerStates);
+      } catch (error) {
+        console.error("Scale-Optimized Friends Fetch Error:", error);
+      }
     };
-  }, [user, currentDate, friends.map(f => f.uid).join(',')]);
+
+    fetchFriendsData();
+    const interval = setInterval(fetchFriendsData, 120000); // Pulse every 2 minutes
+    return () => clearInterval(interval);
+  }, [user, currentDate, friends.length]); // Use length as proxy for friend list changes
 
   // Unread Messages Listener
   useEffect(() => {
@@ -676,42 +663,33 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
     console.log("Current selectedProfile state:", selectedProfile);
   }, [selectedProfile]);
 
-  // Leaderboard Listener
+  // Optimized Leaderboard - Point-in-time Fetch
   useEffect(() => {
-    // If the leaderboard appears empty, it might be because 'rankScore' is a new field
-    // Firestore's 'orderBy' will exclude documents that don't have the field.
-    const q = query(
-      collection(db, 'leaderboard'),
-      orderBy('totalQuestions', 'desc'),
-      limit(50)
-    );
+    const fetchLeaderboard = async () => {
+      const q = query(
+        collection(db, 'leaderboard'),
+        orderBy('totalQuestions', 'desc'),
+        limit(50)
+      );
 
-    console.log('Attaching leaderboard listener...');
-    const unsubscribe = onSnapshot(q, async (snapshot) => {
-      console.log('Leaderboard snapshot received, size:', snapshot.size);
-      
-      let players: any[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        const questions = data.totalQuestions || 0;
-        const hours = data.totalHours || 0;
-        // Rearrange data based on avg of hour studied and questions solved if rankScore is 0
-        const rankScore = Math.round(data.rankScore && data.rankScore > 0 
-          ? data.rankScore 
-          : (questions / 10 + hours)); 
-        
-        players.push({ uid: doc.id, ...data, rankScore });
-      });
-
-      // Simple fallback only if completely empty
-      if (players.length === 0) {
-        try {
-          const usersQuery = query(
-            collection(db, 'users'),
-            limit(30)
-          );
-          const usersSnap = await getDocs(usersQuery);
+      try {
+        const snapshot = await getDocs(q);
+        let players: any[] = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          const questions = data.totalQuestions || 0;
+          const hours = data.totalHours || 0;
+          const rankScore = Math.round(data.rankScore && data.rankScore > 0 
+            ? data.rankScore 
+            : (questions / 10 + hours)); 
           
+          players.push({ uid: doc.id, ...data, rankScore });
+        });
+
+        // Simple fallback only if completely empty
+        if (players.length === 0) {
+          const usersQuery = query(collection(db, 'users'), limit(30));
+          const usersSnap = await getDocs(usersQuery);
           usersSnap.forEach(userDoc => {
             const userData = userDoc.data();
             players.push({
@@ -724,50 +702,52 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
               streak: userData.streak || 0
             });
           });
-        } catch (e) {
-          console.error("Fallback leaderboard fetch failed:", e);
         }
+        
+        players.sort((a, b) => {
+          const scoreA = a.rankScore || 0;
+          const scoreB = b.rankScore || 0;
+          if (scoreB !== scoreA) return scoreB - scoreA;
+          return (b.totalQuestions || 0) - (a.totalQuestions || 0);
+        });
+
+        setLeaderboard(players.slice(0, 20));
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Leaderboard fetch error:', error);
+        setIsLoading(false);
       }
-      
-      // Sort: rankScore first, then questions
-      players.sort((a, b) => {
-        const scoreA = a.rankScore || 0;
-        const scoreB = b.rankScore || 0;
-        if (scoreB !== scoreA) return scoreB - scoreA;
-        return (b.totalQuestions || 0) - (a.totalQuestions || 0);
-      });
+    };
 
-      setLeaderboard(players.slice(0, 20));
-      setIsLoading(false);
-    }, (error) => {
-      console.error('Leaderboard listener error:', error);
-      handleFirestoreError(error, OperationType.LIST, 'leaderboard', false);
-      setDbError("Failed to sync leaderboard.");
-      setIsLoading(false);
-    });
-
-    return () => unsubscribe();
+    fetchLeaderboard();
   }, []);
 
-  // Global Stats Listener
+  // Global Stats - Periodic Fetch (Every 5 minutes)
   useEffect(() => {
-    const unsubscribe = onSnapshot(doc(db, 'stats', 'global'), async (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data() as any;
-        try {
-          const userCountSnapshot = await getCountFromServer(collection(db, 'users'));
-          const totalStudents = userCountSnapshot.data().count;
-          setGlobalStats({ ...data, totalStudents });
-        } catch (error) {
-          console.error("Error fetching user count:", error);
-          setGlobalStats(data);
+    const fetchGlobalStats = async () => {
+      try {
+        const docSnap = await getDoc(doc(db, 'stats', 'global'));
+        if (docSnap.exists()) {
+          const data = docSnap.data() as any;
+          try {
+            const userCountSnapshot = await getCountFromServer(collection(db, 'users'));
+            const totalStudents = userCountSnapshot.data().count;
+            setGlobalStats({ ...data, totalStudents });
+          } catch (error) {
+            console.error("Error fetching user count:", error);
+            setGlobalStats(data);
+          }
         }
+      } catch (error) {
+        console.error("Global stats fetch error:", error);
       }
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'stats/global', false);
-    });
-    return () => unsubscribe();
+    };
+
+    fetchGlobalStats();
+    const interval = setInterval(fetchGlobalStats, 300000); // 5 minutes
+    return () => clearInterval(interval);
   }, []);
+
 
   const userStats = leaderboard.find(p => p.uid === user?.uid) || { totalQuestions: 0, totalHours: 0, streak: 0 };
   const rankInfo = getRankInfo(userStats.totalQuestions);

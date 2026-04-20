@@ -935,16 +935,23 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     return () => unsubscribe();
   }, [user]);
 
-  // Global Stats Listener
+  // Global Stats - Periodic Fetch (Every 5 minutes) to conserve read quota
   useEffect(() => {
-    const unsubscribe = onSnapshot(doc(db, 'stats', 'global'), (doc) => {
-      if (doc.exists()) {
-        setGlobalStats(doc.data() as any);
+    const fetchGlobalStats = async () => {
+      try {
+        const docRef = doc(db, 'stats', 'global');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setGlobalStats(docSnap.data() as any);
+        }
+      } catch (error) {
+        console.error("Global Stats Fetch Error:", error);
       }
-    }, (error) => {
-      console.error("Global Stats Sync Error:", error);
-    });
-    return () => unsubscribe();
+    };
+
+    fetchGlobalStats();
+    const interval = setInterval(fetchGlobalStats, 300000); // 5 minutes
+    return () => clearInterval(interval);
   }, []);
 
   // Motivational Quote Rotation - Once a day

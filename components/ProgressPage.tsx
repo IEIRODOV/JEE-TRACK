@@ -47,6 +47,7 @@ const ProgressPage = () => {
   const [editingChapter, setEditingChapter] = useState<{ subject: string, id: string, name: string } | null>(null);
   const [newChapterName, setNewChapterName] = useState('');
   const [showChapterStats, setShowChapterStats] = useState<string | null>(null);
+  const syncTimeoutRef = React.useRef<Record<string, any>>({});
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((u) => setUser(u));
@@ -128,30 +129,31 @@ const ProgressPage = () => {
 
     setProgressData(newProgress);
 
-    try {
-      // CRITICAL FIX: Use dot notation to avoid overwriting fields like 'studyTime' and 'questions'
-      // which are managed by the Timer page.
-      const docRef = doc(db, 'users', user.uid, 'data', `progress-${examInfo.id}`);
-      
-      // If the subject/chapter doesn't exist yet, we must initialize it
-      // Standard setDoc {merge: true} replaces the whole chapter object if we pass { progress: { [subject]: { [chapterId]: ... } } }
-      // So we use updateDoc with a dynamic path.
-      await updateDoc(docRef, {
-        [`progress.${subject}.${chapterId}.${field}`]: value
-      }).catch(async (err) => {
-        // If updateDoc fails (e.g. nested path doesn't exist), fall back to setDoc
-        // but ONLY if the error suggests a missing path.
-        if (err.code === 'not-found' || err.message.includes('not found')) {
-           await setDoc(docRef, { 
-             progress: { [subject]: { [chapterId]: newProgress[subject][chapterId] } } 
-           }, { merge: true });
-        } else {
-          throw err;
-        }
-      });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/data/progress-${examInfo.id}`);
+    // Debounce Firestore Write - Especially for sliders
+    const syncKey = `${subject}-${chapterId}-${field}`;
+    if (syncTimeoutRef.current[syncKey]) {
+      clearTimeout(syncTimeoutRef.current[syncKey]);
     }
+
+    syncTimeoutRef.current[syncKey] = setTimeout(async () => {
+      try {
+        const docRef = doc(db, 'users', user.uid, 'data', `progress-${examInfo.id}`);
+        await updateDoc(docRef, {
+          [`progress.${subject}.${chapterId}.${field}`]: value
+        }).catch(async (err) => {
+          if (err.code === 'not-found' || err.message.includes('not found')) {
+             await setDoc(docRef, { 
+               progress: { [subject]: { [chapterId]: newProgress[subject][chapterId] } } 
+             }, { merge: true });
+          } else {
+            throw err;
+          }
+        });
+      } catch (error) {
+        console.error("Progress Sync Error:", error);
+        handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/data/progress-${examInfo.id}`, false);
+      }
+    }, 2000); // 2-second debounce for all progress updates
   };
 
   const addChapter = async () => {

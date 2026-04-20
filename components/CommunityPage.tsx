@@ -594,30 +594,34 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
     return () => unsubscribe();
   }, []);
 
+  // Optimized Rank Fetching - with Cache and Deduplication
   useEffect(() => {
     const fetchRanks = async () => {
-      const postUids = posts.map(p => p.uid);
-      const commentUids = posts.flatMap(p => p.comments?.map(c => c.uid) || []);
-      const uids = Array.from(new Set([...postUids, ...commentUids]));
+      const uids = Array.from(new Set([
+        ...posts.map(p => p.uid),
+        ...posts.flatMap(p => p.comments?.map(c => c.uid) || [])
+      ])).filter(uid => uid && !userRanks[uid]);
+
+      if (uids.length === 0) return;
+
       const newRanks = { ...userRanks };
       let changed = false;
 
-      for (const uid of uids) {
-        if (!uid) continue;
-        if (!newRanks[uid]) {
+      // Process in small batches to avoid blocking
+      const batchSize = 10;
+      for (let i = 0; i < uids.length; i += batchSize) {
+        const batch = uids.slice(i, i + batchSize);
+        await Promise.all(batch.map(async (uid) => {
           try {
             const lbDoc = await getDoc(doc(db, 'leaderboard', uid));
-            if (lbDoc.exists()) {
-              newRanks[uid] = getRankInfo(lbDoc.data().totalQuestions || 0);
-              changed = true;
-            } else {
-              newRanks[uid] = getRankInfo(0);
-              changed = true;
-            }
+            newRanks[uid] = lbDoc.exists() 
+              ? getRankInfo(lbDoc.data().totalQuestions || 0)
+              : getRankInfo(0);
+            changed = true;
           } catch (e) {
             console.error("Error fetching rank for", uid, e);
           }
-        }
+        }));
       }
 
       if (changed) {
@@ -626,7 +630,8 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
     };
 
     if (posts.length > 0) {
-      fetchRanks();
+      const timeout = setTimeout(fetchRanks, 1000); // Debounce rank fetching
+      return () => clearTimeout(timeout);
     }
   }, [posts]);
 
