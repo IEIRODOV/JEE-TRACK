@@ -678,8 +678,26 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
     const category = selectedCategory;
     setInputText('');
 
+    const tempPost: Post = {
+      id: 'temp-' + Date.now(),
+      text,
+      uid: user.uid,
+      displayName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
+      photoURL: user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=random`,
+      category,
+      community: selectedCommunity,
+      likes: [],
+      reactions: {},
+      reports: [],
+      comments: [],
+      createdAt: Timestamp.now(), // Use local timestamp for immediate display
+    };
+
+    // Optimistic Update
+    setPosts(prev => [tempPost, ...prev]);
+
     try {
-      await addDoc(collection(db, 'posts'), {
+      const docRef = await addDoc(collection(db, 'posts'), {
         text,
         uid: user.uid,
         displayName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
@@ -692,9 +710,15 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
         comments: [],
         createdAt: serverTimestamp(),
       });
+      
+      // Update temp ID with real one
+      setPosts(prev => prev.map(p => p.id === tempPost.id ? { ...p, id: docRef.id } : p));
+      
       setIsCreatingPost(false);
       setError(null);
     } catch (error) {
+      // Rollback on error
+      setPosts(prev => prev.filter(p => p.id !== tempPost.id));
       handleFirestoreError(error, OperationType.CREATE, 'posts', false);
       setError("Failed to share post.");
     }
@@ -711,7 +735,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
       const post = posts.find(p => p.id === postId);
       if (!post) return;
 
-      const currentReactions = post.reactions || {};
+      const currentReactions = { ...(post.reactions || {}) };
       const updates: { [key: string]: any } = {};
       
       // Find if user already has a reaction
@@ -722,20 +746,36 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
         }
       });
 
-      if (existingEmoji === emoji) {
-        // Remove reaction if clicking the same one
-        updates[`reactions.${emoji}`] = arrayRemove(user.uid);
-      } else {
-        // Remove old reaction if it exists
-        if (existingEmoji) {
-          updates[`reactions.${existingEmoji}`] = arrayRemove(user.uid);
-        }
-        // Add new reaction
-        updates[`reactions.${emoji}`] = arrayUnion(user.uid);
+      // Optimistic Local State Update
+      const newPosts = [...posts];
+      const postIndex = newPosts.findIndex(p => p.id === postId);
+      if (postIndex !== -1) {
+        const optimisticPost = { ...newPosts[postIndex] };
+        const newReactions = { ...(optimisticPost.reactions || {}) };
 
+        if (existingEmoji === emoji) {
+          // Remove reaction
+          newReactions[emoji] = (newReactions[emoji] || []).filter(u => u !== user.uid);
+          updates[`reactions.${emoji}`] = arrayRemove(user.uid);
+        } else {
+          // Remove old if exists
+          if (existingEmoji) {
+            newReactions[existingEmoji] = (newReactions[existingEmoji] || []).filter(u => u !== user.uid);
+            updates[`reactions.${existingEmoji}`] = arrayRemove(user.uid);
+          }
+          // Add new
+          newReactions[emoji] = Array.from(new Set([...(newReactions[emoji] || []), user.uid]));
+          updates[`reactions.${emoji}`] = arrayUnion(user.uid);
+        }
+        optimisticPost.reactions = newReactions;
+        newPosts[postIndex] = optimisticPost;
+        setPosts(newPosts);
+      }
+
+      if (existingEmoji !== emoji) {
         // Notify post author
         if (post.uid !== user.uid) {
-          await addDoc(collection(db, 'notifications'), {
+          addDoc(collection(db, 'notifications'), {
             toUid: post.uid,
             fromUid: user.uid,
             fromName: user.displayName || 'Someone',
@@ -817,25 +857,36 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
     const replyTo = replyToComment?.postId === postId ? replyToComment.name : null;
     const parentId = replyToComment?.postId === postId ? replyToComment.commentId : null;
     
-    // Optimistic UI update could be here, but we'll wait for Firestore
+    // Optimistic UI Update
     const currentReplyText = replyText[postId];
     setReplyText(prev => ({ ...prev, [postId]: '' }));
     setReplyToComment(null);
     setShowCommentInput(null);
 
+    const tempCommentId = Math.random().toString(36).substring(7) + Date.now().toString(36);
+    const newComment: Comment = {
+      id: tempCommentId,
+      text,
+      uid: user.uid,
+      displayName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
+      photoURL: user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=random`,
+      createdAt: Timestamp.now(),
+      ...(replyTo && { replyTo }),
+      ...(parentId && { parentId }),
+    };
+
+    const newPosts = [...posts];
+    const postIndex = newPosts.findIndex(p => p.id === postId);
+    if (postIndex !== -1) {
+      newPosts[postIndex] = {
+        ...newPosts[postIndex],
+        comments: [...(newPosts[postIndex].comments || []), newComment]
+      };
+      setPosts(newPosts);
+    }
+
     try {
       const postRef = doc(db, 'posts', postId);
-      const newComment: Comment = {
-        id: Math.random().toString(36).substring(7) + Date.now().toString(36),
-        text,
-        uid: user.uid,
-        displayName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
-        photoURL: user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=random`,
-        createdAt: Timestamp.now(),
-        ...(replyTo && { replyTo }),
-        ...(parentId && { parentId }),
-      };
-
       await updateDoc(postRef, {
         comments: arrayUnion(newComment)
       });
@@ -885,15 +936,20 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
     if (!user) return;
     if (!window.confirm("Are you sure you want to delete this post?")) return;
 
+    // Optimistic Delete
+    const originalPosts = [...posts];
+    setPosts(prev => prev.filter(p => p.id !== postId));
+
     try {
       await deleteDoc(doc(db, 'posts', postId));
       setError(null);
     } catch (error) {
+      // Rollback
+      setPosts(originalPosts);
       handleFirestoreError(error, OperationType.DELETE, 'posts', false);
       setError("Failed to delete post.");
     }
   };
-
   const handleReportPost = async (postId: string) => {
     if (!user) {
       onAuthRequest?.();
