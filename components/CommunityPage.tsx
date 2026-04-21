@@ -1054,7 +1054,23 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
 
   const formatTime = React.useCallback((timestamp: any) => {
     if (!timestamp) return 'Just now';
-    const date = timestamp.toDate();
+    
+    let date: Date;
+    try {
+      if (typeof timestamp.toDate === 'function') {
+        date = timestamp.toDate();
+      } else if (timestamp.seconds !== undefined) {
+        date = new Date(timestamp.seconds * 1000);
+      } else {
+        date = new Date(timestamp);
+      }
+    } catch (e) {
+      console.error("Date formatting error", e);
+      return 'Just now';
+    }
+
+    if (isNaN(date.getTime())) return 'Just now';
+    
     const now = new Date();
     const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
 
