@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react';
-import { Trophy, Users, Target, Zap, ChevronRight, Globe, ShieldCheck, TrendingUp, Medal, Plus, Award, Clock, Trash2, X, UserPlus, HelpCircle, Send, MessageSquare, Copy } from 'lucide-react';
+import { Trophy, Users, Target, Zap, ChevronRight, Globe, ShieldCheck, TrendingUp, Medal, Plus, Award, Clock, Trash2, X, UserPlus, HelpCircle, Send, MessageSquare, Copy, RefreshCw } from 'lucide-react';
 import PulseLoader from "@/components/ui/pulse-loader";
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, onAuthStateChanged, User, db, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, limit, Timestamp, setDoc, doc, getDoc, getDocs, where, arrayUnion, arrayRemove, increment, handleFirestoreError, OperationType, getCountFromServer, writeBatch } from '@/src/firebase';
@@ -281,6 +281,7 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
   const [userDailyStats, setUserDailyStats] = useState({ studySeconds: 0, questionsSolved: 0 });
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [friendsTimerStates, setFriendsTimerStates] = useState<Record<string, any>>({});
+  const [isRefreshingArena, setIsRefreshingArena] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date().toDateString());
   const chatEndRef = React.useRef<HTMLDivElement>(null);
 
@@ -415,9 +416,10 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
     };
 
     fetchFriendsData();
-    const interval = setInterval(fetchFriendsData, 120000); // Pulse every 2 minutes
+    // High scale optimization: 5 minute social pulse (300,000ms)
+    const interval = setInterval(fetchFriendsData, 300000);
     return () => clearInterval(interval);
-  }, [user, currentDate, friends.length]); // Use length as proxy for friend list changes
+  }, [user, currentDate, friends.length]);
 
   // Unread Messages Listener
   useEffect(() => {
@@ -663,9 +665,36 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
     console.log("Current selectedProfile state:", selectedProfile);
   }, [selectedProfile]);
 
-  // Optimized Leaderboard - Point-in-time Fetch
+  const handleArenaRefresh = async () => {
+    setIsRefreshingArena(true);
+    const q = query(
+      collection(db, 'leaderboard'),
+      orderBy('totalQuestions', 'desc'),
+      limit(50)
+    );
+
+    try {
+      const snapshot = await getDocs(q);
+      let players: any[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        players.push({
+          uid: doc.id,
+          ...data
+        });
+      });
+      setLeaderboard(players);
+    } catch (error) {
+      console.error("Arena Refresh Error:", error);
+    } finally {
+      setIsRefreshingArena(false);
+    }
+  };
+
+  // Optimized Leaderboard - Point-in-time Fetch with background sync
   useEffect(() => {
     const fetchLeaderboard = async () => {
+      setIsLoading(true);
       const q = query(
         collection(db, 'leaderboard'),
         orderBy('totalQuestions', 'desc'),
@@ -876,10 +905,23 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
             <div className="p-8 border-b border-white/10 bg-white/5 flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-black text-white tracking-tight uppercase font-heading">Top Performers</h2>
-                <p className="text-[9px] font-bold text-white/30 uppercase tracking-[0.3em]">Updated Real-time</p>
+                <p className="text-[9px] font-bold text-white/30 uppercase tracking-[0.3em]">
+                  {isRefreshingArena ? 'Syncing...' : 'Global Arena Feed'}
+                </p>
               </div>
-              <div className="p-3 rounded-2xl bg-blue-500/20 text-blue-400 border border-blue-500/20">
-                <Medal className="w-5 h-5" />
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={handleArenaRefresh}
+                  disabled={isRefreshingArena}
+                  className="p-3 rounded-2xl bg-white/5 border border-white/10 text-white/40 hover:text-purple-400 hover:bg-purple-500/10 transition-all flex items-center gap-2 group disabled:opacity-50"
+                  title="Refresh Arena"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isRefreshingArena ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
+                  <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Refresh</span>
+                </button>
+                <div className="p-3 rounded-2xl bg-blue-500/20 text-blue-400 border border-blue-500/20">
+                  <Medal className="w-5 h-5" />
+                </div>
               </div>
             </div>
             

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, MessageSquare, Heart, X, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { auth, db, collection, query, where, orderBy, onSnapshot, limit, doc, updateDoc, serverTimestamp } from '@/src/firebase';
+import { auth, db, collection, query, where, orderBy, onSnapshot, limit, doc, updateDoc, serverTimestamp, writeBatch } from '@/src/firebase';
 
 const Notifications = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -45,16 +45,24 @@ const Notifications = () => {
   };
 
   const markAllAsRead = async () => {
+    if (!user) return;
     try {
       const unreadNotifs = notifications.filter(n => !n.read);
-      for (const n of unreadNotifs) {
-        await updateDoc(doc(db, 'notifications', n.id), { read: true });
-      }
+      if (unreadNotifs.length === 0) return;
+
+      const batch = writeBatch(db);
+      unreadNotifs.forEach(n => {
+        batch.update(doc(db, 'notifications', n.id), { read: true });
+      });
+      await batch.commit();
+      
+      // Optimistic update
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setUnreadCount(0);
     } catch (error) {
       console.error("Error marking all as read:", error);
     }
   };
-
   return (
     <div className="relative">
       <button 

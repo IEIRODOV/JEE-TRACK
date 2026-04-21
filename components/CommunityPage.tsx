@@ -575,8 +575,18 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
   }, []);
 
   useEffect(() => {
+    // Load from cache first for instant UI
+    const cachedPosts = localStorage.getItem('pulse_community_cache');
+    if (cachedPosts) {
+      try {
+        setPosts(JSON.parse(cachedPosts));
+        setIsLoading(false);
+      } catch (e) {
+        console.error("Cache parse error", e);
+      }
+    }
+
     const fetchPosts = async () => {
-      setIsLoading(true);
       const q = query(
         collection(db, 'posts'),
         orderBy('createdAt', 'desc'),
@@ -590,6 +600,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
           msgs.push({ id: doc.id, ...doc.data() } as Post);
         });
         setPosts(msgs);
+        localStorage.setItem('pulse_community_cache', JSON.stringify(msgs));
         setIsLoading(false);
         setLastRefreshTime(Date.now());
         setError(null);
@@ -601,8 +612,8 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
     };
 
     fetchPosts();
-    // Background refresh every 5 minutes (300,000ms) to conserve read quota
-    const interval = setInterval(fetchPosts, 300000);
+    // Increase pulse interval to 10 minutes (600,000ms) for high scale
+    const interval = setInterval(fetchPosts, 600000);
     return () => clearInterval(interval);
   }, []);
 
@@ -797,6 +808,20 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
 
   const handleEditPost = async (postId: string) => {
     if (!user || !editText.trim()) return;
+    
+    // Optimistic Update
+    const originalPosts = [...posts];
+    const postIndex = posts.findIndex(p => p.id === postId);
+    if (postIndex !== -1) {
+      const newPosts = [...posts];
+      newPosts[postIndex] = { 
+        ...newPosts[postIndex], 
+        text: editText.trim(),
+        lastEdited: Timestamp.now() 
+      };
+      setPosts(newPosts);
+    }
+
     try {
       await updateDoc(doc(db, 'posts', postId), {
         text: editText.trim(),
@@ -805,6 +830,8 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
       setEditingPostId(null);
       setEditText('');
     } catch (error) {
+      // Rollback
+      setPosts(originalPosts);
       handleFirestoreError(error, OperationType.UPDATE, 'posts', false);
     }
   };
@@ -812,6 +839,18 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
   const handleDeleteComment = async (postId: string, commentId: string) => {
     if (!user) return;
     if (!window.confirm("Delete this comment?")) return;
+
+    // Optimistic Update
+    const originalPosts = [...posts];
+    const postIndex = posts.findIndex(p => p.id === postId);
+    if (postIndex !== -1 && posts[postIndex].comments) {
+      const newPosts = [...posts];
+      newPosts[postIndex] = {
+        ...newPosts[postIndex],
+        comments: newPosts[postIndex].comments!.filter(c => c.id !== commentId)
+      };
+      setPosts(newPosts);
+    }
 
     try {
       const post = posts.find(p => p.id === postId);
@@ -822,12 +861,29 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
         comments: newComments
       });
     } catch (error) {
+      // Rollback
+      setPosts(originalPosts);
       handleFirestoreError(error, OperationType.UPDATE, 'posts', false);
     }
   };
 
   const handleEditComment = async (postId: string, commentId: string) => {
     if (!user || !editCommentText.trim()) return;
+
+    // Optimistic Update
+    const originalPosts = [...posts];
+    const postIndex = posts.findIndex(p => p.id === postId);
+    if (postIndex !== -1 && posts[postIndex].comments) {
+      const newPosts = [...posts];
+      newPosts[postIndex] = {
+        ...newPosts[postIndex],
+        comments: newPosts[postIndex].comments!.map(c =>
+          c.id === commentId ? { ...c, text: editCommentText.trim(), lastEdited: Timestamp.now() } : c
+        )
+      };
+      setPosts(newPosts);
+    }
+
     try {
       const post = posts.find(p => p.id === postId);
       if (!post || !post.comments) return;
@@ -842,6 +898,8 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
       setEditingCommentId(null);
       setEditCommentText('');
     } catch (error) {
+      // Rollback
+      setPosts(originalPosts);
       handleFirestoreError(error, OperationType.UPDATE, 'posts', false);
     }
   };
@@ -1514,6 +1572,12 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                             {editingPostId === post.id ? (
                               <div className="space-y-3">
                                 <textarea
+                                  autoFocus
+                                  onFocus={(e) => {
+                                    const val = e.target.value;
+                                    e.target.value = '';
+                                    e.target.value = val;
+                                  }}
                                   value={editText}
                                   onChange={(e) => setEditText(e.target.value)}
                                   className="w-full bg-black/40 border border-[#343536] rounded-xl p-4 text-sm text-white focus:outline-none focus:border-purple-500/50 resize-none min-h-[120px]"
