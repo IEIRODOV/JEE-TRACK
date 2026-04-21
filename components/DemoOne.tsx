@@ -300,15 +300,27 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
   useEffect(() => {
     const today = new Date().toDateString();
     const updateStats = () => {
-      let studyTimeSeconds = dailyStudySeconds[today] || 0;
-      let questionsSolved = dailyQuestions[today] || 0;
+      let baseStudyTimeSeconds = dailyStudySeconds[today] || 0;
+      let baseQuestionsSolved = dailyQuestions[today] || 0;
 
-      if (timerState.isRunning && timerState.startTime) {
-        const sessionSeconds = Math.floor((Date.now() - timerState.startTime) / 1000);
-        studyTimeSeconds = timerState.accumulatedSeconds + sessionSeconds;
+      // Extract live session info for real-time visualization
+      const activeSessionStr = localStorage.getItem('pulse_active_session');
+      let sessionSeconds = 0;
+      let sessionQuestions = 0;
+      
+      if (activeSessionStr) {
+        const session = JSON.parse(activeSessionStr);
+        sessionSeconds = session.studySeconds || 0;
+        sessionQuestions = session.questionsSolved || 0;
+      } else if (timerState.isRunning && timerState.startTime) {
+        // Fallback to Firestore timer data if local mirror isn't there
+        sessionSeconds = Math.max(0, Math.floor((Date.now() - timerState.startTime) / 1000));
       }
 
-      const studyTime = `${(studyTimeSeconds / 3600).toFixed(1)}h`;
+      const displayStudySeconds = baseStudyTimeSeconds + sessionSeconds;
+      const displayQuestions = baseQuestionsSolved + sessionQuestions;
+
+      const studyTimeDisplay = `${(displayStudySeconds / 3600).toFixed(1)}h`;
 
       const savedTargets = localStorage.getItem('jee-daily-targets');
       let dailyGoal = "0%";
@@ -320,15 +332,15 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
         }
       }
 
-      const currentSecondsMap = { ...dailyStudySeconds, [today]: studyTimeSeconds };
+      const currentSecondsMap = { ...dailyStudySeconds, [today]: displayStudySeconds };
       const currentStreak = calculateStreak(currentSecondsMap, targetHours);
       const streak = `${currentStreak} Days`;
-      const isGoalMet = studyTimeSeconds >= targetHours * 3600;
+      const isGoalMet = displayStudySeconds >= targetHours * 3600;
 
       setStats([
         { label: "Daily Goal", value: dailyGoal, icon: <Target className="w-3 h-3" />, color: "text-emerald-400", completed: dailyGoal === "100%" },
-        { label: "Study Time", value: studyTime, icon: <Clock className="w-3 h-3" />, color: "text-blue-400", completed: isGoalMet },
-        { label: "Questions Solved", value: questionsSolved.toString(), icon: <Target className="w-3 h-3" />, color: "text-purple-400", completed: questionsSolved >= 50 },
+        { label: "Study Time", value: studyTimeDisplay, icon: <Clock className="w-3 h-3" />, color: "text-blue-400", completed: isGoalMet },
+        { label: "Questions Solved", value: displayQuestions.toString(), icon: <Target className="w-3 h-3" />, color: "text-purple-400", completed: displayQuestions >= 50 },
         { label: "Current Streak", value: streak, icon: <Zap className="w-3 h-3" />, color: "text-orange-400", completed: currentStreak > 0 },
       ]);
     };
@@ -408,29 +420,33 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
       await setDoc(timerRef, {
         isRunning: true,
         startTime: now,
-        accumulatedSeconds: todaySeconds,
+        accumulatedSeconds: todaySeconds, // Start with what's already done today
         lastUpdated: serverTimestamp()
       }, { merge: true });
     } else {
-      const sessionSeconds = Math.floor((Date.now() - (timerState.startTime || Date.now())) / 1000);
+      const now = Date.now();
+      const sessionSeconds = Math.max(0, Math.floor((now - (timerState.startTime || now)) / 1000));
       const totalElapsed = timerState.accumulatedSeconds + sessionSeconds;
       
       const timerRef = doc(db, 'users', user.uid, 'data', 'timer');
       await setDoc(timerRef, {
         isRunning: false,
         startTime: null,
-        accumulatedSeconds: 0,
+        accumulatedSeconds: totalElapsed, // Save total to avoid reset to 0
         lastUpdated: serverTimestamp()
       }, { merge: true });
 
       const sessionHours = sessionSeconds / 3600;
+      // Note: syncGlobalProgress in DemoOne doesn't handle chapter breakdown.
+      // But TimerPage will handle it if open. If not, it's just a raw study time bump.
       await syncGlobalProgress(0, sessionHours);
 
       const statsRef = doc(db, 'users', user.uid, 'dailyStats', today);
       await setDoc(statsRef, {
         studySeconds: totalElapsed,
         date: today,
-        lastUpdated: serverTimestamp()
+        lastUpdated: serverTimestamp(),
+        [`subjectSeconds.${localStorage.getItem('pulse_selected_subject') || 'Other'}`]: increment(sessionSeconds)
       }, { merge: true });
     }
   };

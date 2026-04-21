@@ -1057,15 +1057,18 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
     
     let date: Date;
     try {
-      if (typeof timestamp.toDate === 'function') {
+      if (timestamp instanceof Date) {
+        date = timestamp;
+      } else if (timestamp && typeof timestamp.toDate === 'function') {
         date = timestamp.toDate();
-      } else if (timestamp.seconds !== undefined) {
+      } else if (timestamp && typeof timestamp.seconds === 'number') {
         date = new Date(timestamp.seconds * 1000);
-      } else {
+      } else if (typeof timestamp === 'string' || typeof timestamp === 'number') {
         date = new Date(timestamp);
+      } else {
+        return 'Just now';
       }
     } catch (e) {
-      console.error("Date formatting error", e);
       return 'Just now';
     }
 

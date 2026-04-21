@@ -111,7 +111,7 @@ const StreakBox = React.memo(({ streak, dailyStudySeconds }: { streak: number, d
   </motion.div>
 ));
 
-const QuestionLab = React.memo(({ currentQuestions, updateQuestions, playTickSound, removeOneHour }: any) => {
+const QuestionLab = React.memo(({ currentQuestions, updateQuestions, playTickSound, removeOneHour, isTimerRunning }: any) => {
   const [showConfirmDeleteTime, setShowConfirmDeleteTime] = useState(false);
   const [holdProgress, setHoldProgress] = useState(0);
   const holdIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -176,28 +176,49 @@ const QuestionLab = React.memo(({ currentQuestions, updateQuestions, playTickSou
 
           <div className="flex items-center gap-6 w-full">
             <button 
+              disabled={!isTimerRunning}
               onClick={() => {
+                if (!isTimerRunning) return;
                 playTickSound();
                 updateQuestions(Math.max(0, currentQuestions - 1));
               }}
-              className="flex-1 py-6 rounded-3xl bg-white/5 border border-white/10 text-white font-black text-xl hover:bg-red-500/20 hover:border-red-500/40 transition-all active:scale-90 shadow-xl"
+              className={`flex-1 py-6 rounded-3xl bg-white/5 border border-white/10 text-white font-black text-xl transition-all shadow-xl
+                ${!isTimerRunning ? 'opacity-20 translate-y-1 grayscale cursor-not-allowed border-white/5' : 'hover:bg-red-500/20 hover:border-red-500/40 active:scale-90'}`}
             >
               -
             </button>
             <button 
+              disabled={!isTimerRunning}
               onClick={() => {
+                if (!isTimerRunning) return;
                 playTickSound();
                 updateQuestions(currentQuestions + 1);
               }}
-              className="flex-1 py-6 rounded-3xl bg-pink-600 border border-pink-400 text-white font-black text-xl hover:bg-pink-500 hover:scale-105 transition-all active:scale-95 shadow-[0_15px_30px_rgba(236,72,153,0.4)]"
+              className={`flex-1 py-6 rounded-3xl text-white font-black text-xl transition-all shadow-[0_15px_30px_rgba(236,72,153,0.4)]
+                ${!isTimerRunning 
+                  ? 'bg-zinc-800 border-zinc-700 opacity-20 translate-y-1 grayscale cursor-not-allowed' 
+                  : 'bg-pink-600 border border-pink-400 hover:bg-pink-500 hover:scale-105 active:scale-95'}`}
             >
               +
             </button>
           </div>
 
-          <div className="mt-8 flex items-center gap-2">
-            <div className="w-2 h-2 bg-pink-500 rounded-full animate-ping" />
-            <span className="text-[10px] font-mono font-black text-white/30 uppercase tracking-widest">Live Tracking Active</span>
+          <div className="mt-8 flex flex-col items-center gap-2">
+            {!isTimerRunning ? (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/5 border border-red-500/10"
+              >
+                <div className="w-1.5 h-1.5 bg-red-500 rounded-full" />
+                <span className="text-[8px] font-black text-red-500/60 uppercase tracking-widest">Protocol Inactive • Timer Off</span>
+              </motion.div>
+            ) : (
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-pink-500/5 border border-pink-500/10">
+                <div className="w-2 h-2 bg-pink-500 rounded-full animate-ping" />
+                <span className="text-[10px] font-mono font-black text-white/30 uppercase tracking-widest">Live Tracking Active</span>
+              </div>
+            )}
           </div>
         </div>
       </motion.div>
@@ -709,6 +730,11 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   const lastSyncedQuestionsRef = useRef(currentQuestions);
   const questionSyncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // New: Track session stats per chapter to fix attribution bugs
+  const sessionChapterStatsRef = useRef<Record<string, Record<string, { seconds: number, questions: number }>>>({});
+  const lastChapterSwitchSecondsRef = useRef(0);
+  const lastChapterSwitchQuestionsRef = useRef(0);
+
   useEffect(() => {
     dailyStudySecondsRef.current = dailyStudySeconds;
     completedStudyDaysRef.current = completedStudyDays;
@@ -728,8 +754,27 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     // Initialize lastSavedProgressSecondsRef when elapsedSeconds is first loaded
     if (lastSavedProgressSecondsRef.current === 0 && elapsedSeconds > 0) {
       lastSavedProgressSecondsRef.current = elapsedSeconds;
+      lastChapterSwitchSecondsRef.current = elapsedSeconds;
+      lastChapterSwitchQuestionsRef.current = currentQuestions;
     }
   }, [dailyStudySeconds, completedStudyDays, targetHours, subjectStudySeconds, subjectQuestionCounts, selectedSubject, currentQuestions, elapsedSeconds]);
+
+  // Mirror session to localStorage for real-time Dashboard/Progress sync
+  useEffect(() => {
+    if (isTimerRunning && startTime) {
+      const liveSession = {
+        studySeconds: elapsedSeconds - accumulatedSeconds,
+        questionsSolved: currentQuestions - lastSyncedQuestionsRef.current,
+        isRunning: true,
+        startTime,
+        accumulatedSeconds,
+        lastUpdate: Date.now()
+      };
+      localStorage.setItem('pulse_active_session', JSON.stringify(liveSession));
+    } else {
+      localStorage.removeItem('pulse_active_session');
+    }
+  }, [isTimerRunning, startTime, elapsedSeconds, currentQuestions, accumulatedSeconds]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -738,6 +783,37 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     });
     return () => unsubscribe();
   }, []);
+
+  // Handle Chapter/Subject Switching during Active Session
+  const handleChapterSwitch = useCallback((newSubject: string, newChapter: string) => {
+    if (isTimerRunning) {
+      const today = new Date().toDateString();
+      const currentSub = selectedSubjectRef.current;
+      const currentChap = selectedChapterRef.current;
+      
+      const timeDelta = elapsedSecondsRef.current - lastChapterSwitchSecondsRef.current;
+      const questionDelta = currentQuestionsRef.current - lastChapterSwitchQuestionsRef.current;
+
+      if (currentSub && currentChap && (timeDelta > 0 || questionDelta > 0)) {
+        if (!sessionChapterStatsRef.current[currentSub]) sessionChapterStatsRef.current[currentSub] = {};
+        if (!sessionChapterStatsRef.current[currentSub][currentChap]) {
+          sessionChapterStatsRef.current[currentSub][currentChap] = { seconds: 0, questions: 0 };
+        }
+        sessionChapterStatsRef.current[currentSub][currentChap].seconds += Math.max(0, timeDelta);
+        sessionChapterStatsRef.current[currentSub][currentChap].questions += Math.max(0, questionDelta);
+      }
+
+      lastChapterSwitchSecondsRef.current = elapsedSecondsRef.current;
+      lastChapterSwitchQuestionsRef.current = currentQuestionsRef.current;
+    }
+    
+    if (newSubject !== selectedSubject) {
+      setSelectedSubject(newSubject);
+      localStorage.setItem('pulse_selected_subject', newSubject);
+    }
+    setSelectedChapter(newChapter);
+    localStorage.setItem('pulse_selected_chapter', newChapter);
+  }, [isTimerRunning]);
 
   useEffect(() => {
     if (selectedSubject) {
@@ -752,15 +828,15 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         
         // Auto-select first chapter if none selected or if selected chapter not in new subject
         if (!selectedChapter || !chapters.find(c => c.id === selectedChapter)) {
-          setSelectedChapter(chapters[0]?.id || '');
+          handleChapterSwitch(selectedSubject, chapters[0]?.id || '');
         }
       } else {
         setAvailableChapters([]);
-        setSelectedChapter('');
+        handleChapterSwitch(selectedSubject, '');
       }
     } else {
       setAvailableChapters([]);
-      setSelectedChapter('');
+      handleChapterSwitch('', '');
     }
   }, [selectedSubject]);
 
@@ -887,10 +963,32 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       setSubjectStudySeconds(prev => ({ ...prev, [dateStr]: data.subjectSeconds || {} }));
       setSubjectQuestionCounts(prev => ({ ...prev, [dateStr]: data.subjectQuestions || {} }));
       
-      setCurrentQuestions(data.questionsSolved || 0);
+      setCurrentQuestions(prev => {
+        const firestoreQuestions = data.questionsSolved || 0;
+        if (isTimerRunning) {
+          const mirrorStr = localStorage.getItem('pulse_active_session');
+          if (mirrorStr) {
+            const mirror = JSON.parse(mirrorStr);
+            if (mirror.date === today && mirror.questionsSolved > firestoreQuestions) {
+              return mirror.questionsSolved;
+            }
+          }
+        }
+        return firestoreQuestions;
+      });
       
       setElapsedSeconds(prev => {
         const firestoreTime = Math.min(data.studySeconds || 0, 86400);
+        // Preference: If timer is running, local mirror is usually more up-to-date due to batching
+        if (isTimerRunning) {
+          const mirrorStr = localStorage.getItem('pulse_active_session');
+          if (mirrorStr) {
+            const mirror = JSON.parse(mirrorStr);
+            if (mirror.date === today && mirror.studySeconds > firestoreTime) {
+              return mirror.studySeconds;
+            }
+          }
+        }
         if (!isTimerRunning) return firestoreTime;
         if (prev === 0 || firestoreTime > prev + 60) return firestoreTime;
         return prev;
@@ -1404,70 +1502,103 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       await saveTimerState(true, now, newAccumulated);
     } else {
       setIsTimerRunning(false);
-      setStartTime(null);
-      setAccumulatedSeconds(0);
-      await saveTimerState(false, null, 0);
+      const now = Date.now();
+      const sessionSeconds = Math.max(0, Math.floor((now - startTime) / 1000));
+      const finalElapsed = accumulatedSeconds + sessionSeconds;
       
-      const secondsToAdd = elapsedSeconds - accumulatedSeconds;
-      const sessionHours = secondsToAdd / 3600;
-      if (sessionHours > 0) {
-        await syncGlobalProgress(0, sessionHours);
+      setElapsedSeconds(finalElapsed);
+      setAccumulatedSeconds(finalElapsed);
+      setStartTime(null);
+      await saveTimerState(false, null, finalElapsed);
+      
+      const sessionHours = sessionSeconds / 3600;
+      const questionDiff = currentQuestions - lastSyncedQuestionsRef.current;
+
+      const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
+      const year = localStorage.getItem('pulse_user_year') || '2027';
+      const examBase = exam === 'jee' ? 'jee' : exam;
+      const examId = `${examBase}_${year}`;
+      const progressRef = doc(db, 'users', user.uid, 'data', `progress-${examId}`);
+
+      // Final "flush" of the current chapter's session segment
+      const currentSub = selectedSubjectRef.current;
+      const currentChap = selectedChapterRef.current;
+      
+      const finalTimeDeltaForChapter = finalElapsed - lastChapterSwitchSecondsRef.current;
+      const finalQuestionDeltaForChapter = currentQuestions - lastChapterSwitchQuestionsRef.current;
+      
+      const chapterUpdates: Record<string, any> = {};
+      
+      // 1. Roll up historical session segments (from chapter switches)
+      Object.entries(sessionChapterStatsRef.current).forEach(([sub, chapters]) => {
+        Object.entries(chapters).forEach(([chap, stats]) => {
+          if (stats.seconds > 0 || stats.questions > 0) {
+            if (!chapterUpdates[sub]) chapterUpdates[sub] = {};
+            chapterUpdates[sub][chap] = {
+              studyTime: increment(stats.seconds),
+              questions: increment(stats.questions)
+            };
+          }
+        });
+      });
+
+      // 2. Roll up final segment since last switch/tick
+      if (currentSub && currentChap && (finalTimeDeltaForChapter > 0 || finalQuestionDeltaForChapter > 0)) {
+        if (!chapterUpdates[currentSub]) chapterUpdates[currentSub] = {};
+        if (!chapterUpdates[currentSub][currentChap]) chapterUpdates[currentSub][currentChap] = { studyTime: 0, questions: 0 };
+        
+        // Merge with existing segment if any
+        chapterUpdates[currentSub][currentChap] = {
+          studyTime: increment((chapterUpdates[currentSub][currentChap].studyTime?.n || 0) + Math.max(0, finalTimeDeltaForChapter)),
+          questions: increment((chapterUpdates[currentSub][currentChap].questions?.n || 0) + Math.max(0, finalQuestionDeltaForChapter))
+        };
       }
 
-      // Final save on stop
-      const currentSubjectSeconds = subjectStudySecondsRef.current[today] || {};
-      
+      // Reset session accumulators
+      sessionChapterStatsRef.current = {};
+      lastChapterSwitchSecondsRef.current = finalElapsed;
+      lastChapterSwitchQuestionsRef.current = currentQuestions;
+
       if (!user) {
-        await saveToFirestore(today, {
-          studySeconds: elapsedSeconds,
-          subjectSeconds: currentSubjectSeconds,
-          date: today
-        });
+        setDailyStudySeconds(prev => ({ ...prev, [today]: finalElapsed }));
+        const localData = JSON.parse(localStorage.getItem('pulse_calendar_data') || '{}');
+        if (!localData[today]) localData[today] = {};
+        localData[today].studySeconds = finalElapsed;
+        localStorage.setItem('pulse_calendar_data', JSON.stringify(localData));
         return;
       }
 
       const batch = writeBatch(db);
       const statsRef = doc(db, 'users', user.uid, 'dailyStats', today);
-      const currentSubjectQuestions = subjectQuestionCountsRef.current[today] || {};
       const currentTotalQuestions = dailyQuestionCounts[today] || 0;
-      const questionDiff = currentTotalQuestions - lastSyncedQuestionsRef.current;
 
+      // Update Daily Stats (Total study time, total questions)
       batch.set(statsRef, {
-        studySeconds: elapsedSeconds,
-        subjectSeconds: currentSubjectSeconds,
+        studySeconds: finalElapsed,
         questionsSolved: currentTotalQuestions,
-        subjectQuestions: currentSubjectQuestions,
+        lastUpdated: serverTimestamp(),
+        // Increment subject totals too
+        [`subjectSeconds.${currentSub}`]: increment(sessionSeconds),
+        [`subjectQuestions.${currentSub}`]: increment(questionDiff)
+      }, { merge: true });
+
+      // Update Subject Progress (Chapter level)
+      if (Object.keys(chapterUpdates).length > 0) {
+        batch.set(progressRef, { progress: chapterUpdates }, { merge: true });
+      }
+
+      // Update Leaderboard
+      const leaderboardRef = doc(db, 'leaderboard', user.uid);
+      batch.set(leaderboardRef, {
+        totalQuestions: increment(questionDiff),
+        totalHours: increment(sessionHours),
         lastUpdated: serverTimestamp()
       }, { merge: true });
 
-      // Update chapter-specific study time in progress data
-      const currentSub = selectedSubjectRef.current;
-      const currentChap = selectedChapterRef.current;
-      const deltaForProgress = elapsedSeconds - lastSavedProgressSecondsRef.current;
-
-      if (currentChap && currentSub) {
-        const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
-        const year = localStorage.getItem('pulse_user_year') || '2027';
-        const examBase = exam === 'jee' ? 'jee' : exam;
-        const examId = `${examBase}_${year}`;
-        const progressRef = doc(db, 'users', user.uid, 'data', `progress-${examId}`);
-        
-        const progressUpdate: any = { progress: { [currentSub]: { [currentChap]: {} } } };
-        if (deltaForProgress > 0) progressUpdate.progress[currentSub][currentChap].studyTime = increment(deltaForProgress);
-        if (questionDiff > 0) progressUpdate.progress[currentSub][currentChap].questions = increment(questionDiff);
-
-        if (deltaForProgress > 0 || questionDiff > 0) {
-          batch.set(progressRef, progressUpdate, { merge: true });
-        }
-      }
-
       try {
         await batch.commit();
-        if (questionDiff > 0) {
-          await syncGlobalProgress(questionDiff, 0);
-          lastSyncedQuestionsRef.current = currentTotalQuestions;
-        }
-        lastSavedProgressSecondsRef.current = elapsedSeconds;
+        lastSyncedQuestionsRef.current = currentTotalQuestions;
+        lastSavedProgressSecondsRef.current = finalElapsed;
       } catch (error) {
         handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/dailyStats/${today}`);
       }
@@ -2142,6 +2273,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                     updateQuestions={updateQuestions} 
                     playTickSound={playTickSound} 
                     removeOneHour={removeOneHour}
+                    isTimerRunning={isTimerRunning}
                   />
                 </div>
 

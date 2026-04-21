@@ -140,7 +140,14 @@ const Notifications = () => {
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-[12px] font-black text-white group-hover:text-purple-400 transition-colors">{notif.fromName}</span>
                             <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">
-                              {notif.createdAt?.toDate ? new Date(notif.createdAt.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}
+                              {(() => {
+                                const ts = notif.createdAt;
+                                if (!ts) return 'Just now';
+                                try {
+                                  const d = typeof ts.toDate === 'function' ? ts.toDate() : (ts.seconds ? new Date(ts.seconds * 1000) : new Date(ts));
+                                  return isNaN(d.getTime()) ? 'Just now' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                } catch(e) { return 'Just now'; }
+                              })()}
                             </span>
                           </div>
                           <p className="text-[11px] text-white/50 leading-relaxed line-clamp-2">

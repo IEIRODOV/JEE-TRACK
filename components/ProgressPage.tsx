@@ -47,7 +47,23 @@ const ProgressPage = () => {
   const [editingChapter, setEditingChapter] = useState<{ subject: string, id: string, name: string } | null>(null);
   const [newChapterName, setNewChapterName] = useState('');
   const [showChapterStats, setShowChapterStats] = useState<string | null>(null);
+  const [sessionDelta, setSessionDelta] = useState<any>({});
   const syncTimeoutRef = React.useRef<Record<string, any>>({});
+
+  // Sync with active session for real-time progress visualization without extra writes
+  useEffect(() => {
+    const syncSession = () => {
+      const sessionStr = localStorage.getItem('pulse_active_session');
+      if (sessionStr) {
+        setSessionDelta(JSON.parse(sessionStr));
+      } else {
+        setSessionDelta({});
+      }
+    };
+    syncSession();
+    const interval = setInterval(syncSession, 2000); // 2s poll
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((u) => setUser(u));
@@ -315,7 +331,7 @@ const ProgressPage = () => {
 
   const chapters = getChapters();
 
-  const calculateSubjectProgress = (subject: string) => {
+  const calculateSubjectProgress = React.useCallback((subject: string) => {
     const category = examInfo.id.split('_')[0].toLowerCase();
     const syllabus = SYLLABUS_DATA[examInfo.id] || SYLLABUS_DATA[category] || SYLLABUS_DATA.jee;
     const defaultChapters = syllabus[subject] || [];
@@ -336,34 +352,56 @@ const ProgressPage = () => {
     allChapterIds.forEach(id => {
       const prog = subjectData[id];
       if (prog) {
+        // Skip if hidden
+        if (hiddenChapters[subject]?.includes(id)) return;
+
         let chapterProgress = 0;
-        chapterProgress += (prog.theoryLecture || 0) * 0.2; // 20%
-        chapterProgress += (prog.module ? 20 : 0); // 20%
-        
-        // PYQ Checklist (20% total)
+        // 1. Theory & Lectures (15%)
+        chapterProgress += (prog.theoryLecture || 0) * 0.15;
+
+        // 2. Module Completion (15%)
+        chapterProgress += (prog.module ? 15 : 0);
+
+        // 3. PYQ Progress (30% total)
+        // Part A: Basic checklist (15%)
         let pyqCheckProg = 0;
-        if (prog.pyqMains) pyqCheckProg += 10;
-        if (prog.pyqAdvanced) pyqCheckProg += 10;
-        
-        // Fallback for legacy data
-        if (!prog.pyqMains && !prog.pyqAdvanced && prog.pyq) {
-          pyqCheckProg = 20;
-        }
+        if (prog.pyqMains) pyqCheckProg += 7.5;
+        if (prog.pyqAdvanced) pyqCheckProg += 7.5;
+        if (!prog.pyqMains && !prog.pyqAdvanced && prog.pyq) pyqCheckProg = 15;
         chapterProgress += pyqCheckProg;
 
-        // PYQ Years (20% total, max 3 years per chapter)
-        const mainsYears = (prog.pyqMainsYears || []).length;
-        const advYears = (prog.pyqAdvancedYears || []).length;
-        const totalYears = Math.min(mainsYears + advYears, 3); 
-        chapterProgress += (totalYears / 3) * 20;
+        // Part B: Specific Years (15% - target 3 years)
+        const yearsCompleted = (prog.pyqMainsYears || []).length + (prog.pyqAdvancedYears || []).length;
+        chapterProgress += Math.min(15, (yearsCompleted / 3) * 15);
+
+        // 4. Revision (20% - target 3 revisions)
+        const revisions = prog.revisionCount || 0;
+        chapterProgress += Math.min(20, (revisions / 3) * 20);
+
+        // 5. Study Effort (20% - Live Session & History)
+        const activeSub = localStorage.getItem('pulse_selected_subject');
+        const activeProp = localStorage.getItem('pulse_selected_chapter');
         
-        chapterProgress += (Math.min(prog.revisionCount || 0, 3) / 3) * 20; // 20%
+        let liveTime = 0;
+        let liveQuestions = 0;
+        if (activeSub === subject && activeProp === id && sessionDelta.isRunning) {
+          liveTime = sessionDelta.studySeconds || 0;
+          liveQuestions = sessionDelta.questionsSolved || 0;
+        }
+
+        const totalTime = (prog.studyTime || 0) + liveTime;
+        const totalQ = (prog.questions || 0) + liveQuestions;
+        
+        // Target: 4 hours study (10%) and 40 questions (10%)
+        const effortScore = Math.min(10, (totalTime / 14400) * 10) + Math.min(10, (totalQ / 40) * 10);
+        chapterProgress += effortScore;
+
         totalProgress += chapterProgress;
       }
     });
 
     return Math.round(totalProgress / allChapterIds.length);
-  };
+  }, [progressData, examInfo.id, hiddenChapters, sessionDelta]);
 
   return (
     <div className="min-h-screen bg-black pt-24 pb-32 px-4">
@@ -610,7 +648,16 @@ const ProgressPage = () => {
                                     </div>
                                     <div className="flex flex-col">
                                       <span className="text-xs font-black text-white uppercase tracking-widest whitespace-nowrap">
-                                        {Math.floor((progress.studyTime || 0) / 3600)}h {Math.floor(((progress.studyTime || 0) % 3600) / 60)}m
+                                        {(() => {
+                                          const activeSub = localStorage.getItem('pulse_selected_subject');
+                                          const activeChap = localStorage.getItem('pulse_selected_chapter');
+                                          let liveTime = 0;
+                                          if (activeSub === activeSubject && activeChap === chapter.id && sessionDelta.isRunning) {
+                                            liveTime = sessionDelta.studySeconds || 0;
+                                          }
+                                          const totalTime = (progress.studyTime || 0) + liveTime;
+                                          return `${Math.floor(totalTime / 3600)}h ${Math.floor((totalTime % 3600) / 60)}m`;
+                                        })()}
                                       </span>
                                       <span className="text-[8px] font-bold text-white/40 uppercase tracking-[0.2em]">Focused Study</span>
                                     </div>
@@ -621,7 +668,15 @@ const ProgressPage = () => {
                                     </div>
                                     <div className="flex flex-col">
                                       <span className="text-xs font-black text-white uppercase tracking-widest whitespace-nowrap">
-                                        {progress.questions || 0} Questions
+                                        {(() => {
+                                          const activeSub = localStorage.getItem('pulse_selected_subject');
+                                          const activeChap = localStorage.getItem('pulse_selected_chapter');
+                                          let liveQs = 0;
+                                          if (activeSub === activeSubject && activeChap === chapter.id && sessionDelta.isRunning) {
+                                            liveQs = sessionDelta.questionsSolved || 0;
+                                          }
+                                          return `${(progress.questions || 0) + liveQs} Questions`;
+                                        })()}
                                       </span>
                                       <span className="text-[8px] font-bold text-white/40 uppercase tracking-[0.2em]">Solved Success</span>
                                     </div>
