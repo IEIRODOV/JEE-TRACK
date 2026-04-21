@@ -416,9 +416,8 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
     };
 
     fetchFriendsData();
-    // High scale optimization: 5 minute social pulse (300,000ms)
-    const interval = setInterval(fetchFriendsData, 300000);
-    return () => clearInterval(interval);
+    // Ultra Scale: Disabled periodic social pulse. Fetches only on entry or friend list change.
+    return () => {};
   }, [user, currentDate, friends.length]);
 
   // Unread Messages Listener

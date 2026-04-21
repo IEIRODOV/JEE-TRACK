@@ -612,9 +612,8 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
     };
 
     fetchPosts();
-    // Increase pulse interval to 10 minutes (600,000ms) for high scale
-    const interval = setInterval(fetchPosts, 600000);
-    return () => clearInterval(interval);
+    // Ultra Scale: Disabled periodic catch-up. Users use Manual Refresh button.
+    return () => {};
   }, []);
 
   const handleManualRefresh = async () => {

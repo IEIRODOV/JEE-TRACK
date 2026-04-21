@@ -950,8 +950,8 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     };
 
     fetchGlobalStats();
-    const interval = setInterval(fetchGlobalStats, 300000); // 5 minutes
-    return () => clearInterval(interval);
+    // Ultra Scale: Disable periodic global stats update. User gets fresh data on entry only.
+    return () => {};
   }, []);
 
   // Motivational Quote Rotation - Once a day
@@ -1110,53 +1110,9 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         }
       }, 1000);
 
-      // Periodic save to Firestore every 10 minutes to significantly minimize write quota usage at scale
-      periodicSave = setInterval(async () => {
-        const now = Date.now();
-        const sessionSeconds = Math.floor((now - startTime) / 1000);
-        const totalElapsed = accumulatedSeconds + sessionSeconds;
-        
-        const todayStr = new Date().toDateString();
-        const currentSubjectSeconds = subjectStudySecondsRef.current[todayStr] || {};
-
-        await saveToFirestore(todayStr, {
-          studySeconds: totalElapsed,
-          subjectSeconds: currentSubjectSeconds,
-          date: todayStr
-        });
-
-        // Also update chapter-specific progress
-        const currentSub = selectedSubjectRef.current;
-        const currentChap = selectedChapterRef.current;
-        const delta = totalElapsed - lastSavedProgressSecondsRef.current;
-        
-        if (user && currentChap && currentSub && delta > 0) {
-          const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
-          const year = localStorage.getItem('pulse_user_year') || '2027';
-          const examBase = exam === 'jee' ? 'jee' : exam;
-          const examId = `${examBase}_${year}`;
-          const progressRef = doc(db, 'users', user.uid, 'data', `progress-${examId}`);
-          
-          try {
-            await setDoc(progressRef, {
-              progress: {
-                [currentSub]: {
-                  [currentChap]: {
-                    studyTime: increment(delta)
-                  }
-                }
-              }
-            }, { merge: true });
-            lastSavedProgressSecondsRef.current = totalElapsed;
-          } catch (error) {
-            console.error("Error saving periodic chapter progress:", error);
-          }
-        }
-      }, 600000); // Pulse every 10 minutes
     }
     return () => {
       clearInterval(interval);
-      clearInterval(periodicSave);
       
       // Final save on unmount if timer was running
       if (isTimerRunning && startTime) {
@@ -1472,9 +1428,15 @@ const TimerPage = ({ settings }: TimerPageProps) => {
 
       const batch = writeBatch(db);
       const statsRef = doc(db, 'users', user.uid, 'dailyStats', today);
+      const currentSubjectQuestions = subjectQuestionCountsRef.current[today] || {};
+      const currentTotalQuestions = dailyQuestionCounts[today] || 0;
+      const questionDiff = currentTotalQuestions - lastSyncedQuestionsRef.current;
+
       batch.set(statsRef, {
         studySeconds: elapsedSeconds,
         subjectSeconds: currentSubjectSeconds,
+        questionsSolved: currentTotalQuestions,
+        subjectQuestions: currentSubjectQuestions,
         lastUpdated: serverTimestamp()
       }, { merge: true });
 
@@ -1483,26 +1445,29 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       const currentChap = selectedChapterRef.current;
       const deltaForProgress = elapsedSeconds - lastSavedProgressSecondsRef.current;
 
-      if (currentChap && currentSub && deltaForProgress > 0) {
+      if (currentChap && currentSub) {
         const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
         const year = localStorage.getItem('pulse_user_year') || '2027';
         const examBase = exam === 'jee' ? 'jee' : exam;
         const examId = `${examBase}_${year}`;
         const progressRef = doc(db, 'users', user.uid, 'data', `progress-${examId}`);
-        batch.set(progressRef, {
-          progress: {
-            [currentSub]: {
-              [currentChap]: {
-                studyTime: increment(deltaForProgress)
-              }
-            }
-          }
-        }, { merge: true });
-        lastSavedProgressSecondsRef.current = elapsedSeconds;
+        
+        const progressUpdate: any = { progress: { [currentSub]: { [currentChap]: {} } } };
+        if (deltaForProgress > 0) progressUpdate.progress[currentSub][currentChap].studyTime = increment(deltaForProgress);
+        if (questionDiff > 0) progressUpdate.progress[currentSub][currentChap].questions = increment(questionDiff);
+
+        if (deltaForProgress > 0 || questionDiff > 0) {
+          batch.set(progressRef, progressUpdate, { merge: true });
+        }
       }
 
       try {
         await batch.commit();
+        if (questionDiff > 0) {
+          await syncGlobalProgress(questionDiff, 0);
+          lastSyncedQuestionsRef.current = currentTotalQuestions;
+        }
+        lastSavedProgressSecondsRef.current = elapsedSeconds;
       } catch (error) {
         handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/dailyStats/${today}`);
       }
@@ -1539,51 +1504,10 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       return;
     }
 
-    // Debounce the Firestore write (wait 2 seconds of inactivity before syncing)
-    if (questionSyncTimeoutRef.current) clearTimeout(questionSyncTimeoutRef.current);
-    
-    questionSyncTimeoutRef.current = setTimeout(async () => {
-      const finalVal = val;
-      const totalDiff = finalVal - lastSyncedQuestionsRef.current;
-      if (totalDiff === 0) return;
-
-      try {
-        const batch = writeBatch(db);
-        const statsRef = doc(db, 'users', user.uid, 'dailyStats', today);
-        batch.set(statsRef, {
-          questionsSolved: finalVal,
-          subjectQuestions: updatedSubjectQuestions,
-          lastUpdated: serverTimestamp()
-        }, { merge: true });
-
-        if (selectedChapterRef.current && currentSub) {
-          const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
-          const year = localStorage.getItem('pulse_user_year') || '2027';
-          const examBase = exam === 'jee' ? 'jee' : exam;
-          const examId = `${examBase}_${year}`;
-          const progressRef = doc(db, 'users', user.uid, 'data', `progress-${examId}`);
-          batch.set(progressRef, {
-            progress: {
-              [currentSub]: {
-                [selectedChapterRef.current]: {
-                  questions: increment(totalDiff)
-                }
-              }
-            }
-          }, { merge: true });
-        }
-
-        await batch.commit();
-        lastSyncedQuestionsRef.current = finalVal;
-        
-        if (totalDiff > 0) {
-          await syncGlobalProgress(totalDiff, 0);
-        }
-      } catch (error) {
-        console.error("Error debounced question sync:", error);
-      }
-    }, 5000); // 5-second debounce for question updates to minimize writes
-  }, [user, dailyQuestionCounts, isStatsLoaded]);
+    // Ultra Scale Change: No more background Firestore writes for questions.
+    // They are now batched into the write that happens on "STOP" or "PAUSE" or Tab Close.
+    // This saves thousands of writes per day at 2000 user scale.
+  }, [user, dailyQuestionCounts]);
 
   const removeOneHour = useCallback(async () => {
     const today = new Date().toDateString();
