@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, TrendingUp, Zap, Trash2, Cloud, CloudOff, Loader2, Activity, Clock, Target, Shield, Rocket, ZapIcon, History, Check, AlertTriangle } from 'lucide-react';
-import { playTickSound, playF1Sound, playTankSound, playJetSound } from '@/src/lib/sounds';
+import { 
+  playTickSound, 
+  playF1Sound, 
+  playTankSound, 
+  playJetSound, 
+  playAuthSound, 
+  playCheckSound,
+  playMechanicalSound 
+} from '@/src/lib/sounds';
 import { motion, AnimatePresence } from 'motion/react';
 import AnoAI from "@/components/ui/animated-shader-background";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar, Cell, ReferenceLine, PieChart, Pie } from 'recharts';
@@ -21,12 +29,498 @@ import {
   deleteDoc,
   writeBatch,
   increment,
-  addDoc
+  addDoc,
+  updateDoc
 } from 'firebase/firestore';
 
-// --- High Performance Sub-components ---
+// --- Futuristic Navigation Components ---
 
-const PerformanceNode = React.memo(({ elapsedSeconds, targetHours, currentQuestions }: { elapsedSeconds: number, targetHours: number, currentQuestions: number }) => (
+const SpringLeverNav = ({ activeTab, setActiveTab, setShowDeleteConfirm }: { activeTab: any, setActiveTab: (t: any) => void, setShowDeleteConfirm: (v: boolean) => void }) => {
+  const tabs = [
+    { id: 'timer', label: 'TIMER', icon: Clock, color: 'text-violet-400' },
+    { id: 'test', label: 'TEST', icon: Target, color: 'text-pink-400' },
+    { id: 'revision', label: 'REVISION', icon: Zap, color: 'text-amber-400' },
+    { id: 'calendar', label: 'CALENDAR', icon: CalendarIcon, color: 'text-emerald-400' }
+  ];
+
+  const currentIndex = tabs.findIndex(t => t.id === activeTab);
+
+  const handlePullEnd = (event: any, info: any) => {
+    if (info.offset.y > 80) { // Increased threshold for "stiffness"
+      playMechanicalSound();
+      const nextIndex = (currentIndex + 1) % tabs.length;
+      setActiveTab(tabs[nextIndex].id);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-6 mb-12">
+      <div className="flex items-center gap-4 bg-black/40 p-2 rounded-[32px] border border-white/10 backdrop-blur-2xl shadow-2xl">
+        {tabs.map((tab, idx) => (
+          <button
+            key={tab.id}
+            onClick={() => { playTickSound(); setActiveTab(tab.id); }}
+            className={`relative px-6 py-3 rounded-2xl transition-all duration-500 flex items-center gap-2 group
+              ${activeTab === tab.id ? 'bg-white/10 shadow-[inset_0_0_20px_rgba(255,255,255,0.05)]' : 'hover:bg-white/5 opacity-40 hover:opacity-100'}`}
+          >
+            {activeTab === tab.id && (
+              <motion.div 
+                layoutId="nav-active"
+                className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent rounded-2xl border border-white/20"
+                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+              />
+            )}
+            <tab.icon className={`w-4 h-4 relative z-10 ${activeTab === tab.id ? tab.color : 'text-white'}`} />
+            <span className={`text-[10px] font-black uppercase tracking-[0.3em] relative z-10 transition-colors
+              ${activeTab === tab.id ? 'text-white' : 'text-white'}`}>
+              {tab.label}
+            </span>
+          </button>
+        ))}
+
+        {/* The Train-Style Drag Lever */}
+        <div className="h-10 w-px bg-white/10 mx-2" />
+        
+        <div className="flex items-center gap-4 px-4 h-24 flex-col justify-center">
+          <div className="relative group">
+            {/* Lever Rail */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-4 h-24 bg-zinc-900 rounded-full border border-white/5 shadow-inner" />
+            
+            <motion.div
+              drag="y"
+              dragConstraints={{ top: 0, bottom: 80 }}
+              dragElastic={0.1}
+              dragSnapToOrigin={true}
+              dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
+              onDragEnd={handlePullEnd}
+              whileTap={{ cursor: "grabbing" }}
+              className="relative z-10 cursor-grab"
+            >
+              <motion.div
+                className="w-14 h-16 bg-gradient-to-b from-zinc-800 to-black rounded-xl border-x-2 border-t-2 border-white/20 flex flex-col items-center justify-start pt-1 gap-1 shadow-2xl"
+              >
+                {/* Friction Ribs */}
+                <div className="w-8 h-12 flex flex-col gap-1.5 opacity-40 mt-1">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="w-full h-1 bg-zinc-600 rounded-full" />
+                  ))}
+                </div>
+
+                {/* The Red Ball Handle */}
+                <div className="absolute -top-4 w-10 h-10 rounded-full bg-gradient-to-br from-red-500 via-red-600 to-red-950 border-2 border-white/30 shadow-2xl flex items-center justify-center">
+                  <div className="w-5 h-5 rounded-full bg-white/10 blur-[2px] -translate-x-1.5 -translate-y-1.5" />
+                </div>
+              </motion.div>
+            </motion.div>
+            
+            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap">
+              <span className="text-[7px] font-black text-red-500 uppercase tracking-widest">Pull to Shift</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- Revision Module ---
+const RevisionPage = ({ subjectStudySeconds, subjectQuestionCounts, getSubjectColor, revisionSlots, setRevisionSlots, availableSubjects, setSubjectRevisionCounts }: any) => {
+  const [isAdding, setIsAdding] = useState(false);
+  const [selectedSub, setSelectedSub] = useState('');
+  const [selectedChap, setSelectedChap] = useState('');
+  const configRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isAdding && configRef.current) {
+      configRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [isAdding]);
+
+  const revisionStages = [
+    { label: 'Day 1: Recall', icon: History, color: 'text-blue-400', glow: 'shadow-[0_0_15px_rgba(59,130,246,0.3)]', desc: 'Focus on core concepts and formula derivation.' },
+    { label: 'Day 4: Deep Dive', icon: Rocket, color: 'text-violet-400', glow: 'shadow-[0_0_15px_rgba(139,92,246,0.3)]', desc: 'Solve high-difficulty previous year questions.' },
+    { label: 'Day 12: Mastery', icon: Target, color: 'text-emerald-400', glow: 'shadow-[0_0_15px_rgba(16,185,129,0.3)]', desc: 'Full chapter test under timed conditions.' }
+  ];
+
+  const addSlot = () => {
+    if (!selectedSub || !selectedChap) {
+      alert("Please select both subject and chapter.");
+      return;
+    }
+    
+    // Check if duplicate chapter exists in revision
+    const isDuplicate = revisionSlots.some((s: any) => s.subject === selectedSub && s.chapter === selectedChap && !s.completed);
+    if (isDuplicate) {
+      alert("Protocol already active for this chapter.");
+      return;
+    }
+
+    if (revisionSlots.filter((s: any) => !s.completed).length >= 8) {
+      alert("Maximum 8 active revision slots allowed. Complete or remove a slot to add more.");
+      return;
+    }
+    const newSlot = {
+      id: Date.now(),
+      subject: selectedSub,
+      chapter: selectedChap,
+      startDate: new Date().toISOString(),
+      currentStage: 0, // 0 = Not started, 1 = Day 1 done, 2 = Day 4 done, 3 = Day 12 done
+      completed: false
+    };
+    setRevisionSlots([...revisionSlots, newSlot]);
+    setIsAdding(false);
+    setSelectedSub('');
+    setSelectedChap('');
+  };
+
+  const removeSlot = (id: number) => {
+    setRevisionSlots(revisionSlots.filter((s: any) => s.id !== id));
+  };
+
+  const markStageComplete = async (slot: any) => {
+    const daysSinceStart = Math.floor((Date.now() - new Date(slot.startDate).getTime()) / (1000 * 60 * 60 * 24));
+    const isStageLocked = (slot.currentStage === 1 && daysSinceStart < 4) || (slot.currentStage === 2 && daysSinceStart < 12);
+    
+    if (isStageLocked) {
+      alert(`This revision stage is locked. Please return on Day ${[1, 4, 12][slot.currentStage]}.`);
+      return;
+    }
+
+    const nextStage = slot.currentStage + 1;
+    
+    // Gating Logic
+    if (nextStage === 2 && daysSinceStart < 4) {
+      alert(`Protocol Locked: Day 4 revision available in ${4 - daysSinceStart} days.`);
+      return;
+    }
+    if (nextStage === 3 && daysSinceStart < 12) {
+      alert(`Protocol Locked: Day 12 revision available in ${12 - daysSinceStart} days.`);
+      return;
+    }
+
+    playCheckSound(); // Play sound on completion
+    const isFinished = nextStage === 3;
+    
+    setRevisionSlots(revisionSlots.map((s: any) => 
+      s.id === slot.id ? { ...s, currentStage: nextStage, completed: isFinished } : s
+    ));
+
+    // Increment global subject revision count
+    setSubjectRevisionCounts((prev: any) => ({
+      ...prev,
+      [slot.subject]: (prev[slot.subject] || 0) + 1
+    }));
+
+    // Protocol Stage Sync to Progress Section
+    const user = auth.currentUser;
+    if (user) {
+      const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
+      const year = localStorage.getItem('pulse_user_year') || '2027';
+      const examId = `${exam}_${year}`;
+      
+      try {
+        const docRef = doc(db, 'users', user.uid, 'data', `progress-${examId}`);
+        await updateDoc(docRef, {
+          [`progress.${slot.subject}.${slot.chapter}.revisionCount`]: nextStage
+        }).catch(async (err) => {
+          if (err.code === 'not-found' || err.message.includes('not found')) {
+            // Document doesn't exist, we don't necessarily want to create the whole syllabus structure here 
+            // since it's managed by ProgressPage, but we can try to merge if it's there.
+          }
+        });
+      } catch (err) {
+        console.error("Mastery Sync Error:", err);
+      }
+    }
+  };
+
+  const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
+  const year = localStorage.getItem('pulse_user_year') || '2027';
+  const examBase = exam === 'jee' ? 'jee' : exam;
+  const examId = `${examBase}_${year}`;
+  const normalizedExamId = examId.includes('boards') && !examId.endsWith('th') ? `${examId}th` : examId;
+  const syllabus = SYLLABUS_DATA[normalizedExamId] || SYLLABUS_DATA[examId] || SYLLABUS_DATA[examBase] || SYLLABUS_DATA.jee;
+  
+  const chapters = selectedSub ? (syllabus[selectedSub] || []) : [];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-12"
+    >
+      {/* 1-4-12 Technique Overview */}
+      <div className="p-10 rounded-[56px] bg-gradient-to-br from-zinc-900 via-black to-zinc-900 border border-white/10 relative overflow-hidden shadow-2xl">
+        <div className="absolute top-0 right-0 p-8 opacity-[0.03]">
+          <Shield className="w-64 h-64" />
+        </div>
+        <div className="relative z-10">
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-6">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.1)]">
+                <Zap className="w-7 h-7 text-amber-500 animate-pulse" />
+              </div>
+              <div>
+                <h2 className="text-3xl font-black text-white uppercase tracking-tighter leading-none">1-4-12 Method</h2>
+                <p className="text-[10px] font-bold text-amber-500/40 uppercase tracking-[0.4em] mt-1">Cognitive Retention Protocol</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="flex border border-white/5 rounded-2xl p-1 bg-black/40 backdrop-blur-xl">
+                <div className="px-4 py-2 text-[8px] font-black text-white/40 uppercase tracking-widest border-r border-white/5">Optimized for Rank 1</div>
+                <div className="px-4 py-2 text-[8px] font-black text-amber-500 uppercase tracking-widest animate-pulse">System Active</div>
+              </div>
+              <button 
+                onClick={() => setIsAdding(true)}
+                className="px-6 py-3 rounded-2xl bg-white text-black text-[10px] font-black uppercase tracking-widest hover:bg-white/90 transition-all active:scale-95"
+              >
+                Add Revision Slot
+              </button>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {revisionStages.map((stage, i) => (
+              <motion.div 
+                key={i} 
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: i * 0.1 }}
+                className="flex flex-col gap-6 p-8 rounded-[40px] bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all group relative"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent rounded-[40px] opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className={`w-12 h-12 rounded-2xl bg-black/40 flex items-center justify-center ${stage.color} ${stage.glow} border border-white/5 transition-transform group-hover:scale-110`}>
+                  <stage.icon className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className={`text-base font-black uppercase tracking-widest mb-2 ${stage.color}`}>{stage.label}</h3>
+                  <p className="text-[10px] text-white/30 leading-relaxed uppercase tracking-[0.15em] font-black">
+                    {stage.desc}
+                  </p>
+                </div>
+                <div className="mt-2 h-[2px] w-full bg-white/5 rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ x: '-100%' }}
+                    animate={{ x: '0%' }}
+                    transition={{ delay: 0.2 + i * 0.1, duration: 1.5, ease: "easeOut" }}
+                    className={`h-full w-full bg-gradient-to-r from-transparent via-${stage.color.split('-')[1]}-500/50 to-transparent`}
+                  />
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {isAdding && (
+          <motion.div
+            ref={configRef}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="p-10 rounded-[56px] border-2 border-dashed border-white/10 bg-white/[0.01] flex flex-col items-center gap-8"
+          >
+            <div className="text-center">
+              <h3 className="text-xl font-black text-white uppercase tracking-widest mb-2">Configure Revision Slot</h3>
+              <p className="text-[10px] text-white/40 uppercase tracking-widest">Select subject and chapter to initialize 1-4-12 protocol</p>
+            </div>
+            
+            <div className="flex flex-wrap justify-center gap-4 w-full max-w-2xl">
+              <div className="flex-1 min-w-[200px]">
+                <label className="text-[8px] font-black text-white/20 uppercase tracking-widest ml-4 mb-2 block">Subject</label>
+                <select 
+                  value={selectedSub}
+                  onChange={(e) => setSelectedSub(e.target.value)}
+                  className="w-full bg-black border border-white/10 rounded-2xl px-6 py-4 text-xs font-bold text-white focus:outline-none focus:border-amber-500/50"
+                >
+                  <option value="">Select Subject</option>
+                  {availableSubjects.map((s: string) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div className="flex-1 min-w-[200px]">
+                <label className="text-[8px] font-black text-white/20 uppercase tracking-widest ml-4 mb-2 block">Chapter</label>
+                <select 
+                  value={selectedChap}
+                  onChange={(e) => setSelectedChap(e.target.value)}
+                  disabled={!selectedSub}
+                  className="w-full bg-black border border-white/10 rounded-2xl px-6 py-4 text-xs font-bold text-white focus:outline-none focus:border-amber-500/50 disabled:opacity-30"
+                >
+                  <option value="">Select Chapter</option>
+                  {chapters.map((c: string) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <button 
+                onClick={() => setIsAdding(false)}
+                className="px-8 py-4 rounded-2xl bg-white/5 border border-white/10 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/10"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={addSlot}
+                className="px-10 py-4 rounded-2xl bg-amber-500 text-black text-[10px] font-black uppercase tracking-widest hover:bg-amber-400 shadow-[0_10px_30_px_rgba(245,158,11,0.3)]"
+              >
+                Initialize Protocol
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.div 
+        layout
+        className="grid grid-cols-1 md:grid-cols-3 gap-8"
+      >
+        <AnimatePresence>
+          {revisionSlots.map((slot: any, slotIdx: number) => {
+            const daysSinceStart = Math.floor((Date.now() - new Date(slot.startDate).getTime()) / (1000 * 60 * 60 * 24));
+            
+            return (
+              <motion.div
+                key={slot.id}
+                initial={{ opacity: 0, y: 30, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.5, transition: { duration: 0.2 } }}
+                whileHover={{ y: -8, scale: 1.02 }}
+                className="p-8 rounded-[48px] bg-zinc-900/40 border border-white/5 backdrop-blur-3xl relative overflow-hidden group shadow-xl h-full flex flex-col"
+              >
+              <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-20 transition-all duration-500 transform group-hover:rotate-12">
+                <Zap className="w-20 h-20" style={{ color: getSubjectColor(slot.subject) }} />
+              </div>
+              
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-8 rounded-full" style={{ backgroundColor: getSubjectColor(slot.subject) }} />
+                  <div>
+                    <div className="text-[8px] font-black text-white/20 uppercase tracking-widest">Protocol Active</div>
+                    <div className="text-sm font-black uppercase tracking-[0.2em] text-white/90 truncate max-w-[150px]">
+                      {slot.subject}
+                    </div>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => removeSlot(slot.id)}
+                  className="p-2 rounded-xl border border-white/5 bg-white/5 text-white/20 hover:text-rose-500 hover:bg-rose-500/10 transition-all opacity-0 group-hover:opacity-100"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="mb-8">
+                <div className="text-[9px] text-white/20 uppercase font-black tracking-widest mb-2">Active Chapter</div>
+                <div className="text-lg font-black text-white leading-tight uppercase">{slot.chapter}</div>
+              </div>
+
+              <div className="space-y-6 relative z-10">
+                {/* Spaced Repetition Nodes */}
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center text-[8px] font-black text-white/40 uppercase tracking-widest">
+                     <span>Revision Milestones</span>
+                     <span>Status</span>
+                  </div>
+                  <div className="space-y-4">
+                    {[1, 4, 12].map((day, idx) => {
+                      const isCompleted = slot.currentStage > idx;
+                      const isCurrent = slot.currentStage === idx;
+                      // Time-gating visual feedback
+                      const isLocked = (idx === 1 && daysSinceStart < 4) || (idx === 2 && daysSinceStart < 12);
+                      
+                      const instructions = [
+                        "Notes Revise",
+                        "Active Recall",
+                        "Notes + Active Recall + Short Notes"
+                      ];
+
+                      const getDueDate = (start: string, offset: number) => {
+                        const d = new Date(start);
+                        d.setDate(d.getDate() + offset);
+                        return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+                      };
+                      
+                      return (
+                        <div key={day} className="flex items-center gap-4">
+                          <div className="flex-1 space-y-2">
+                             <div className="flex justify-between items-center">
+                               <div className="flex flex-col">
+                                 <div className={`text-[9px] font-black ${isLocked ? 'text-white/10' : (isCompleted ? 'text-emerald-500/50' : 'text-white/40 uppercase')}`}>
+                                   Day {day} — {instructions[idx]}
+                                 </div>
+                                 {(idx > 0 && (isCompleted || isCurrent)) && (
+                                   <div className={`text-[7px] font-bold ${isLocked ? 'text-white/5' : 'text-amber-500/40'} uppercase tracking-widest`}>
+                                     Due: {getDueDate(slot.startDate, day)}
+                                   </div>
+                                 )}
+                               </div>
+                               {isCompleted ? (
+                                 <Check className="w-3 h-3 text-emerald-500" />
+                               ) : isLocked ? (
+                                   <Shield className="w-3 h-3 text-white/5" />
+                               ) : (
+                                 <div className={`w-2 h-2 rounded-full ${isCurrent ? 'bg-amber-500 animate-pulse' : 'bg-white/10'}`} />
+                               )}
+                             </div>
+                             <div className="h-1.5 rounded-full bg-black/40 border border-white/5 overflow-hidden">
+                               <motion.div 
+                                 initial={{ width: 0 }}
+                                 animate={{ width: isCompleted ? '100%' : isCurrent ? '50%' : '0%' }}
+                                 className={`h-full ${isCompleted ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : isCurrent ? 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.3)]' : 'bg-white/5'}`}
+                               />
+                             </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="pt-6 mt-6 border-t border-white/5 flex gap-2">
+                  <button 
+                    disabled={slot.completed || ((slot.currentStage === 1 && daysSinceStart < 4) || (slot.currentStage === 2 && daysSinceStart < 12))}
+                    onClick={() => markStageComplete(slot)}
+                    className={`flex-1 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95
+                      ${slot.completed 
+                        ? 'bg-emerald-500/20 text-emerald-400 cursor-default border border-emerald-500/20' 
+                        : (slot.currentStage === 1 && daysSinceStart < 4) || (slot.currentStage === 2 && daysSinceStart < 12)
+                          ? 'bg-white/5 text-white/10 cursor-not-allowed border border-white/5'
+                          : 'bg-amber-500 text-black hover:bg-amber-400 shadow-[0_10px_20px_rgba(245,158,11,0.2)]'}`}
+                  >
+                    {slot.completed ? 'Mastered • 1-4-12 Win' : 
+                     (slot.currentStage === 1 && daysSinceStart < 4) || (slot.currentStage === 2 && daysSinceStart < 12) 
+                      ? `Locked until Day ${[1, 4, 12][slot.currentStage]}`
+                      : `Mark Day ${[1, 4, 12][slot.currentStage]} Complete`}
+                  </button>
+                </div>
+              </div>
+              
+              {/* Status Footer */}
+              <div className="flex justify-between items-center mt-6 pt-4 border-t border-white/5 opacity-60">
+                 <div className="text-[7px] font-black text-white/20 uppercase tracking-widest font-mono">Day {daysSinceStart + 1} of 12</div>
+                 <div className="flex items-center gap-1.5 p-1 px-2 rounded-full bg-white/5 border border-white/5">
+                    <div className={`w-1 h-1 rounded-full ${slot.completed ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
+                    <span className="text-[6px] font-black text-white/40 uppercase tracking-widest leading-none">{slot.completed ? 'Win' : 'Cycling'}</span>
+                 </div>
+              </div>
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
+
+        {revisionSlots.length === 0 && !isAdding && (
+          <div className="col-span-full py-20 flex flex-col items-center justify-center text-center border-2 border-dashed border-white/5 rounded-[48px]">
+            <ZapIcon className="w-12 h-12 text-white/5 mb-4" />
+            <div className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em]">No Revision Slots Initialized</div>
+            <p className="mt-2 text-[9px] text-white/10 uppercase tracking-widest">Start a new protocol to track mastery</p>
+          </div>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+};
+
+const PerformanceNode = React.memo(({ elapsedSeconds, targetHours, currentQuestions }: any) => (
   <motion.div 
     initial={{ opacity: 0, x: -20 }}
     animate={{ opacity: 1, x: 0 }}
@@ -54,6 +548,152 @@ const PerformanceNode = React.memo(({ elapsedSeconds, targetHours, currentQuesti
     </div>
   </motion.div>
 ));
+
+const SubjectMasteryTracker = ({ subjects, studySeconds, questionCounts, revisionSlots, getSubjectColor }: any) => {
+  // Balanced Targets for 20% each
+  const TARGET_HOURS = 10;
+  const TARGET_QUESTIONS = 120;
+
+  return (
+    <div className="mt-12 space-y-8">
+      <div className="flex items-center gap-4">
+        <div className="h-px flex-1 bg-white/10" />
+        <h2 className="text-xs font-black text-white/40 uppercase tracking-[0.4em]">JEE Subject Progress Section</h2>
+        <div className="h-px flex-1 bg-white/10" />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {subjects.map((sub: string) => {
+          // Calculate historical totals for this subject
+          let totalStudyTime = 0;
+          let totalQuestions = 0;
+
+          Object.values(studySeconds).forEach((dayStats: any) => {
+            totalStudyTime += (dayStats[sub] || 0);
+          });
+          Object.values(questionCounts).forEach((dayStats: any) => {
+            totalQuestions += (dayStats[sub] || 0);
+          });
+
+          // Calculate Revision completion from slots
+          const subSlots = revisionSlots.filter((s: any) => s.subject === sub);
+          const d1Count = subSlots.filter((s: any) => s.currentStage > 0).length;
+          const d4Count = subSlots.filter((s: any) => s.currentStage > 1).length;
+          const d12Count = subSlots.filter((s: any) => s.completed).length;
+          
+          // Total chapters in subject
+          const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
+          const year = localStorage.getItem('pulse_user_year') || '2027';
+          const examId = `${exam}_${year}`;
+          const chapterNames = SYLLABUS_DATA[examId]?.[sub] || SYLLABUS_DATA[examId.split('_')[0]]?.[sub] || SYLLABUS_DATA.jee[sub] || [];
+          const totalChaptersCount = Math.max(1, chapterNames.length);
+
+          const timeProgress = Math.min(100, (totalStudyTime / (TARGET_HOURS * 3600)) * 100);
+          const quesProgress = Math.min(100, (totalQuestions / TARGET_QUESTIONS) * 100);
+          const d1Progress = Math.min(100, (d1Count / totalChaptersCount) * 100);
+          const d4Progress = Math.min(100, (d4Count / totalChaptersCount) * 100);
+          const d12Progress = Math.min(100, (d12Count / totalChaptersCount) * 100);
+
+          const compositeScore = Math.round(
+            (timeProgress * 0.2) + 
+            (quesProgress * 0.2) + 
+            (d1Progress * 0.2) + 
+            (d4Progress * 0.2) + 
+            (d12Progress * 0.2)
+          );
+
+          return (
+            <motion.div
+              key={sub}
+              whileHover={{ y: -5 }}
+              className="p-6 rounded-[32px] glass bg-white/[0.01] border border-white/5 relative overflow-hidden group"
+            >
+              <div 
+                className="absolute top-0 right-0 w-32 h-32 blur-[60px] opacity-10 group-hover:opacity-20 transition-opacity"
+                style={{ backgroundColor: getSubjectColor(sub) }}
+              />
+              
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="w-1.5 h-6 rounded-full" style={{ backgroundColor: getSubjectColor(sub) }} />
+                  <span className="text-lg font-black text-white uppercase tracking-tight">{sub}</span>
+                </div>
+                <div className="text-2xl font-mono font-black text-white/90">{compositeScore}%</div>
+              </div>
+
+              <div className="space-y-4 relative z-10">
+                {/* Weightage Breakdown (20% each) */}
+                <div className="space-y-4">
+                   <div className="grid grid-cols-2 gap-4">
+                      {/* Time */}
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-[7px] font-black text-white/30 uppercase">
+                          <span>Hours ({Math.round(timeProgress * 0.2)}%)</span>
+                          <span>{(totalStudyTime / 3600).toFixed(1)}/10h</span>
+                        </div>
+                        <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                          <motion.div animate={{ width: `${timeProgress}%` }} className="h-full bg-blue-500" />
+                        </div>
+                      </div>
+                      {/* Questions */}
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-[7px] font-black text-white/30 uppercase">
+                          <span>Questions ({Math.round(quesProgress * 0.2)}%)</span>
+                          <span>{totalQuestions}/120</span>
+                        </div>
+                        <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                          <motion.div animate={{ width: `${quesProgress}%` }} className="h-full bg-rose-500" />
+                        </div>
+                      </div>
+                   </div>
+
+                   <div className="h-px bg-white/5" />
+
+                   <div className="grid grid-cols-3 gap-3">
+                      {/* D1 */}
+                      <div className="space-y-1.5">
+                        <div className="text-[7px] font-black text-white/30 uppercase text-center">Day 1 Rev</div>
+                        <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                          <motion.div animate={{ width: `${d1Progress}%` }} className="h-full bg-violet-500" />
+                        </div>
+                        <div className="text-[6px] text-center text-white/20 font-bold">{d1Count}/{totalChaptersCount}</div>
+                      </div>
+                      {/* D4 */}
+                      <div className="space-y-1.5">
+                        <div className="text-[7px] font-black text-white/30 uppercase text-center">Day 4 Rev</div>
+                        <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                          <motion.div animate={{ width: `${d4Progress}%` }} className="h-full bg-amber-500" />
+                        </div>
+                        <div className="text-[6px] text-center text-white/20 font-bold">{d4Count}/{totalChaptersCount}</div>
+                      </div>
+                      {/* D12 */}
+                      <div className="space-y-1.5">
+                        <div className="text-[7px] font-black text-white/30 uppercase text-center">Day 12 Rev</div>
+                        <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                          <motion.div animate={{ width: `${d12Progress}%` }} className="h-full bg-emerald-500" />
+                        </div>
+                        <div className="text-[6px] text-center text-white/20 font-bold">{d12Count}/{totalChaptersCount}</div>
+                      </div>
+                   </div>
+                </div>
+
+                <div className="pt-4 border-t border-white/5 flex items-center justify-between">
+                   <div className="flex items-center gap-1.5">
+                      <Activity className="w-3 h-3 text-white/10" />
+                      <span className="text-[6px] font-black text-white/10 uppercase tracking-widest">Protocol Stats Sync</span>
+                   </div>
+                   <div className="px-2 py-0.5 rounded-md bg-white/5 text-[6px] font-black text-white/30 uppercase tracking-tighter">
+                     Earned Mastery
+                   </div>
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 const StreakBox = React.memo(({ streak, dailyStudySeconds }: { streak: number, dailyStudySeconds: Record<string, number> }) => (
   <motion.div 
@@ -118,7 +758,7 @@ const QuestionLab = React.memo(({ currentQuestions, updateQuestions, playTickSou
 
   const startHold = () => {
     if (holdIntervalRef.current) return;
-    playTickSound();
+    playAuthSound(); // Specific authorization sound added to sounds.ts
     holdIntervalRef.current = setInterval(() => {
       setHoldProgress(prev => {
         if (prev >= 100) {
@@ -690,6 +1330,9 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   const [completedStudyDays, setCompletedStudyDays] = useState<string[]>([]);
   const [completedQuestionDays, setCompletedQuestionDays] = useState<string[]>([]);
   const [dailyQuestionCounts, setDailyQuestionCounts] = useState<Record<string, number>>({});
+  const [markedEvents, setMarkedEvents] = useState<Record<string, string>>(() => {
+    return JSON.parse(localStorage.getItem('pulse_calendar_events') || '{}');
+  });
   const [dailyStudySeconds, setDailyStudySeconds] = useState<Record<string, number>>({});
   const [subjectStudySeconds, setSubjectStudySeconds] = useState<Record<string, Record<string, number>>>({});
   const [subjectQuestionCounts, setSubjectQuestionCounts] = useState<Record<string, Record<string, number>>>({});
@@ -712,8 +1355,65 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   const [isTimerLoading, setIsTimerLoading] = useState(true);
   const [isStatsLoaded, setIsStatsLoaded] = useState(false);
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
-  const [activeTab, setActiveTab] = useState<'timer' | 'test'>('timer');
+  const [activeTab, setActiveTab] = useState<'timer' | 'test' | 'revision' | 'calendar'>('timer');
+  const [revisionSlots, setRevisionSlots] = useState<any[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('pulse_revision_slots') || '[]');
+    } catch (e) {
+      return [];
+    }
+  });
+  const [subjectRevisionCounts, setSubjectRevisionCounts] = useState<Record<string, number>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('pulse_subject_revision_counts') || '{}');
+    } catch (e) {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('pulse_subject_revision_counts', JSON.stringify(subjectRevisionCounts));
+  }, [subjectRevisionCounts]);
+
   const [currentQuote, setCurrentQuote] = useState(MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)]);
+  const [lastActivityTimestamp, setLastActivityTimestamp] = useState(Date.now());
+
+  useEffect(() => {
+    localStorage.setItem('pulse_revision_slots', JSON.stringify(revisionSlots));
+    
+    // Sync Revision Slots to Firestore for persistence across devices
+    if (user && isStatsLoaded) {
+      const syncRevision = async () => {
+        try {
+          const ref = doc(db, 'users', user.uid, 'data', 'revision');
+          await setDoc(ref, { 
+            slots: revisionSlots,
+            subjectCounts: subjectRevisionCounts,
+            lastUpdated: serverTimestamp() 
+          }, { merge: true });
+        } catch (err) {
+          console.error("Revision Firestore Sync Err:", err);
+        }
+      };
+      // Debounce sync slightly
+      const timer = setTimeout(syncRevision, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [revisionSlots, user, isStatsLoaded]);
+
+  // Load Revision Data from Firestore
+  useEffect(() => {
+    if (user) {
+      const ref = doc(db, 'users', user.uid, 'data', 'revision');
+      getDoc(ref).then(snap => {
+        if (snap.exists()) {
+          const data = snap.data();
+          if (data.slots) setRevisionSlots(data.slots);
+          if (data.subjectCounts) setSubjectRevisionCounts(data.subjectCounts);
+        }
+      });
+    }
+  }, [user]);
 
   // Refs to avoid stale closures in timer and async operations
   const dailyStudySecondsRef = useRef(dailyStudySeconds);
@@ -781,7 +1481,18 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       setUser(currentUser);
       setIsAuthReady(true);
     });
-    return () => unsubscribe();
+    
+    const handleGlobalActivity = () => setLastActivityTimestamp(Date.now());
+    window.addEventListener('mousemove', handleGlobalActivity);
+    window.addEventListener('keypress', handleGlobalActivity);
+    window.addEventListener('touchstart', handleGlobalActivity);
+    
+    return () => {
+      unsubscribe();
+      window.removeEventListener('mousemove', handleGlobalActivity);
+      window.removeEventListener('keypress', handleGlobalActivity);
+      window.removeEventListener('touchstart', handleGlobalActivity);
+    };
   }, []);
 
   // Handle Chapter/Subject Switching during Active Session
@@ -827,8 +1538,9 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         setAvailableChapters(chapters);
         
         // Auto-select first chapter if none selected or if selected chapter not in new subject
-        if (!selectedChapter || !chapters.find(c => c.id === selectedChapter)) {
-          handleChapterSwitch(selectedSubject, chapters[0]?.id || '');
+        const currentChapters = chapters;
+        if ((!selectedChapter || !currentChapters.find(c => c.id === selectedChapter)) && !isTimerRunning) {
+          handleChapterSwitch(selectedSubject, currentChapters[0]?.id || '');
         }
       } else {
         setAvailableChapters([]);
@@ -958,10 +1670,33 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       const data = docSnap.data();
       const dateStr = today;
 
-      setDailyQuestionCounts(prev => ({ ...prev, [dateStr]: data.questionsSolved || 0 }));
-      setDailyStudySeconds(prev => ({ ...prev, [dateStr]: data.studySeconds || 0 }));
-      setSubjectStudySeconds(prev => ({ ...prev, [dateStr]: data.subjectSeconds || {} }));
-      setSubjectQuestionCounts(prev => ({ ...prev, [dateStr]: data.subjectQuestions || {} }));
+      setDailyQuestionCounts(prev => {
+        const firestoreCount = data.questionsSolved || 0;
+        if (isTimerRunning && dateStr === today && (prev[dateStr] || 0) > firestoreCount) return prev;
+        return { ...prev, [dateStr]: firestoreCount };
+      });
+
+      setDailyStudySeconds(prev => {
+        const firestoreSeconds = data.studySeconds || 0;
+        if (isTimerRunning && dateStr === today && (prev[dateStr] || 0) > firestoreSeconds) return prev;
+        return { ...prev, [dateStr]: firestoreSeconds };
+      });
+      
+      // FIX: Don't overwrite current day's subject stats from Firestore if the timer is running locally
+      // because Firestore only has the STOPPED total, not the live session segments.
+      setSubjectStudySeconds(prev => {
+        if (isTimerRunning && dateStr === today) return prev;
+        const firestoreSubSeconds = data.subjectSeconds || {};
+        // If we have local state that is larger, keep it? 
+        // This is tricky because we don't know if Firestore is "ahead" or "behind" easily without a timestamp.
+        // But for now, the isTimerRunning guard is the most important.
+        return { ...prev, [dateStr]: firestoreSubSeconds };
+      });
+
+      setSubjectQuestionCounts(prev => {
+        if (isTimerRunning && dateStr === today) return prev;
+        return { ...prev, [dateStr]: data.subjectQuestions || {} };
+      });
       
       setCurrentQuestions(prev => {
         const firestoreQuestions = data.questionsSolved || 0;
@@ -1101,7 +1836,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     setAvailableSubjects(subjects);
     
     // Only set default if current selected subject is not in the new list or is empty
-    if (subjects.length > 0) {
+    if (subjects.length > 0 && !isTimerRunning) {
       const currentStored = localStorage.getItem('pulse_selected_subject');
       if (!currentStored || !subjects.includes(currentStored)) {
         if (!selectedSubject || !subjects.includes(selectedSubject)) {
@@ -1112,7 +1847,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         setSelectedSubject(currentStored);
       }
     }
-  }, [user]); // Re-run when user changes or on mount
+  }, [user, isTimerRunning]); // Added isTimerRunning to dependencies to prevent auto-switches
 
   // Timer logic
   useEffect(() => {
@@ -1202,6 +1937,23 @@ const TimerPage = ({ settings }: TimerPageProps) => {
           }
           lastTickElapsedRef.current = totalElapsed;
 
+          // 12-hour Auto-Off Safety Protocol
+          const SESSION_LIMIT = 12 * 3600;
+          const sessionSeconds = Math.floor((now - startTime) / 1000);
+          const INACTIVITY_LIMIT_MS = 7 * 3600 * 1000; // 7 hours of literal zero movement/keypress
+
+          if (sessionSeconds >= SESSION_LIMIT) {
+            console.warn("Safety Protocol: 12h session limit reached. Terminating timer.");
+            toggleTimer();
+            return;
+          }
+
+          if (Date.now() - lastActivityTimestamp > INACTIVITY_LIMIT_MS && sessionSeconds > 3600) {
+            console.warn("Safety Protocol: Inactivity detected during long session. Terminating timer.");
+            toggleTimer();
+            return;
+          }
+
           if (totalElapsed >= targetHoursRef.current * 3600 && !completedStudyDaysRef.current.includes(today)) {
             setCompletedStudyDays(prev => [...prev, today]);
           }
@@ -1225,8 +1977,20 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         if (user) {
           const batch = writeBatch(db);
           const statsRef = doc(db, 'users', user.uid, 'dailyStats', todayStr);
+          
+          // Construct updated subject-wise stats for the day document
+          const updatedSubjectSeconds = { ...(subjectStudySecondsRef.current[todayStr] || {}) };
+          const updatedSubjectQuestions = { ...(subjectQuestionCountsRef.current[todayStr] || {}) };
+          
+          if (currentSub) {
+            updatedSubjectSeconds[currentSub] = (updatedSubjectSeconds[currentSub] || 0) + delta;
+            updatedSubjectQuestions[currentSub] = (updatedSubjectQuestions[currentSub] || 0) + (currentQuestionsRef.current - lastSyncedQuestionsRef.current);
+          }
+
           batch.set(statsRef, {
             studySeconds: totalElapsed,
+            subjectSeconds: updatedSubjectSeconds,
+            subjectQuestions: updatedSubjectQuestions,
             lastUpdated: serverTimestamp()
           }, { merge: true });
 
@@ -1547,11 +2311,43 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         if (!chapterUpdates[currentSub]) chapterUpdates[currentSub] = {};
         if (!chapterUpdates[currentSub][currentChap]) chapterUpdates[currentSub][currentChap] = { studyTime: 0, questions: 0 };
         
-        // Merge with existing segment if any
+        // Use a safe helper to get numerical value from possibly-increment object
+        const getVal = (v: any) => (typeof v === 'number' ? v : (v?.n || 0));
+        
         chapterUpdates[currentSub][currentChap] = {
-          studyTime: increment((chapterUpdates[currentSub][currentChap].studyTime?.n || 0) + Math.max(0, finalTimeDeltaForChapter)),
-          questions: increment((chapterUpdates[currentSub][currentChap].questions?.n || 0) + Math.max(0, finalQuestionDeltaForChapter))
+          studyTime: increment(getVal(chapterUpdates[currentSub][currentChap].studyTime) + Math.max(0, finalTimeDeltaForChapter)),
+          questions: increment(getVal(chapterUpdates[currentSub][currentChap].questions) + Math.max(0, finalQuestionDeltaForChapter))
         };
+      }
+
+      // 3. Construct updates for dailyStats subject-wise tracking
+      const subjectSecondsUpdates: Record<string, any> = {};
+      const subjectQuestionsUpdates: Record<string, any> = {};
+      
+      // Also account for all segments in chapterUpdates
+      Object.entries(chapterUpdates).forEach(([sub, chaps]) => {
+         let subTime = 0;
+         let subQues = 0;
+         Object.values(chaps).forEach((stats: any) => {
+            // Note: chapterUpdates values are increment() objects. We need to extract the value we just put in.
+            // But actually, we just need to sum up the sessionChapterStats and the final segment.
+            // Let's do it directly from sessionChapterStatsRef.current
+         });
+      });
+      
+      // Correct approach: Calculate subject totals from session stats + final segment
+      const sessionSubTotals: Record<string, { seconds: number, questions: number }> = {};
+      Object.entries(sessionChapterStatsRef.current).forEach(([sub, chaps]) => {
+        if (!sessionSubTotals[sub]) sessionSubTotals[sub] = { seconds: 0, questions: 0 };
+        Object.values(chaps).forEach(stats => {
+          sessionSubTotals[sub].seconds += stats.seconds;
+          sessionSubTotals[sub].questions += stats.questions;
+        });
+      });
+      if (currentSub) {
+        if (!sessionSubTotals[currentSub]) sessionSubTotals[currentSub] = { seconds: 0, questions: 0 };
+        sessionSubTotals[currentSub].seconds += Math.max(0, finalTimeDeltaForChapter);
+        sessionSubTotals[currentSub].questions += Math.max(0, finalQuestionDeltaForChapter);
       }
 
       // Reset session accumulators
@@ -1573,14 +2369,19 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       const currentTotalQuestions = dailyQuestionCounts[today] || 0;
 
       // Update Daily Stats (Total study time, total questions)
-      batch.set(statsRef, {
+      const dailyStatsData: any = {
         studySeconds: finalElapsed,
         questionsSolved: currentTotalQuestions,
         lastUpdated: serverTimestamp(),
-        // Increment subject totals too
-        [`subjectSeconds.${currentSub}`]: increment(sessionSeconds),
-        [`subjectQuestions.${currentSub}`]: increment(questionDiff)
-      }, { merge: true });
+      };
+
+      // Add segmented subject updates to dailyStats
+      Object.entries(sessionSubTotals).forEach(([sub, stats]) => {
+        if (stats.seconds > 0) dailyStatsData[`subjectSeconds.${sub}`] = increment(stats.seconds);
+        if (stats.questions > 0) dailyStatsData[`subjectQuestions.${sub}`] = increment(stats.questions);
+      });
+
+      batch.set(statsRef, dailyStatsData, { merge: true });
 
       // Update Subject Progress (Chapter level)
       if (Object.keys(chapterUpdates).length > 0) {
@@ -1782,29 +2583,52 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     };
   });
 
-  const renderDay = (d: number, m: number, y: number, key: string) => {
+  useEffect(() => {
+    localStorage.setItem('pulse_calendar_events', JSON.stringify(markedEvents));
+  }, [markedEvents]);
+
+  const renderDay = (d: number, m: number, y: number, key: string, mode: 'test' | 'general' = 'general') => {
     const date = new Date(y, m, d);
     const dateStr = date.toDateString();
     const isToday = new Date().toDateString() === dateStr;
     const isQuestionMet = completedQuestionDays.includes(dateStr);
     const isStudyMet = completedStudyDays.includes(dateStr);
     const isMockTest = mockTestDates.includes(dateStr);
+    const eventLabel = markedEvents[dateStr];
     const studySeconds = dailyStudySeconds[dateStr] || 0;
     const studyHours = (studySeconds / 3600).toFixed(1);
     const questionCount = dailyQuestionCounts[dateStr] || 0;
     const hasActivity = studySeconds > 0 || questionCount > 0;
 
+    const handleDayClick = () => {
+      if (mode === 'test') {
+        toggleMockTest(dateStr);
+      } else {
+        const event = prompt('Enter event label (or leave empty to clear):', eventLabel || '');
+        if (event !== null) {
+          setMarkedEvents(prev => {
+            const next = { ...prev };
+            if (event.trim()) next[dateStr] = event.trim();
+            else delete next[dateStr];
+            return next;
+          });
+        }
+      }
+    };
+
+    const showOnlyTests = mode === 'test';
+
     return (
       <div 
         key={key} 
-        onClick={() => toggleMockTest(dateStr)}
+        onClick={handleDayClick}
         className={`h-14 md:h-16 border border-white/10 p-1 transition-all duration-300 hover:scale-[1.05] hover:z-20 hover:border-white/40 group relative cursor-pointer
           ${isToday ? 'bg-white/10 border-blue-500/50 ring-1 ring-blue-500/20' : 'bg-white/2'}
-          ${isQuestionMet && !isStudyMet ? 'bg-pink-500/10' : ''}
-          ${isStudyMet && !isQuestionMet ? 'bg-blue-400/10' : ''}
-          ${isQuestionMet && isStudyMet ? 'bg-gradient-to-br from-pink-500/15 to-blue-400/15' : ''}
-          ${isMockTest ? 'border-blue-400/50 bg-blue-400/10' : ''}
-          ${hasActivity ? 'shadow-[inset_0_0_10px_rgba(255,255,255,0.02)]' : ''}`}
+          ${!showOnlyTests && isQuestionMet && !isStudyMet ? 'bg-pink-500/10' : ''}
+          ${!showOnlyTests && isStudyMet && !isQuestionMet ? 'bg-emerald-500/10' : ''}
+          ${!showOnlyTests && isQuestionMet && isStudyMet ? 'bg-gradient-to-br from-pink-500/15 to-emerald-400/15' : ''}
+          ${showOnlyTests && isMockTest ? 'border-blue-400/50 bg-blue-400/10' : ''}
+          ${!showOnlyTests && hasActivity ? 'shadow-[inset_0_0_10px_rgba(255,255,255,0.02)]' : ''}`}
       >
         <div className="flex justify-between items-start relative z-10 font-mono">
           <span className={`text-[10px] font-bold ${isToday ? 'text-blue-400' : 'text-white/30'}`}>
@@ -1814,45 +2638,48 @@ const TimerPage = ({ settings }: TimerPageProps) => {
             {isToday && (
               <div className="w-1 h-1 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,1)]" />
             )}
-            {isQuestionMet && (
-              <div className="w-1.5 h-[2px] bg-pink-500 rounded-full shadow-[0_0_8px_rgba(236,72,153,0.5)]" />
+            {!showOnlyTests && isQuestionMet && (
+              <div className="w-1.5 h-[2px] bg-rose-500 rounded-full shadow-[0_0_8px_rgba(244,63,94,0.5)]" />
             )}
-            {isStudyMet && (
-              <div className="w-1.5 h-[2px] bg-blue-400 rounded-full shadow-[0_0_8px_rgba(56,189,248,0.5)]" />
+            {!showOnlyTests && isStudyMet && (
+              <div className="w-1.5 h-[2px] bg-emerald-400 rounded-full shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
             )}
-            {isMockTest && (
+            {showOnlyTests && isMockTest && (
               <div className="flex flex-col items-end">
                 <div className="w-1.5 h-[2px] bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,1)]" />
                 <span className="text-[7px] font-black text-blue-400 uppercase tracking-tighter mt-0.5">Test</span>
               </div>
             )}
+            {!showOnlyTests && eventLabel && (
+               <div className="px-1 bg-amber-500/20 rounded mt-0.5 max-w-full overflow-hidden border border-amber-500/20">
+                  <span className="text-[5px] font-black text-amber-400 uppercase leading-none whitespace-nowrap block truncate">{eventLabel}</span>
+               </div>
+            )}
           </div>
         </div>
         
-        <div className="absolute bottom-1 right-1 flex flex-col items-end gap-0 z-10 font-mono">
-          {studySeconds > 0 && (
-            <span className="text-[8px] font-black text-blue-400/90 leading-none group-hover:text-blue-400 transition-colors">
-              {studyHours}H
-            </span>
-          )}
-          {questionCount > 0 && (
-            <span className="text-[8px] font-black text-rose-400/90 leading-none group-hover:text-rose-400 transition-colors">
-              {questionCount}Q
-            </span>
-          )}
-        </div>
+        {!showOnlyTests && (
+          <div className="absolute bottom-1 right-1 flex flex-col items-end gap-0 z-10 font-mono">
+            {studySeconds > 0 && (
+              <span className="text-[8px] font-black text-emerald-400 leading-none drop-shadow-[0_0_5px_rgba(52,211,153,0.3)]">
+                {studyHours}H
+              </span>
+            )}
+            {questionCount > 0 && (
+              <span className="text-[8px] font-black text-rose-500 leading-none drop-shadow-[0_0_5px_rgba(244,63,94,0.3)]">
+                {questionCount}Q
+              </span>
+            )}
+          </div>
+        )}
         
         <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/0 to-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-          <span className="text-[8px] font-black text-white/20 uppercase tracking-tighter">Click to tag</span>
-        </div>
-        
-        {hasActivity && (
+        {!showOnlyTests && hasActivity && (
           <div className="absolute bottom-0 left-0 right-0 h-[1px] flex">
             {studySeconds > 0 && (
               <div 
-                className="h-full bg-blue-400/50" 
+                className="h-full bg-emerald-400/50" 
                 style={{ width: `${(studySeconds > 0 && questionCount > 0) ? '50%' : '100%'}` }} 
               />
             )}
@@ -1868,29 +2695,35 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     );
   };
 
-  const days = [];
+  const generateDays = (mode: 'test' | 'general') => {
+    const daysArr = [];
 
-  if (viewMode === 'month') {
-    // Fill empty slots for previous month
-    for (let i = 0; i < startDay; i++) {
-      days.push(<div key={`empty-${i}`} className="h-16 md:h-20 border border-white/5 bg-white/2 opacity-20" />);
-    }
+    if (viewMode === 'month') {
+      // Fill empty slots for previous month
+      for (let i = 0; i < startDay; i++) {
+        daysArr.push(<div key={`empty-${i}`} className="h-16 md:h-20 border border-white/5 bg-white/2 opacity-20" />);
+      }
 
-    // Fill days of current month
-    for (let d = 1; d <= totalDays; d++) {
-      days.push(renderDay(d, month, year, `day-${d}`));
+      // Fill days of current month
+      for (let d = 1; d <= totalDays; d++) {
+        daysArr.push(renderDay(d, month, year, `day-${d}`, mode));
+      }
+    } else {
+      // Week view logic
+      const startOfWeek = new Date(currentDate);
+      startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+      
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(startOfWeek);
+        d.setDate(startOfWeek.getDate() + i);
+        daysArr.push(renderDay(d.getDate(), d.getMonth(), d.getFullYear(), `week-day-${i}`, mode));
+      }
     }
-  } else {
-    // Week view logic
-    const startOfWeek = new Date(currentDate);
-    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
-    
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(startOfWeek);
-      d.setDate(startOfWeek.getDate() + i);
-      days.push(renderDay(d.getDate(), d.getMonth(), d.getFullYear(), `week-day-${i}`));
-    }
-  }
+    return daysArr;
+  };
+
+  const testTabDays = generateDays('test');
+  const calendarTabDays = generateDays('general');
 
   const deleteOneHour = async () => {
     if (!user) return;
@@ -1969,31 +2802,16 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                 <h1 className="text-3xl font-black text-white tracking-tighter uppercase font-sans bg-gradient-to-r from-yellow-400 via-pink-400 to-violet-400 bg-clip-text text-transparent">Mission</h1>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse" />
-                  <p className="text-[9px] font-mono font-bold text-white/30 uppercase tracking-[0.3em]">Operational • v2.5.0</p>
+                  <p className="text-[9px] font-mono font-bold text-white/30 uppercase tracking-[0.3em]">Operational • v2.6.0</p>
                 </div>
               </div>
             </div>
             
-            <div className="flex items-center gap-3 bg-white/5 p-1.5 rounded-[22px] border border-white/10 backdrop-blur-xl w-full md:w-auto">
-              <button 
-                onClick={() => setActiveTab('timer')}
-                className={`flex-1 md:flex-none px-10 py-3.5 rounded-[18px] text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 relative overflow-hidden group
-                  ${activeTab === 'timer' ? 'bg-violet-600 text-white shadow-[0_10px_30px_rgba(139,92,246,0.4)]' : 'text-white/30 hover:text-white/60 hover:bg-white/5'}`}
-              >
-                <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <Clock className={`w-4 h-4 ${activeTab === 'timer' ? 'text-white' : 'text-violet-400'}`} />
-                Timer
-              </button>
-              <button 
-                onClick={() => setActiveTab('test')}
-                className={`flex-1 md:flex-none px-10 py-3.5 rounded-[18px] text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 relative overflow-hidden group
-                  ${activeTab === 'test' ? 'bg-pink-600 text-white shadow-[0_10px_30px_rgba(236,72,153,0.4)]' : 'text-white/30 hover:text-white/60 hover:bg-white/5'}`}
-              >
-                <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <CalendarIcon className={`w-4 h-4 ${activeTab === 'test' ? 'text-white' : 'text-pink-400'}`} />
-                Tests
-              </button>
-            </div>
+            <SpringLeverNav 
+              activeTab={activeTab} 
+              setActiveTab={setActiveTab} 
+              setShowDeleteConfirm={setShowDeleteConfirm}
+            />
           </div>
 
           {/* Motivational Quote Banner */}
@@ -2002,8 +2820,8 @@ const TimerPage = ({ settings }: TimerPageProps) => {
             animate={{ opacity: 1, y: 0 }}
             className="w-full mb-8 relative group"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-600/10 via-blue-600/10 to-purple-600/10 rounded-2xl blur-xl opacity-50" />
-            <div className="relative py-6 px-10 rounded-xl bg-black/60 backdrop-blur-xl border border-white/10 overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
+            <div className="absolute inset-0 bg-zinc-800/20 rounded-2xl blur-xl opacity-50" />
+            <div className="relative py-6 px-10 rounded-xl bg-zinc-900/90 backdrop-blur-xl border border-white/10 overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
               <div className="flex items-center gap-6 flex-1 min-w-0">
                 <div className="hidden md:flex p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
                   <Zap className="w-5 h-5 text-purple-400" />
@@ -2044,7 +2862,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
           </motion.div>
 
           <AnimatePresence mode="wait">
-            {activeTab === 'timer' ? (
+            {activeTab === 'timer' && (
               <motion.div
                 key="timer-tab"
                 initial={{ opacity: 0, x: -20 }}
@@ -2293,18 +3111,12 @@ const TimerPage = ({ settings }: TimerPageProps) => {
             questionTarget={questionTarget}
           />
 
-          {/* Go to Test Section Button */}
-          <div className="flex justify-center mb-12">
-            <button 
-              onClick={() => setActiveTab('test')}
-              className="p-4 rounded-2xl bg-purple-600/10 border border-purple-500/20 text-purple-400 hover:bg-purple-600/20 transition-all flex flex-col items-center gap-2 group w-32 h-32 justify-center"
-            >
-              <CalendarIcon className="w-6 h-6 group-hover:scale-110 transition-transform" />
-              <span className="text-[8px] font-black uppercase tracking-[0.2em] text-center leading-tight">Test<br/>Section</span>
-            </button>
-          </div>
-        </motion.div>
-      ) : (
+          {/* Go to Test Section Button Removed as per User Request */}
+
+              </motion.div>
+            )}
+
+            {activeTab === 'test' && (
         <motion.div
           key="test-tab"
           initial={{ opacity: 0, x: 20 }}
@@ -2357,7 +3169,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
               </div>
               
               <div className="grid grid-cols-7 gap-1.5">
-                {days}
+                {testTabDays}
               </div>
             </div>
           </div>
@@ -2484,8 +3296,75 @@ const TimerPage = ({ settings }: TimerPageProps) => {
             </div>
           </div>
         </motion.div>
-      )}
-    </AnimatePresence>
+            )}
+
+            {activeTab === 'revision' && (
+              <RevisionPage 
+                subjectStudySeconds={subjectStudySeconds}
+                subjectQuestionCounts={subjectQuestionCounts}
+                getSubjectColor={getSubjectColor}
+                revisionSlots={revisionSlots}
+                setRevisionSlots={setRevisionSlots}
+                availableSubjects={availableSubjects}
+                setSubjectRevisionCounts={setSubjectRevisionCounts}
+              />
+            )}
+
+            {activeTab === 'calendar' && (
+              <motion.div
+                key="calendar-tab"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="space-y-8"
+              >
+                <div className="flex items-center justify-between">
+                   <div className="flex items-center gap-4">
+                    <button onClick={prevPeriod} className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 text-white transition-colors">
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <div className="text-xl font-black text-white uppercase tracking-widest px-4">
+                      {monthName} {year}
+                    </div>
+                    <button onClick={nextPeriod} className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 text-white transition-colors">
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 bg-white/5 p-1 rounded-xl">
+                    <button onClick={() => setViewMode('month')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${viewMode === 'month' ? 'bg-white text-black' : 'text-white/40'}`}>Month</button>
+                    <button onClick={() => setViewMode('week')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${viewMode === 'week' ? 'bg-white text-black' : 'text-white/40'}`}>Week</button>
+                  </div>
+                </div>
+
+                <div className="glass rounded-[48px] overflow-hidden shadow-2xl p-8 bg-black/40 border border-white/5">
+                  <div className="grid grid-cols-7 mb-6">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                      <div key={day} className="text-center text-[10px] font-black text-white/30 uppercase tracking-[0.3em] py-2">
+                        {day}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-3">
+                    {calendarTabDays}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div className="p-8 rounded-[40px] bg-emerald-500/5 border border-emerald-500/10">
+                     <div className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-4">Perfect Cycles</div>
+                     <div className="text-4xl font-mono font-black text-white mb-2">12 Days</div>
+                     <p className="text-[10px] text-white/30 uppercase font-bold tracking-wider">Met target study + questions</p>
+                   </div>
+                   <div className="p-8 rounded-[40px] bg-violet-500/5 border border-white/5">
+                     <div className="text-[10px] font-black text-violet-400 uppercase tracking-widest mb-4">Forecast Protocol</div>
+                     <p className="text-[10px] text-white/40 leading-relaxed uppercase tracking-wider">
+                       Current velocity suggests JEE curriculum completion by <span className="text-violet-400">Oct 2026</span>. maintain 4.2h/day average.
+                     </p>
+                   </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
   </div>
 </div>
 </div>

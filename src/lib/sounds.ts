@@ -226,6 +226,93 @@ const playSynthesizedJet = (ctx: AudioContext) => {
   noise.stop(now + duration);
 };
 
+// Synthesized Mechanical Lever sound
+const playSynthesizedMechanical = (ctx: AudioContext) => {
+  const now = ctx.currentTime;
+  const duration = 0.4;
+
+  const osc1 = ctx.createOscillator();
+  const osc2 = ctx.createOscillator();
+  const gainNode = ctx.createGain();
+  const filter = ctx.createBiquadFilter();
+
+  osc1.type = 'sawtooth';
+  osc2.type = 'square';
+  
+  osc1.frequency.setValueAtTime(80, now);
+  osc1.frequency.exponentialRampToValueAtTime(40, now + duration);
+  
+  osc2.frequency.setValueAtTime(120, now);
+  osc2.frequency.exponentialRampToValueAtTime(60, now + duration);
+
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(1000, now);
+  filter.frequency.exponentialRampToValueAtTime(100, now + duration);
+
+  gainNode.gain.setValueAtTime(0.4, now);
+  gainNode.gain.exponentialRampToValueAtTime(0.01, now + duration);
+
+  osc1.connect(filter);
+  osc2.connect(filter);
+  filter.connect(gainNode);
+  gainNode.connect(ctx.destination);
+
+  osc1.start(now);
+  osc2.start(now);
+  osc1.stop(now + duration);
+  osc2.stop(now + duration);
+};
+
+// Synthesized Authorization sound (Enhanced Among Us style)
+const playSynthesizedAuth = (ctx: AudioContext) => {
+  const now = ctx.currentTime;
+  const duration = 0.8;
+
+  const osc = ctx.createOscillator();
+  const gainNode = ctx.createGain();
+
+  osc.type = 'square';
+  // Sequence of notes resembling Among Us task completion/authorization
+  const sequence = [
+    { freq: 261, time: 0 },    // C4
+    { freq: 392, time: 0.1 },  // G4
+    { freq: 523, time: 0.2 },  // C5
+    { freq: 392, time: 0.3 },  // G4
+    { freq: 659, time: 0.4 },  // E5
+  ];
+
+  sequence.forEach(s => {
+    osc.frequency.setValueAtTime(s.freq, now + s.time);
+  });
+
+  gainNode.gain.setValueAtTime(0.2, now);
+  gainNode.gain.exponentialRampToValueAtTime(0.01, now + duration);
+
+  osc.connect(gainNode);
+  gainNode.connect(ctx.destination);
+
+  osc.start(now);
+  osc.stop(now + duration);
+};
+
+export const playMechanicalSound = async () => {
+  if (typeof window === 'undefined') return;
+  if (!audioContext) audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+  if (audioContext.state === 'suspended') await audioContext.resume();
+  playSynthesizedMechanical(audioContext);
+};
+
+const oscillatorSetFrequency = (osc: OscillatorNode, freq: number, time: number) => {
+  osc.frequency.setValueAtTime(freq, time);
+};
+
+export const playAuthSound = async () => {
+  if (typeof window === 'undefined') return;
+  if (!audioContext) audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+  if (audioContext.state === 'suspended') await audioContext.resume();
+  playSynthesizedAuth(audioContext);
+};
+
 export const playTankSound = async () => {
   if (typeof window === 'undefined') return;
   if (!audioContext) audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
