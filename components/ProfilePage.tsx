@@ -28,6 +28,36 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
   const [customExamDate, setCustomExamDate] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [selectedAvatar, setSelectedAvatar] = useState('');
+
+  const AVATARS = [
+    // Avataaars (Clean/Human)
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka",
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=Vivian",
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=Julian",
+    // Bottts (Robotic/Cool)
+    "https://api.dicebear.com/7.x/bottts/svg?seed=Circuit",
+    "https://api.dicebear.com/7.x/bottts/svg?seed=Sparky",
+    "https://api.dicebear.com/7.x/bottts/svg?seed=Cyber",
+    "https://api.dicebear.com/7.x/bottts/svg?seed=R0b0t",
+    // Lorelei (Stylized)
+    "https://api.dicebear.com/7.x/lorelei/svg?seed=Misty",
+    "https://api.dicebear.com/7.x/lorelei/svg?seed=Nova",
+    "https://api.dicebear.com/7.x/lorelei/svg?seed=Atlas",
+    "https://api.dicebear.com/7.x/lorelei/svg?seed=Sage",
+    // Adventure (RPG Style)
+    "https://api.dicebear.com/7.x/adventurer/svg?seed=Shadow",
+    "https://api.dicebear.com/7.x/adventurer/svg?seed=Hunter",
+    "https://api.dicebear.com/7.x/adventurer/svg?seed=Ranger",
+    "https://api.dicebear.com/7.x/adventurer/svg?seed=Knight",
+    // Big Smile
+    "https://api.dicebear.com/7.x/big-smile/svg?seed=Happy",
+    "https://api.dicebear.com/7.x/big-smile/svg?seed=Joy",
+    // Fun Emoji
+    "https://api.dicebear.com/7.x/fun-emoji/svg?seed=Cool",
+    "https://api.dicebear.com/7.x/fun-emoji/svg?seed=Super"
+  ];
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -35,11 +65,13 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
       if (currentUser) {
         setUser(currentUser);
         setDisplayName(currentUser.displayName || '');
+        setSelectedAvatar(currentUser.photoURL || '');
         setIsAdmin(currentUser.email === 'bablasaur19@gmail.com');
         
         const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
         if (userDoc.exists()) {
           const data = userDoc.data();
+          if (data.photoURL && !selectedAvatar) setSelectedAvatar(data.photoURL);
           const isCustom = !['jee', 'neet', 'boards'].includes(data.exam?.toLowerCase());
           setSelectedExam(isCustom ? 'more' : (data.exam || ''));
           setSelectedYear(data.year || '');
@@ -92,12 +124,14 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
         
         // 1. Update Firebase Auth Profile
         await updateProfile(currentUser, {
-          displayName: displayName
+          displayName: displayName,
+          photoURL: selectedAvatar
         });
 
         // 2. Update Users Collection
         await setDoc(doc(db, 'users', currentUser.uid), {
           displayName: displayName,
+          photoURL: selectedAvatar,
           exam: examName,
           year: selectedYear,
           subExam: selectedExam === 'jee' ? selectedSubExam : null,
@@ -105,9 +139,10 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
           updatedAt: new Date()
         }, { merge: true });
 
-        // 3. Update Leaderboard display name
+        // 3. Update Leaderboard display name and photo
         await setDoc(doc(db, 'leaderboard', currentUser.uid), {
-          displayName: displayName
+          displayName: displayName,
+          photoURL: selectedAvatar
         }, { merge: true });
 
         // 4. Update Activity Feed (optional but good for consistency)
@@ -193,12 +228,19 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
         </button>
 
         <div className="flex items-center gap-6 mb-12">
-          <div className="w-20 h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
-            {user?.photoURL ? (
-              <img src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=random`} alt="Profile" className="w-full h-full object-cover" />
-            ) : (
-              <UserIcon className="w-10 h-10 text-white/20" />
-            )}
+          <div className="relative group">
+            <div className="w-20 h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
+              {selectedAvatar ? (
+                <img src={selectedAvatar} alt="Profile" className="w-full h-full object-cover" />
+              ) : user?.photoURL ? (
+                <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <UserIcon className="w-10 h-10 text-white/20" />
+              )}
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-purple-500 flex items-center justify-center border-2 border-black">
+              <Sparkles className="w-3 h-3 text-white" />
+            </div>
           </div>
           <div>
             <h1 className="text-3xl font-black tracking-tight mb-1">Commander Profile</h1>
@@ -215,6 +257,51 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Avatar Selection */}
+        <div className="mb-12 space-y-4">
+          <label className="text-[10px] font-black text-white/40 uppercase tracking-widest block">Choose Avatar</label>
+          <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
+            {/* Default Account Profile Option */}
+            <button
+               onClick={() => { playTickSound(); setSelectedAvatar(user?.photoURL || ''); }}
+               className={`relative w-full aspect-square rounded-xl overflow-hidden border-2 transition-all ${
+                 (selectedAvatar === (user?.photoURL || '') && (user?.photoURL)) ? 'border-amber-500 scale-110 z-10' : 'border-white/5 opacity-40 hover:opacity-100'
+               }`}
+            >
+               <div className="w-full h-full bg-white/5 flex flex-col items-center justify-center text-center p-1">
+                 {user?.photoURL ? (
+                    <img src={user.photoURL} className="w-full h-full object-cover" />
+                 ) : (
+                    <UserIcon className="w-4 h-4 text-white/40" />
+                 )}
+               </div>
+               {selectedAvatar === (user?.photoURL || '') && user?.photoURL && (
+                <div className="absolute inset-0 bg-amber-500/20 flex items-center justify-center">
+                  <Check className="w-3 h-3 text-white" />
+                </div>
+               )}
+               <div className="absolute bottom-0 left-0 right-0 bg-black/60 py-0.5 text-[6px] font-black uppercase text-white/80">Account</div>
+            </button>
+
+            {AVATARS.map((url, i) => (
+              <button
+                key={i}
+                onClick={() => { playTickSound(); setSelectedAvatar(url); }}
+                className={`relative w-full aspect-square rounded-xl overflow-hidden border-2 transition-all ${
+                  selectedAvatar === url ? 'border-purple-500 scale-110 z-10' : 'border-white/5 opacity-40 hover:opacity-100'
+                }`}
+              >
+                <img src={url} alt={`Avatar ${i}`} className="w-full h-full object-cover" />
+                {selectedAvatar === url && (
+                  <div className="absolute inset-0 bg-purple-500/20 flex items-center justify-center">
+                    <Check className="w-4 h-4 text-white" />
+                  </div>
+                )}
+              </button>
+            ))}
           </div>
         </div>
 

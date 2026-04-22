@@ -6,6 +6,7 @@ import CountdownTimer from "@/components/ui/countdown-timer";
 import SubjectChecklist from "@/components/SubjectChecklist";
 import WeeklyTargets from "@/components/WeeklyTargets";
 import { auth, onAuthStateChanged, db, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, orderBy, limit, User, handleFirestoreError, OperationType, serverTimestamp, increment, addDoc } from '@/src/firebase';
+import { updateProfile } from 'firebase/auth';
 import { playTickSound } from '@/src/lib/sounds';
 
 interface DemoOneProps {
