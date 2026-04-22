@@ -519,106 +519,6 @@ const RevisionPage = ({ subjectStudySeconds, subjectQuestionCounts, getSubjectCo
 };
 
 // --- Daily Targets Section ---
-const DailyTargets = ({ targetHours, questionTarget, elapsedSeconds, currentQuestions, revisionSlots, mockTestDates }: any) => {
-  const today = new Date();
-  today.setHours(0,0,0,0);
-  const todayStr = today.toDateString();
-  
-  const todayRevisions = revisionSlots.filter((slot: any) => {
-    if (slot.completed) return false;
-    const stages = [1, 4, 12];
-    const startDate = new Date(slot.startDate);
-    
-    // Check if the current stage is due today
-    const dueDate = new Date(startDate);
-    dueDate.setHours(0,0,0,0);
-    dueDate.setDate(startDate.getDate() + stages[slot.currentStage]);
-    return dueDate.toDateString() === todayStr;
-  });
-
-  const isMockToday = mockTestDates.includes(todayStr);
-
-  return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="p-8 rounded-[40px] glass border border-white/5 bg-white/[0.01] mb-8 will-change-transform"
-    >
-      <div className="flex items-center gap-2 mb-8">
-        <Target className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
-        <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.4em] font-mono">Operational Targets</span>
-      </div>
-      
-      <div className="space-y-6">
-        {/* Study Target */}
-        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
-           <div className="flex justify-between items-center mb-3">
-             <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">Focus Session</span>
-             <span className="text-[10px] font-mono font-bold text-emerald-400">
-               {((elapsedSeconds/3600)).toFixed(1)} / {targetHours}H
-             </span>
-           </div>
-           <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-             <motion.div 
-               animate={{ width: `${Math.min(100, (elapsedSeconds/3600)/targetHours * 100)}%` }}
-               className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)] transition-all duration-1000" 
-             />
-           </div>
-        </div>
-
-        {/* Question Target */}
-        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
-           <div className="flex justify-between items-center mb-3">
-             <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">Question Bank</span>
-             <span className="text-[10px] font-mono font-bold text-rose-500">
-               {currentQuestions} / {questionTarget}
-             </span>
-           </div>
-           <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-             <motion.div 
-               animate={{ width: `${Math.min(100, (currentQuestions/questionTarget) * 100)}%` }}
-               className="h-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.3)] transition-all duration-1000" 
-             />
-           </div>
-        </div>
-
-        {/* Revision Targets */}
-        {todayRevisions.length > 0 && (
-          <div className="space-y-2">
-             <div className="text-[7px] font-black text-white/20 uppercase tracking-widest ml-1 mb-1">Active Protocols</div>
-            {todayRevisions.map((rev: any, i: number) => (
-              <div key={i} className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-3">
-                 <Zap className="w-4 h-4 text-amber-500" />
-                 <div className="flex-1 min-w-0">
-                    <div className="text-[8px] font-black text-amber-500 uppercase tracking-widest">Revision Due</div>
-                    <div className="text-[10px] font-bold text-white truncate uppercase">{rev.chapter}</div>
-                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Mock Test Target */}
-        {isMockToday && (
-          <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center gap-3">
-             < Rocket className="w-4 h-4 text-blue-500" />
-             <div className="flex-1 min-w-0">
-                <div className="text-[8px] font-black text-blue-500 uppercase tracking-widest leading-none">Simulation Active</div>
-                <div className="text-[10px] font-bold text-white uppercase mt-1">Full Length Mock Test</div>
-             </div>
-          </div>
-        )}
-        
-        {todayRevisions.length === 0 && !isMockToday && (
-           <div className="py-4 text-center border border-dashed border-white/5 rounded-2xl">
-              <p className="text-[8px] font-black text-white/10 uppercase tracking-widest">No Special Events Today</p>
-           </div>
-        )}
-      </div>
-    </motion.div>
-  );
-};
-
 const PerformanceNode = React.memo(({ elapsedSeconds, targetHours, currentQuestions }: any) => (
   <motion.div 
     initial={{ opacity: 0, x: -20 }}
@@ -1183,90 +1083,160 @@ const DistributionCharts = React.memo(({ subjectStudySeconds, subjectQuestionCou
   );
 });
 
-const BarGraphs = React.memo(({ barChartData, targetHours, questionTarget }: any) => (
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="p-6 rounded-[32px] glass border border-white/10 will-change-transform"
-    >
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 bg-blue-400 rounded-full" />
-          <span className="text-[10px] font-black text-white/20 uppercase tracking-widest font-mono">Study Hours (Last 7 Days)</span>
-        </div>
-      </div>
-      <div className="h-48 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={barChartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-            <XAxis 
-              dataKey="name" 
-              axisLine={false} tickLine={false} 
-              tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 900 }} 
-            />
-            <YAxis hide />
-            <Tooltip 
-              cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-              contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
-              itemStyle={{ color: '#10b981', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
-              formatter={(value: number) => [`${value.toFixed(1)}h`, 'Hours']}
-            />
-            <Bar dataKey="hours" radius={[4, 4, 0, 0]}>
-              {barChartData.map((entry: any, index: number) => (
-                <Cell 
-                  key={`cell-${index}`} 
-                  fill={entry.hours >= targetHours ? '#10b981' : 'rgba(16,185,129,0.3)'} 
-                />
-              ))}
-            </Bar>
-            <ReferenceLine y={targetHours} stroke="#10b981" strokeDasharray="3 3" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </motion.div>
+const BarGraphs = React.memo(({ barChartData, targetHours, questionTarget, revisionSlots }: any) => {
+  const today = new Date();
+  today.setHours(0,0,0,0);
 
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="p-6 rounded-[32px] glass border border-white/10 will-change-transform"
-    >
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 bg-rose-500 rounded-full" />
-          <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Questions Solved (Last 7 Days)</span>
-        </div>
-      </div>
-      <div className="h-48 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={barChartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-            <XAxis 
-              dataKey="name" 
-              axisLine={false} tickLine={false} 
-              tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 900 }} 
-            />
-            <YAxis hide />
-            <Tooltip 
-              cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-              contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
-              itemStyle={{ color: '#f43f5e', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
-            />
-            <Bar dataKey="questions" radius={[4, 4, 0, 0]}>
-              {barChartData.map((entry: any, index: number) => (
-                <Cell 
-                  key={`cell-${index}`} 
-                  fill={entry.questions >= questionTarget ? '#f43f5e' : 'rgba(244,63,94,0.3)'} 
+  const upcomingRevisions = revisionSlots.filter((slot: any) => {
+    if (slot.completed) return false;
+    const stages = [1, 4, 12];
+    const startDate = new Date(slot.startDate);
+    const dueDate = new Date(startDate);
+    dueDate.setHours(0,0,0,0);
+    dueDate.setDate(startDate.getDate() + stages[slot.currentStage]);
+    const diff = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return diff >= 0 && diff <= 7; 
+  }).sort((a: any, b: any) => {
+    const stages = [1, 4, 12];
+    const d1 = new Date(a.startDate); d1.setDate(d1.getDate() + stages[a.currentStage]);
+    const d2 = new Date(b.startDate); d2.setDate(d2.getDate() + stages[b.currentStage]);
+    return d1.getTime() - d2.getTime();
+  });
+
+  return (
+    <div className="flex flex-col gap-6 mb-12">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-6 rounded-[32px] glass border border-white/10 will-change-transform"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 bg-blue-400 rounded-full" />
+              <span className="text-[10px] font-black text-white/20 uppercase tracking-widest font-mono">Study Hours (Last 7 Days)</span>
+            </div>
+          </div>
+          <div className="h-48 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={barChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} tickLine={false} 
+                  tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 900 }} 
                 />
-              ))}
-            </Bar>
-            <ReferenceLine y={questionTarget} stroke="#f43f5e" strokeDasharray="3 3" />
-          </BarChart>
-        </ResponsiveContainer>
+                <YAxis hide />
+                <Tooltip 
+                  cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                  contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                  itemStyle={{ color: '#10b981', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
+                  formatter={(value: number) => [`${value.toFixed(1)}h`, 'Hours']}
+                />
+                <Bar dataKey="hours" radius={[4, 4, 0, 0]}>
+                  {barChartData.map((entry: any, index: number) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={entry.hours >= targetHours ? '#10b981' : 'rgba(16,185,129,0.3)'} 
+                    />
+                  ))}
+                </Bar>
+                <ReferenceLine y={targetHours} stroke="#10b981" strokeDasharray="3 3" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.div>
+
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-6 rounded-[32px] glass border border-white/10 will-change-transform"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 bg-rose-500 rounded-full" />
+              <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Questions Solved (Last 7 Days)</span>
+            </div>
+          </div>
+          <div className="h-48 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={barChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} tickLine={false} 
+                  tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: 900 }} 
+                />
+                <YAxis hide />
+                <Tooltip 
+                  cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                  contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                  itemStyle={{ color: '#f43f5e', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
+                />
+                <Bar dataKey="questions" radius={[4, 4, 0, 0]}>
+                  {barChartData.map((entry: any, index: number) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={entry.questions >= questionTarget ? '#f43f5e' : 'rgba(244,63,94,0.3)'} 
+                    />
+                  ))}
+                </Bar>
+                <ReferenceLine y={questionTarget} stroke="#f43f5e" strokeDasharray="3 3" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.div>
       </div>
-    </motion.div>
-  </div>
-));
+
+      {/* weekly revision highlight */}
+      {upcomingRevisions.length > 0 && (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="p-8 rounded-[48px] bg-amber-500/5 border border-amber-500/20 backdrop-blur-xl relative overflow-hidden"
+        >
+          <div className="absolute top-0 right-0 p-8">
+             <Zap className="w-12 h-12 text-amber-500/10" />
+          </div>
+          <div className="flex items-center gap-3 mb-6 relative z-10">
+            <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+            <h3 className="text-xs font-black text-amber-500 uppercase tracking-[0.3em]">Revision Protocol Forecast</h3>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4 relative z-10">
+            {Array.from({ length: 7 }, (_, i) => {
+              const d = new Date();
+              d.setDate(d.getDate() + i);
+              const dateStr = d.toDateString();
+              const dayRevisions = upcomingRevisions.filter((rev: any) => {
+                const stages = [1, 4, 12];
+                const start = new Date(rev.startDate);
+                const due = new Date(start);
+                due.setHours(0,0,0,0);
+                due.setDate(start.getDate() + stages[rev.currentStage]);
+                return due.toDateString() === dateStr;
+              });
+
+              return (
+                <div key={i} className={`p-4 rounded-2xl transition-all border ${dayRevisions.length > 0 ? 'bg-amber-500/10 border-amber-500/30' : 'bg-white/2 border-white/5 opacity-40'}`}>
+                  <div className="text-[8px] font-black text-white/30 uppercase mb-2">{d.toLocaleDateString('default', { weekday: 'short' })}</div>
+                  <div className="text-sm font-black text-white mb-3">{d.getDate()}</div>
+                  <div className="space-y-1.5">
+                    {dayRevisions.map((rev: any, idx: number) => (
+                      <div key={idx} className="text-[6px] font-black text-amber-400 uppercase leading-tight truncate bg-amber-500/10 px-1 py-0.5 rounded border border-amber-500/10">
+                        {rev.chapter}
+                      </div>
+                    ))}
+                    {dayRevisions.length === 0 && <div className="h-4 w-full bg-white/5 rounded-full" />}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
+    </div>
+  );
+});
 
 const SUBJECT_COLORS: Record<string, string> = {
   'Maths': '#a855f7',
@@ -1455,6 +1425,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   const [isStatsLoaded, setIsStatsLoaded] = useState(false);
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [activeTab, setActiveTab] = useState<'timer' | 'test' | 'revision' | 'calendar'>('timer');
+  const [calendarType, setCalendarType] = useState<'study' | 'questions' | 'revision'>('study');
   const [revisionSlots, setRevisionSlots] = useState<any[]>(() => {
     try {
       return JSON.parse(localStorage.getItem('pulse_revision_slots') || '[]');
@@ -2695,7 +2666,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     const isQuestionMet = completedQuestionDays.includes(dateStr);
     const isStudyMet = completedStudyDays.includes(dateStr);
     const isMockTest = mockTestDates.includes(dateStr);
-    const isRevisionDay = revisionSlots.some((slot: any) => {
+    const dayRevisions = revisionSlots.filter((slot: any) => {
       if (slot.completed) return false;
       const stages = [1, 4, 12];
       const start = new Date(slot.startDate);
@@ -2703,6 +2674,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       due.setDate(start.getDate() + stages[slot.currentStage]);
       return due.toDateString() === dateStr;
     });
+    const isRevisionDay = dayRevisions.length > 0;
     const eventLabel = markedEvents[dateStr];
     const studySeconds = dailyStudySeconds[dateStr] || 0;
     const studyHours = (studySeconds / 3600).toFixed(1);
@@ -2731,57 +2703,69 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       <div 
         key={key} 
         onClick={handleDayClick}
-        className={`h-14 md:h-16 border border-white/10 p-1 transition-all duration-300 hover:scale-[1.05] hover:z-20 hover:border-white/40 group relative cursor-pointer
-          ${isToday ? 'bg-white/10 border-blue-500/50 ring-1 ring-blue-500/20' : 'bg-white/2'}
-          ${!showOnlyTests && isQuestionMet && !isStudyMet ? 'bg-pink-500/10' : ''}
-          ${!showOnlyTests && isStudyMet && !isQuestionMet ? 'bg-emerald-500/10' : ''}
-          ${!showOnlyTests && isQuestionMet && isStudyMet ? 'bg-gradient-to-br from-pink-500/15 to-emerald-400/15' : ''}
-          ${showOnlyTests && isMockTest ? 'border-blue-400/50 bg-blue-400/10' : ''}
-          ${!showOnlyTests && hasActivity ? 'shadow-[inset_0_0_10px_rgba(255,255,255,0.02)]' : ''}`}
+        className={`h-16 md:h-20 border border-white/10 p-1.5 transition-all duration-300 hover:scale-[1.05] hover:z-20 hover:border-white/40 group relative cursor-pointer overflow-hidden
+          ${isToday ? 'bg-white/15 border-blue-500 ring-2 ring-blue-500/20' : 'bg-white/2 shadow-[inset_0_0_20px_rgba(255,255,255,0.01)]'}
+          ${!showOnlyTests && calendarType === 'questions' && isQuestionMet ? 'bg-pink-500/20' : ''}
+          ${!showOnlyTests && calendarType === 'study' && isStudyMet ? 'bg-emerald-500/20' : ''}
+          ${!showOnlyTests && calendarType === 'revision' && isRevisionDay ? 'bg-amber-500/20' : ''}
+          ${showOnlyTests && isMockTest ? 'border-blue-400 bg-blue-400/20 shadow-[0_0_20px_rgba(59,130,246,0.1)]' : ''}
+          ${!showOnlyTests && hasActivity ? 'shadow-[inset_0_0_15px_rgba(255,255,255,0.03)]' : ''}`}
       >
         <div className="flex justify-between items-start relative z-10 font-mono">
-          <span className={`text-[10px] font-bold ${isToday ? 'text-blue-400' : 'text-white/30'}`}>
+          <span className={`text-xs font-black ${isToday ? 'text-blue-400' : 'text-white/50'}`}>
             {d.toString().padStart(2, '0')}
           </span>
-          <div className="flex flex-col gap-0.5 items-end">
+          <div className="flex flex-col gap-1 items-end">
             {isToday && (
-              <div className="w-1 h-1 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,1)]" />
+              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full shadow-[0_0_12px_rgba(59,130,246,1)] animate-pulse" />
             )}
-            {!showOnlyTests && isQuestionMet && (
-              <div className="w-1.5 h-[2px] bg-rose-500 rounded-full shadow-[0_0_8px_rgba(244,63,94,0.5)]" />
+            {!showOnlyTests && isQuestionMet && calendarType === 'questions' && (
+              <div className="w-2 h-[3px] bg-rose-500 rounded-full shadow-[0_0_10px_rgba(244,63,94,0.8)]" />
             )}
-            {!showOnlyTests && isStudyMet && (
-              <div className="w-1.5 h-[2px] bg-emerald-400 rounded-full shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
+            {!showOnlyTests && isStudyMet && calendarType === 'study' && (
+              <div className="w-2 h-[3px] bg-emerald-400 rounded-full shadow-[0_0_10px_rgba(52,211,153,0.8)]" />
             )}
             {showOnlyTests && isMockTest && (
               <div className="flex flex-col items-end">
-                <div className="w-1.5 h-[2px] bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,1)]" />
-                <span className="text-[7px] font-black text-blue-400 uppercase tracking-tighter mt-0.5">Test</span>
+                <div className="w-2 h-[3px] bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,1)]" />
+                <span className="text-[8px] font-black text-blue-400 uppercase tracking-tighter mt-1 bg-blue-500/10 px-1 rounded">MOCK</span>
               </div>
             )}
             {!showOnlyTests && isRevisionDay && (
               <div className="flex flex-col items-end">
-                <div className="w-1.5 h-[2px] bg-amber-500 rounded-full shadow-[0_0_8px_rgba(245,158,11,1)]" />
-                <span className="text-[7px] font-black text-amber-500 uppercase tracking-tighter mt-0.5 whitespace-nowrap">Revision</span>
+                <div className="w-2 h-[3px] bg-amber-500 rounded-full shadow-[0_0_10px_rgba(245,158,11,1)]" />
+                {calendarType === 'revision' && (
+                   <span className="text-[7px] font-black text-amber-500 uppercase tracking-tighter mt-1 bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/20">REVISION</span>
+                )}
+              </div>
+            )}
+            {!showOnlyTests && calendarType === 'revision' && isRevisionDay && (
+              <div className="absolute top-8 left-1.5 right-1.5 flex flex-col gap-1">
+                 {dayRevisions.slice(0, 2).map((rev: any, idx: number) => (
+                   <div key={idx} className="text-[6px] font-black text-white/80 uppercase truncate leading-tight bg-white/10 rounded px-1 py-0.5 border border-white/5">
+                      {rev.chapter}
+                   </div>
+                 ))}
+                 {dayRevisions.length > 2 && <div className="text-[6px] font-black text-amber-400 text-center uppercase tracking-tighter mt-0.5">+{dayRevisions.length - 2} More</div>}
               </div>
             )}
             {!showOnlyTests && eventLabel && (
-               <div className="px-1 bg-amber-500/20 rounded mt-0.5 max-w-full overflow-hidden border border-amber-500/20">
-                  <span className="text-[5px] font-black text-amber-400 uppercase leading-none whitespace-nowrap block truncate">{eventLabel}</span>
+               <div className="px-1.5 py-0.5 bg-amber-500/30 rounded mt-1 max-w-full overflow-hidden border border-amber-500/30">
+                  <span className="text-[6px] font-black text-white uppercase leading-none whitespace-nowrap block truncate">{eventLabel}</span>
                </div>
             )}
           </div>
         </div>
         
         {!showOnlyTests && (
-          <div className="absolute bottom-1 right-1 flex flex-col items-end gap-0 z-10 font-mono">
-            {studySeconds > 0 && (
-              <span className="text-[8px] font-black text-emerald-400 leading-none drop-shadow-[0_0_5px_rgba(52,211,153,0.3)]">
+          <div className="absolute bottom-1.5 right-1.5 flex flex-col items-end gap-0.5 z-10 font-mono">
+            {studySeconds > 0 && calendarType === 'study' && (
+              <span className="text-[10px] font-black text-emerald-400 leading-none drop-shadow-[0_0_10px_rgba(52,211,153,0.5)]">
                 {studyHours}H
               </span>
             )}
-            {questionCount > 0 && (
-              <span className="text-[8px] font-black text-rose-500 leading-none drop-shadow-[0_0_5px_rgba(244,63,94,0.3)]">
+            {questionCount > 0 && calendarType === 'questions' && (
+              <span className="text-[10px] font-black text-rose-500 leading-none drop-shadow-[0_0_10px_rgba(244,63,94,0.5)]">
                 {questionCount}Q
               </span>
             )}
@@ -2790,19 +2774,13 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         
         <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/0 to-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         
-        {!showOnlyTests && hasActivity && (
-          <div className="absolute bottom-0 left-0 right-0 h-[1px] flex">
+        {!showOnlyTests && (
+          <div className="absolute bottom-0 left-0 right-0 h-[2px] flex opacity-60">
             {studySeconds > 0 && (
-              <div 
-                className="h-full bg-emerald-400/50" 
-                style={{ width: `${(studySeconds > 0 && questionCount > 0) ? '50%' : '100%'}` }} 
-              />
+              <div className="h-full bg-emerald-400" style={{ width: Math.min(100, studySeconds / (targetHours * 3600) * 100) + '%' }} />
             )}
             {questionCount > 0 && (
-              <div 
-                className="h-full bg-rose-500/50" 
-                style={{ width: `${(studySeconds > 0 && questionCount > 0) ? '50%' : '100%'}` }} 
-              />
+              <div className="h-full bg-rose-500" style={{ width: Math.min(100, questionCount / questionTarget * 100) + '%' }} />
             )}
           </div>
         )}
@@ -3022,15 +3000,6 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                 <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr_1fr] gap-8 mb-12 items-start">
                   {/* Left Column: Stats & Metrics */}
                   <div className="space-y-6 order-2 lg:order-1">
-                    <DailyTargets 
-                      targetHours={targetHours}
-                      questionTarget={questionTarget}
-                      elapsedSeconds={elapsedSeconds}
-                      currentQuestions={currentQuestions}
-                      revisionSlots={revisionSlots}
-                      mockTestDates={mockTestDates}
-                    />
-
                     <PerformanceNode 
                       elapsedSeconds={elapsedSeconds} 
                       targetHours={targetHours} 
@@ -3233,6 +3202,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
             barChartData={barChartData}
             targetHours={targetHours}
             questionTarget={questionTarget}
+            revisionSlots={revisionSlots}
           />
 
           {/* Go to Test Section Button Removed as per User Request */}
@@ -3458,6 +3428,34 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                     <button onClick={() => setViewMode('month')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${viewMode === 'month' ? 'bg-white text-black' : 'text-white/40'}`}>Month</button>
                     <button onClick={() => setViewMode('week')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${viewMode === 'week' ? 'bg-white text-black' : 'text-white/40'}`}>Week</button>
                   </div>
+                </div>
+
+                {/* New: Calendar Type Switcher */}
+                <div className="flex flex-wrap items-center gap-3 bg-white/2 p-2 rounded-3xl border border-white/5 backdrop-blur-md">
+                   <button 
+                     onClick={() => setCalendarType('study')}
+                     className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all
+                       ${calendarType === 'study' ? 'bg-emerald-500 text-white shadow-[0_10px_20px_rgba(16,185,129,0.2)]' : 'text-white/40 hover:bg-white/5'}`}
+                   >
+                     <Clock className="w-3 h-3" />
+                     Time Studied
+                   </button>
+                   <button 
+                     onClick={() => setCalendarType('questions')}
+                     className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all
+                       ${calendarType === 'questions' ? 'bg-rose-500 text-white shadow-[0_0_20px_rgba(244,63,94,0.2)]' : 'text-white/40 hover:bg-white/5'}`}
+                   >
+                     <Target className="w-3 h-3" />
+                     Ques Solved
+                   </button>
+                   <button 
+                     onClick={() => setCalendarType('revision')}
+                     className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all
+                       ${calendarType === 'revision' ? 'bg-amber-500 text-white shadow-[0_0_20px_rgba(245,158,11,0.2)]' : 'text-white/40 hover:bg-white/5'}`}
+                   >
+                     <Zap className="w-3 h-3" />
+                     Revision Pending
+                   </button>
                 </div>
 
                 <div className="glass rounded-[48px] overflow-hidden shadow-2xl p-8 bg-black/40 border border-white/5">
