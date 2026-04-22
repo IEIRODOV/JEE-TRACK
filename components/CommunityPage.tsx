@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import Notifications from './Notifications';
+import DonateModal from './DonateModal';
 import { 
   Send, 
   MessageSquare, 
@@ -57,6 +58,7 @@ import {
 } from '@/src/firebase';
 
 import { getRankInfo } from '@/src/lib/ranks';
+import { playTickSound } from '@/src/lib/sounds';
 
 interface Comment {
   id: string;
@@ -93,13 +95,6 @@ const COMMUNITIES = [
   { id: 'jee', label: 'JEE Community', icon: Target },
   { id: 'neet', label: 'NEET Community', icon: Heart },
   { id: 'boards', label: 'Boards Community', icon: BookOpen },
-];
-
-const CATEGORIES = [
-  { id: 'all', label: 'All Feed', icon: Sparkles },
-  { id: 'questions', label: 'Questions', icon: MessageSquare },
-  { id: 'motivation', label: 'Motivation', icon: Flame },
-  { id: 'study-tips', label: 'Study Tips', icon: BookOpen },
 ];
 
 const RESOURCES = {
@@ -521,8 +516,6 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
   const [userExam, setUserExam] = useState<string | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [inputText, setInputText] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('questions');
-  const [filterCategory, setFilterCategory] = useState('all');
   const [selectedCommunity, setSelectedCommunity] = useState<'jee' | 'neet' | 'boards'>('jee');
   const [activeView, setActiveView] = useState<'feed' | 'resources'>('feed');
   const [sortMode, setSortMode] = useState<'new' | 'top'>('new');
@@ -543,6 +536,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
   const [userRanks, setUserRanks] = useState<Record<string, any>>({});
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(Date.now());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showDonate, setShowDonate] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const REACTION_EMOJIS = ['👍', '❤️', '🔥', '😂', '👏'];
@@ -685,7 +679,6 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
     if (!user || !inputText.trim()) return;
 
     const text = inputText.trim();
-    const category = selectedCategory;
     setInputText('');
 
     const tempPost: Post = {
@@ -694,7 +687,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
       uid: user.uid,
       displayName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
       photoURL: user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=random`,
-      category,
+      category: 'general',
       community: selectedCommunity,
       likes: [],
       reactions: {},
@@ -712,7 +705,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
         uid: user.uid,
         displayName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
         photoURL: user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=random`,
-        category,
+        category: 'general',
         community: selectedCommunity,
         likes: [],
         reactions: {},
@@ -1085,18 +1078,16 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
 
   const filteredPosts = React.useMemo(() => {
     return posts.filter(p => {
-      const matchesCommunity = p.community === selectedCommunity;
-      const matchesCategory = filterCategory === 'all' || p.category === filterCategory;
-      return matchesCommunity && matchesCategory;
+      return p.community === selectedCommunity;
     }).sort((a, b) => {
       if (sortMode === 'top') {
-        const scoreA = (a.reactions?.['👍']?.length || 0) - (a.reactions?.['🔥']?.length || 0);
-        const scoreB = (b.reactions?.['👍']?.length || 0) - (b.reactions?.['🔥']?.length || 0);
+        const scoreA = (a.reactions?.['👍']?.length || 0) + (a.reactions?.['❤️']?.length || 0);
+        const scoreB = (b.reactions?.['👍']?.length || 0) + (b.reactions?.['❤️']?.length || 0);
         return scoreB - scoreA;
       }
       return 0; // Already sorted by createdAt desc from query
     });
-  }, [posts, selectedCommunity, filterCategory, sortMode]);
+  }, [posts, selectedCommunity, sortMode]);
 
   if (!activateCommunity) {
     return (
@@ -1242,47 +1233,55 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-          {/* Left Sidebar - Categories (Only for Feed) */}
+          {/* Left Sidebar - Filters (Only for Feed) */}
           {activeView === 'feed' && (
             <div className="hidden lg:block lg:col-span-3 space-y-6">
               <div className="glass rounded-3xl p-6 border border-white/10 sticky top-24">
                 <h3 className="text-white font-black text-xs uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
-                  <Filter className="w-4 h-4 text-purple-400" />
-                  Feed Filters
+                  <TrendingUp className="w-4 h-4 text-purple-400" />
+                  Feed Ranking
                 </h3>
-                <div className="space-y-2">
-                  <div className="flex gap-2 mb-4 p-1 bg-black/40 rounded-xl border border-white/5">
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-2 p-1 bg-black/40 rounded-xl border border-white/5">
                     <button 
                       onClick={() => setSortMode('new')}
-                      className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all
-                        ${sortMode === 'new' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white/60'}`}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all
+                        ${sortMode === 'new' ? 'bg-white/10 text-white border border-white/10' : 'text-white/40 hover:text-white/60'}`}
                     >
-                      <Clock className="w-3 h-3" />
-                      New
+                      <Clock className="w-4 h-4" />
+                      Latest Mission
                     </button>
                     <button 
                       onClick={() => setSortMode('top')}
-                      className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all
-                        ${sortMode === 'top' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white/60'}`}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all
+                        ${sortMode === 'top' ? 'bg-white/10 text-white border border-white/10' : 'text-white/40 hover:text-white/60'}`}
                     >
-                      <TrendingUp className="w-3 h-3" />
-                      Top
+                      <Zap className="w-4 h-4 text-amber-400" />
+                      High Impact
                     </button>
                   </div>
-                  {CATEGORIES.map((cat) => (
-                    <button
-                      key={cat.id}
-                      onClick={() => setFilterCategory(cat.id)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-sm font-bold
-                        ${filterCategory === cat.id 
-                          ? 'bg-gradient-to-r from-purple-600/40 to-blue-600/40 text-white border border-purple-500/30' 
-                          : 'text-white/40 hover:bg-white/5 hover:text-white/60'}`}
-                    >
-                      <cat.icon className={`w-4 h-4 ${filterCategory === cat.id ? 'text-purple-400' : ''}`} />
-                      {cat.label}
-                    </button>
-                  ))}
                 </div>
+
+                {user?.email === 'bablasaur19@gmail.com' && (
+                  <div className="mt-8 p-6 rounded-[24px] bg-black/40 backdrop-blur-xl border border-white/10 text-center relative overflow-hidden group shadow-2xl">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-red-500/20 transition-colors duration-1000" />
+                    <div className="absolute -bottom-16 -left-16 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl group-hover:bg-purple-500/20 transition-colors duration-1000" />
+                    
+                    <div className="relative z-10">
+                      <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/10 group-hover:scale-110 transition-transform duration-500">
+                        <Heart className="w-6 h-6 text-red-500 fill-red-500/20 animate-pulse" />
+                      </div>
+                      <h4 className="text-white font-black text-xs uppercase tracking-widest mb-2">Keep Pulse Free</h4>
+                      <p className="text-white/40 text-[9px] font-bold uppercase tracking-widest mb-6 leading-relaxed max-w-[160px] mx-auto">Help us sustain high-speed servers for thousands of students.</p>
+                      <button 
+                        onClick={() => { playTickSound(); setShowDonate(true); }}
+                        className="w-full py-4 bg-white text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-xl active:scale-95"
+                      >
+                        Donate Us
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1366,24 +1365,6 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
               </div>
             ) : (
             <React.Fragment>
-              {/* Mobile Category Selector */}
-              <div className="lg:hidden flex gap-2 overflow-x-auto scrollbar-hide pb-2">
-                {CATEGORIES.map((cat) => (
-                  <button
-                    key={cat.id}
-                    onClick={() => setFilterCategory(cat.id)}
-                    className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all text-[10px] font-black uppercase tracking-widest border
-                      ${filterCategory === cat.id 
-                        ? 'bg-gradient-to-r from-purple-600/40 to-blue-600/40 text-white border-purple-500/30' 
-                        : 'bg-white/5 text-white/40 border-white/5 hover:bg-white/10'}`}
-                  >
-                    <cat.icon className={`w-3 h-3 ${filterCategory === cat.id ? 'text-purple-400' : ''}`} />
-                    {cat.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Create Post Toggle */}
               <div className="flex justify-end mb-4">
                 {!isCreatingPost && (
                   <motion.button
@@ -1457,26 +1438,11 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                               value={inputText}
                               onChange={(e) => setInputText(e.target.value)}
                               placeholder={`What's on your mind, ${selectedCommunity.toUpperCase()} scholar?`}
-                              className="w-full bg-white/[0.02] border border-white/10 rounded-2xl p-4 text-sm text-white focus:outline-none focus:border-purple-500/50 transition-all resize-none min-h-[120px] placeholder:text-white/10"
+                              className="w-full bg-white/[0.02] border border-white/10 rounded-2xl p-4 text-sm text-white focus:outline-none focus:border-purple-500/50 transition-all resize-none min-h-[250px] placeholder:text-white/10"
                             />
                           </div>
                         </div>
-                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-white/5">
-                          <div className="flex gap-2 overflow-x-auto scrollbar-hide w-full sm:w-auto py-1">
-                            {CATEGORIES.slice(1).map((cat) => (
-                              <button
-                                key={cat.id}
-                                type="button"
-                                onClick={() => setSelectedCategory(cat.id)}
-                                className={`flex-shrink-0 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border
-                                  ${selectedCategory === cat.id 
-                                    ? 'bg-purple-500/20 border-purple-500/40 text-purple-400 shadow-[0_0_20px_rgba(168,85,247,0.2)]' 
-                                    : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`}
-                              >
-                                {cat.label}
-                              </button>
-                            ))}
-                          </div>
+                        <div className="flex flex-col sm:flex-row items-center justify-end gap-4 pt-4 border-t border-white/5">
                           <div className="flex items-center gap-3 w-full sm:w-auto">
                             <button 
                               onClick={() => setIsCreatingPost(false)}
@@ -2032,6 +1998,12 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
           </motion.div>
         )}
       </AnimatePresence>
+      {user?.email === 'bablasaur19@gmail.com' && (
+        <DonateModal 
+          isOpen={showDonate} 
+          onClose={() => setShowDonate(false)} 
+        />
+      )}
     </div>
   );
 };

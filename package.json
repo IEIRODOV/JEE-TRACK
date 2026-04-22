@@ -7,7 +7,8 @@
   "type": "module",
   "homepage": "https://ieirodov.github.io/JEE-PULSE/",
   "scripts": {
-    "dev": "vite --port=3000 --host=0.0.0.0",
+    "dev": "tsx server.ts",
+    "start": "node server.ts",
     "build": "vite build",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist",
@@ -31,6 +32,7 @@
     "gh-pages": "^6.3.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
+    "razorpay": "^2.9.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "recharts": "^3.8.1",
