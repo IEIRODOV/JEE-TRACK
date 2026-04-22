@@ -448,11 +448,9 @@ const RevisionPage = ({ subjectStudySeconds, subjectQuestionCounts, getSubjectCo
                                  <div className={`text-[9px] font-black ${isLocked ? 'text-white/10' : (isCompleted ? 'text-emerald-500/50' : 'text-white/40 uppercase')}`}>
                                    Day {day} — {instructions[idx]}
                                  </div>
-                                 {(idx > 0 && (isCompleted || isCurrent)) && (
-                                   <div className={`text-[7px] font-bold ${isLocked ? 'text-white/5' : 'text-amber-500/40'} uppercase tracking-widest`}>
-                                     Due: {getDueDate(slot.startDate, day)}
-                                   </div>
-                                 )}
+                                 <div className={`text-[7px] font-bold ${isLocked ? 'text-pink-500/40' : 'text-amber-500/40'} uppercase tracking-widest`}>
+                                   {isLocked ? `Unlocks: ${getDueDate(slot.startDate, day)}` : `Due: ${getDueDate(slot.startDate, day)}`}
+                                 </div>
                                </div>
                                {isCompleted ? (
                                  <Check className="w-3 h-3 text-emerald-500" />
@@ -516,6 +514,107 @@ const RevisionPage = ({ subjectStudySeconds, subjectQuestionCounts, getSubjectCo
           </div>
         )}
       </motion.div>
+    </motion.div>
+  );
+};
+
+// --- Daily Targets Section ---
+const DailyTargets = ({ targetHours, questionTarget, elapsedSeconds, currentQuestions, revisionSlots, mockTestDates }: any) => {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const todayStr = today.toDateString();
+  
+  const todayRevisions = revisionSlots.filter((slot: any) => {
+    if (slot.completed) return false;
+    const stages = [1, 4, 12];
+    const startDate = new Date(slot.startDate);
+    
+    // Check if the current stage is due today
+    const dueDate = new Date(startDate);
+    dueDate.setHours(0,0,0,0);
+    dueDate.setDate(startDate.getDate() + stages[slot.currentStage]);
+    return dueDate.toDateString() === todayStr;
+  });
+
+  const isMockToday = mockTestDates.includes(todayStr);
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="p-8 rounded-[40px] glass border border-white/5 bg-white/[0.01] mb-8 will-change-transform"
+    >
+      <div className="flex items-center gap-2 mb-8">
+        <Target className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
+        <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.4em] font-mono">Operational Targets</span>
+      </div>
+      
+      <div className="space-y-6">
+        {/* Study Target */}
+        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+           <div className="flex justify-between items-center mb-3">
+             <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">Focus Session</span>
+             <span className="text-[10px] font-mono font-bold text-emerald-400">
+               {((elapsedSeconds/3600)).toFixed(1)} / {targetHours}H
+             </span>
+           </div>
+           <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+             <motion.div 
+               animate={{ width: `${Math.min(100, (elapsedSeconds/3600)/targetHours * 100)}%` }}
+               className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)] transition-all duration-1000" 
+             />
+           </div>
+        </div>
+
+        {/* Question Target */}
+        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+           <div className="flex justify-between items-center mb-3">
+             <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">Question Bank</span>
+             <span className="text-[10px] font-mono font-bold text-rose-500">
+               {currentQuestions} / {questionTarget}
+             </span>
+           </div>
+           <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+             <motion.div 
+               animate={{ width: `${Math.min(100, (currentQuestions/questionTarget) * 100)}%` }}
+               className="h-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.3)] transition-all duration-1000" 
+             />
+           </div>
+        </div>
+
+        {/* Revision Targets */}
+        {todayRevisions.length > 0 && (
+          <div className="space-y-2">
+             <div className="text-[7px] font-black text-white/20 uppercase tracking-widest ml-1 mb-1">Active Protocols</div>
+            {todayRevisions.map((rev: any, i: number) => (
+              <div key={i} className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-3">
+                 <Zap className="w-4 h-4 text-amber-500" />
+                 <div className="flex-1 min-w-0">
+                    <div className="text-[8px] font-black text-amber-500 uppercase tracking-widest">Revision Due</div>
+                    <div className="text-[10px] font-bold text-white truncate uppercase">{rev.chapter}</div>
+                 </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Mock Test Target */}
+        {isMockToday && (
+          <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center gap-3">
+             < Rocket className="w-4 h-4 text-blue-500" />
+             <div className="flex-1 min-w-0">
+                <div className="text-[8px] font-black text-blue-500 uppercase tracking-widest leading-none">Simulation Active</div>
+                <div className="text-[10px] font-bold text-white uppercase mt-1">Full Length Mock Test</div>
+             </div>
+          </div>
+        )}
+        
+        {todayRevisions.length === 0 && !isMockToday && (
+           <div className="py-4 text-center border border-dashed border-white/5 rounded-2xl">
+              <p className="text-[8px] font-black text-white/10 uppercase tracking-widest">No Special Events Today</p>
+           </div>
+        )}
+      </div>
     </motion.div>
   );
 };
@@ -1419,6 +1518,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   const dailyStudySecondsRef = useRef(dailyStudySeconds);
   const completedStudyDaysRef = useRef(completedStudyDays);
   const targetHoursRef = useRef(targetHours);
+  const questionTargetRef = useRef(questionTarget);
   const subjectStudySecondsRef = useRef(subjectStudySeconds);
   const subjectQuestionCountsRef = useRef(subjectQuestionCounts);
   const selectedSubjectRef = useRef(selectedSubject);
@@ -1439,6 +1539,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     dailyStudySecondsRef.current = dailyStudySeconds;
     completedStudyDaysRef.current = completedStudyDays;
     targetHoursRef.current = targetHours;
+    questionTargetRef.current = questionTarget;
     subjectStudySecondsRef.current = subjectStudySeconds;
     subjectQuestionCountsRef.current = subjectQuestionCounts;
     selectedSubjectRef.current = selectedSubject;
@@ -2023,38 +2124,38 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       data.studySeconds = 86400; // Cap at 24 hours
     }
 
-    if (!user) {
-      // Update local state immediately for guest users
-      if (data.questionsSolved !== undefined) {
-        setDailyQuestionCounts(prev => ({ ...prev, [dateStr]: data.questionsSolved }));
-        if (data.questionsSolved >= questionTarget) {
-          setCompletedQuestionDays(prev => Array.from(new Set([...prev, dateStr])));
+    // Optimistic / Local sync for all users (Fixed: ensure UI updates immediately)
+    if (data.questionsSolved !== undefined) {
+      setDailyQuestionCounts(prev => ({ ...prev, [dateStr]: data.questionsSolved }));
+      if (data.questionsSolved >= (questionTargetRef.current || questionTarget)) {
+        setCompletedQuestionDays(prev => Array.from(new Set([...prev, dateStr])));
+      }
+    }
+    if (data.studySeconds !== undefined) {
+      setDailyStudySeconds(prev => ({ ...prev, [dateStr]: data.studySeconds }));
+      if (data.studySeconds >= (targetHoursRef.current || targetHours) * 3600) {
+        setCompletedStudyDays(prev => Array.from(new Set([...prev, dateStr])));
+      }
+    }
+    if (data.isMockTest !== undefined) {
+      if (data.isMockTest) {
+        setMockTestDates(prev => Array.from(new Set([...prev, dateStr])));
+      } else {
+        setMockTestDates(prev => prev.filter(d => d !== dateStr));
+      }
+    }
+    if (data.mockTestCompleted !== undefined || data.mockTestMarks !== undefined) {
+      setMockTestDetails(prev => ({
+        ...prev,
+        [dateStr]: {
+          completed: data.mockTestCompleted ?? prev[dateStr]?.completed ?? false,
+          marks: data.mockTestMarks ?? prev[dateStr]?.marks ?? ''
         }
-      }
-      if (data.studySeconds !== undefined) {
-        setDailyStudySeconds(prev => ({ ...prev, [dateStr]: data.studySeconds }));
-        if (data.studySeconds >= targetHours * 3600) {
-          setCompletedStudyDays(prev => Array.from(new Set([...prev, dateStr])));
-        }
-      }
-      if (data.isMockTest !== undefined) {
-        if (data.isMockTest) {
-          setMockTestDates(prev => Array.from(new Set([...prev, dateStr])));
-        } else {
-          setMockTestDates(prev => prev.filter(d => d !== dateStr));
-        }
-      }
-      if (data.mockTestCompleted !== undefined || data.mockTestMarks !== undefined) {
-        setMockTestDetails(prev => ({
-          ...prev,
-          [dateStr]: {
-            completed: data.mockTestCompleted ?? prev[dateStr]?.completed ?? false,
-            marks: data.mockTestMarks ?? prev[dateStr]?.marks ?? ''
-          }
-        }));
-      }
+      }));
+    }
 
-      // Save to localStorage
+    if (!user) {
+      // Save to localStorage for guest
       const localData = JSON.parse(localStorage.getItem('pulse_calendar_data') || '{}');
       localData[dateStr] = { ...(localData[dateStr] || {}), ...data };
       localStorage.setItem('pulse_calendar_data', JSON.stringify(localData));
@@ -2594,6 +2695,14 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     const isQuestionMet = completedQuestionDays.includes(dateStr);
     const isStudyMet = completedStudyDays.includes(dateStr);
     const isMockTest = mockTestDates.includes(dateStr);
+    const isRevisionDay = revisionSlots.some((slot: any) => {
+      if (slot.completed) return false;
+      const stages = [1, 4, 12];
+      const start = new Date(slot.startDate);
+      const due = new Date(start);
+      due.setDate(start.getDate() + stages[slot.currentStage]);
+      return due.toDateString() === dateStr;
+    });
     const eventLabel = markedEvents[dateStr];
     const studySeconds = dailyStudySeconds[dateStr] || 0;
     const studyHours = (studySeconds / 3600).toFixed(1);
@@ -2648,6 +2757,12 @@ const TimerPage = ({ settings }: TimerPageProps) => {
               <div className="flex flex-col items-end">
                 <div className="w-1.5 h-[2px] bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,1)]" />
                 <span className="text-[7px] font-black text-blue-400 uppercase tracking-tighter mt-0.5">Test</span>
+              </div>
+            )}
+            {!showOnlyTests && isRevisionDay && (
+              <div className="flex flex-col items-end">
+                <div className="w-1.5 h-[2px] bg-amber-500 rounded-full shadow-[0_0_8px_rgba(245,158,11,1)]" />
+                <span className="text-[7px] font-black text-amber-500 uppercase tracking-tighter mt-0.5 whitespace-nowrap">Revision</span>
               </div>
             )}
             {!showOnlyTests && eventLabel && (
@@ -2907,6 +3022,15 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                 <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr_1fr] gap-8 mb-12 items-start">
                   {/* Left Column: Stats & Metrics */}
                   <div className="space-y-6 order-2 lg:order-1">
+                    <DailyTargets 
+                      targetHours={targetHours}
+                      questionTarget={questionTarget}
+                      elapsedSeconds={elapsedSeconds}
+                      currentQuestions={currentQuestions}
+                      revisionSlots={revisionSlots}
+                      mockTestDates={mockTestDates}
+                    />
+
                     <PerformanceNode 
                       elapsedSeconds={elapsedSeconds} 
                       targetHours={targetHours} 
