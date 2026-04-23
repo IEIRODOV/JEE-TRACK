@@ -534,12 +534,12 @@ const PerformanceNode = React.memo(({ elapsedSeconds, targetHours, currentQuesti
         <div className="flex justify-between items-end mb-3">
           <div className="text-[8px] font-black text-white/20 uppercase tracking-widest font-mono">Focus Index</div>
           <div className="text-lg font-mono font-bold text-pink-400">
-            {(Math.min(10, (currentQuestions / Math.max(1, elapsedSeconds / 3600)) / 5)).toFixed(1)}
+            {(Math.min(10, (currentQuestions / Math.max(1, elapsedSeconds / 3600)) / 2)).toFixed(1)}
           </div>
         </div>
         <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
           <motion.div 
-            animate={{ width: `${Math.min(100, ((currentQuestions / Math.max(1, elapsedSeconds / 3600)) / 5) * 10)}%` }}
+            animate={{ width: `${Math.min(100, ((currentQuestions / Math.max(1, elapsedSeconds / 3600)) / 2) * 10)}%` }}
             className="h-full bg-pink-500 shadow-[0_0_10px_rgba(236,72,153,0.3)]"
           />
         </div>
@@ -750,7 +750,7 @@ const StreakBox = React.memo(({ streak, dailyStudySeconds }: { streak: number, d
   </motion.div>
 ));
 
-const QuestionLab = React.memo(({ currentQuestions, updateQuestions, playTickSound, removeOneHour, isTimerRunning }: any) => {
+const QuestionLab = React.memo(({ currentQuestions, currentQuestionsRef, updateQuestions, playTickSound, removeOneHour, isTimerRunning }: any) => {
   const [showConfirmDeleteTime, setShowConfirmDeleteTime] = useState(false);
   const [holdProgress, setHoldProgress] = useState(0);
   const holdIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -819,7 +819,7 @@ const QuestionLab = React.memo(({ currentQuestions, updateQuestions, playTickSou
               onClick={() => {
                 if (!isTimerRunning) return;
                 playTickSound();
-                updateQuestions(Math.max(0, currentQuestions - 1));
+                updateQuestions(Math.max(0, (currentQuestionsRef?.current || currentQuestions) - 1));
               }}
               className={`flex-1 py-6 rounded-3xl bg-white/5 border border-white/10 text-white font-black text-xl transition-all shadow-xl
                 ${!isTimerRunning ? 'opacity-20 translate-y-1 grayscale cursor-not-allowed border-white/5' : 'hover:bg-red-500/20 hover:border-red-500/40 active:scale-90'}`}
@@ -831,7 +831,7 @@ const QuestionLab = React.memo(({ currentQuestions, updateQuestions, playTickSou
               onClick={() => {
                 if (!isTimerRunning) return;
                 playTickSound();
-                updateQuestions(currentQuestions + 1);
+                updateQuestions((currentQuestionsRef?.current || currentQuestions) + 1);
               }}
               className={`flex-1 py-6 rounded-3xl text-white font-black text-xl transition-all shadow-[0_15px_30px_rgba(236,72,153,0.4)]
                 ${!isTimerRunning 
@@ -994,7 +994,18 @@ const DistributionCharts = React.memo(({ subjectStudySeconds, subjectQuestionCou
     return todayStudyDataRaw;
   }, [todayStudyDataRaw, todayTotalStudySeconds, currentSumSubjects]);
 
-  const todayQuestionData = Object.entries(subjectQuestionCounts[today] || {}).map(([name, count]: any) => ({ name, value: count }));
+  const todayQuestionDataRaw = Object.entries(subjectQuestionCounts[today] || {}).map(([name, count]: any) => ({ name, value: count }));
+  const todayTotalQuestions = dailyQuestionCounts[today] || 0;
+  const currentSumQuestions = todayQuestionDataRaw.reduce((acc, curr) => acc + curr.value, 0);
+
+  const todayQuestionData = React.useMemo(() => {
+    // Also normalize questions to prevent "random/exploding" numbers under graphs
+    if (currentSumQuestions > todayTotalQuestions && todayTotalQuestions > 0) {
+      const ratio = todayTotalQuestions / currentSumQuestions;
+      return todayQuestionDataRaw.map(item => ({ ...item, value: Math.round(item.value * ratio) }));
+    }
+    return todayQuestionDataRaw;
+  }, [todayQuestionDataRaw, todayTotalQuestions, currentSumQuestions]);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
@@ -1082,13 +1093,13 @@ const DistributionCharts = React.memo(({ subjectStudySeconds, subjectQuestionCou
             </div>
           </div>
           <div className="w-full mt-6 space-y-2">
-            {Object.entries(subjectQuestionCounts[today] || {}).map(([name, count]: any, index) => (
-              <div key={name} className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/10">
+            {todayQuestionData.map((entry: any, index: number) => (
+              <div key={entry.name} className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/10">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getSubjectColor(name, index) }} />
-                  <span className="text-[10px] font-bold text-white/80 uppercase tracking-wider">{name}</span>
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getSubjectColor(entry.name, index) }} />
+                  <span className="text-[10px] font-bold text-white/80 uppercase tracking-wider">{entry.name}</span>
                 </div>
-                <span className="text-[10px] font-mono font-bold text-white">{count} Qs</span>
+                <span className="text-[10px] font-mono font-bold text-white">{entry.value} Qs</span>
               </div>
             ))}
           </div>
@@ -2475,29 +2486,37 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   const updateQuestions = useCallback(async (val: number) => {
     const today = new Date().toDateString();
     
+    // Calculate REAL delta from the current processed total to prevent intra-render doubling/random numbers
+    const delta = val - currentQuestionsRef.current;
+    if (delta === 0) return;
+
+    // Update ref immediately so next sequential click uses proper base
+    currentQuestionsRef.current = val;
+    
     // Update local state immediately for responsiveness
     setCurrentQuestions(val);
-    const newCounts = { ...dailyQuestionCounts, [today]: val };
-    setDailyQuestionCounts(newCounts);
+    setDailyQuestionCounts(prev => ({ ...prev, [today]: val }));
 
-    let updatedSubjectQuestions = { ...(subjectQuestionCountsRef.current[today] || {}) };
     const currentSub = selectedSubjectRef.current;
-    const diff_since_last_click = val - currentQuestionsRef.current;
-
     if (currentSub) {
-      const prevSubCount = updatedSubjectQuestions[currentSub] || 0;
-      updatedSubjectQuestions[currentSub] = Math.max(0, prevSubCount + diff_since_last_click);
-      setSubjectQuestionCounts(prev => ({
-        ...prev,
-        [today]: updatedSubjectQuestions
-      }));
+      setSubjectQuestionCounts(prev => {
+        const todaySubjects = { ...(prev[today] || {}) };
+        const prevSubCount = todaySubjects[currentSub] || 0;
+        todaySubjects[currentSub] = Math.max(0, prevSubCount + delta);
+        return {
+          ...prev,
+          [today]: todaySubjects
+        };
+      });
     }
 
     if (!user) {
       const localData = JSON.parse(localStorage.getItem('pulse_calendar_data') || '{}');
       if (!localData[today]) localData[today] = {};
       localData[today].questionsSolved = val;
-      localData[today].subjectQuestions = updatedSubjectQuestions;
+      const todaySubQ = { ...(subjectQuestionCountsRef.current[today] || {}) };
+      if (currentSub) todaySubQ[currentSub] = (todaySubQ[currentSub] || 0) + delta;
+      localData[today].subjectQuestions = todaySubQ;
       localStorage.setItem('pulse_calendar_data', JSON.stringify(localData));
       return;
     }
@@ -3202,6 +3221,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                   {/* Right Column: Question Tracker */}
                   <QuestionLab 
                     currentQuestions={currentQuestions} 
+                    currentQuestionsRef={currentQuestionsRef}
                     updateQuestions={updateQuestions} 
                     playTickSound={playTickSound} 
                     removeOneHour={removeOneHour}
