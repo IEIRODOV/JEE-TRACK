@@ -999,8 +999,12 @@ const DistributionCharts = React.memo(({ subjectStudySeconds, subjectQuestionCou
   const currentSumQuestions = todayQuestionDataRaw.reduce((acc, curr) => acc + curr.value, 0);
 
   const todayQuestionData = React.useMemo(() => {
-    // Also normalize questions to prevent "random/exploding" numbers under graphs
-    if (currentSumQuestions > todayTotalQuestions && todayTotalQuestions > 0) {
+    // If the sum of subjects is larger than recorded total, or total is 0 but subjects exist
+    if (currentSumQuestions > todayTotalQuestions || (todayTotalQuestions === 0 && currentSumQuestions > 0)) {
+      const target = Math.max(todayTotalQuestions, currentSumQuestions);
+      // If todayTotalQuestions is 0, we can't scale down, so we just show them as is, but UI total will match sum
+      if (todayTotalQuestions === 0) return todayQuestionDataRaw;
+      
       const ratio = todayTotalQuestions / currentSumQuestions;
       return todayQuestionDataRaw.map(item => ({ ...item, value: Math.round(item.value * ratio) }));
     }
@@ -1445,6 +1449,11 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   const [dailyStudySeconds, setDailyStudySeconds] = useState<Record<string, number>>({});
   const [subjectStudySeconds, setSubjectStudySeconds] = useState<Record<string, Record<string, number>>>({});
   const [subjectQuestionCounts, setSubjectQuestionCounts] = useState<Record<string, Record<string, number>>>({});
+  
+  // Ref-based session tracking for TOTAL accuracy during active timer
+  const [sessionTabSeconds, setSessionTabSeconds] = useState(0);
+  const [sessionTabQuestions, setSessionTabQuestions] = useState(0);
+  
   const [globalStats, setGlobalStats] = useState({ totalStudents: 0, totalQuestions: 0 });
   
   const [targetHours, setTargetHours] = useState<number>(4);
@@ -1550,29 +1559,51 @@ const TimerPage = ({ settings }: TimerPageProps) => {
 
   // Derived state for display to eliminate doubling (Pure Firestore + Current Live Delta)
   const todayKey = new Date().toDateString();
-  const sessionStudyDelta = isTimerRunning ? Math.max(0, elapsedSeconds - lastSavedProgressSecondsRef.current) : 0;
-  const sessionQuestionDelta = Math.max(0, currentQuestions - lastSyncedQuestionsRef.current);
   
-  const activeStudySecondsForToday = (dailyStudySeconds[todayKey] || 0) + sessionStudyDelta;
-  const activeQuestionsForToday = (dailyQuestionCounts[todayKey] || 0) + sessionQuestionDelta;
+  const activeStudySecondsForToday = (dailyStudySeconds[todayKey] || 0) + sessionTabSeconds;
+  const activeQuestionsForToday = (dailyQuestionCounts[todayKey] || 0) + sessionTabQuestions;
   
   const activeSubjectSeconds = useMemo(() => {
     const data = { ...(subjectStudySeconds[todayKey] || {}) };
+    
+    // 1. Add all completed segments from chapter switches in this tab's active session
+    Object.entries(sessionChapterStatsRef.current).forEach(([sub, chapters]) => {
+      let subTotal = 0;
+      Object.values(chapters).forEach(stats => subTotal += stats.seconds);
+      if (subTotal > 0) {
+        data[sub] = (data[sub] || 0) + subTotal;
+      }
+    });
+
+    // 2. Add current pending segment for the selected subject
     const currentSub = selectedSubject;
     if (isTimerRunning && currentSub) {
-      data[currentSub] = (data[currentSub] || 0) + sessionStudyDelta;
+      const activeSegmentSeconds = Math.max(0, elapsedSeconds - lastChapterSwitchSecondsRef.current);
+      data[currentSub] = (data[currentSub] || 0) + activeSegmentSeconds;
     }
     return data;
-  }, [subjectStudySeconds, todayKey, isTimerRunning, selectedSubject, sessionStudyDelta]);
+  }, [subjectStudySeconds, todayKey, isTimerRunning, selectedSubject, elapsedSeconds, sessionTabSeconds]);
 
   const activeSubjectQuestions = useMemo(() => {
     const data = { ...(subjectQuestionCounts[todayKey] || {}) };
+    
+    // 1. Add all completed segments from chapter switches in this tab's active session
+    Object.entries(sessionChapterStatsRef.current).forEach(([sub, chapters]) => {
+      let subTotal = 0;
+      Object.values(chapters).forEach(stats => subTotal += stats.questions);
+      if (subTotal > 0) {
+        data[sub] = (data[sub] || 0) + subTotal;
+      }
+    });
+
+    // 2. Add current pending segment for the selected subject
     const currentSub = selectedSubject;
     if (isTimerRunning && currentSub) {
-      data[currentSub] = (data[currentSub] || 0) + sessionQuestionDelta;
+      const activeSegmentQuestions = Math.max(0, currentQuestions - lastChapterSwitchQuestionsRef.current);
+      data[currentSub] = (data[currentSub] || 0) + activeSegmentQuestions;
     }
     return data;
-  }, [subjectQuestionCounts, todayKey, isTimerRunning, selectedSubject, sessionQuestionDelta]);
+  }, [subjectQuestionCounts, todayKey, isTimerRunning, selectedSubject, currentQuestions, sessionTabQuestions]);
 
   useEffect(() => {
     dailyStudySecondsRef.current = dailyStudySeconds;
@@ -1798,6 +1829,12 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       setIsStatsLoaded(true);
       setIsSyncing(false);
       setLastSyncTime(new Date());
+      
+      // Initialize refs to avoid double counting on first session start
+      lastSyncedQuestionsRef.current = newQuestionCounts[today] || 0;
+      lastSavedProgressSecondsRef.current = newStudySeconds[today] || 0;
+      currentQuestionsRef.current = newQuestionCounts[today] || 0;
+      elapsedSecondsRef.current = newStudySeconds[today] || 0;
     }).catch(err => {
       console.error("Initial Stats Load Error:", err);
       setIsSyncing(false);
@@ -1840,34 +1877,14 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       });
       
       setCurrentQuestions(prev => {
-        const firestoreQuestions = data.questionsSolved || 0;
-        if (isTimerRunning) {
-          const mirrorStr = localStorage.getItem('pulse_active_session');
-          if (mirrorStr) {
-            const mirror = JSON.parse(mirrorStr);
-            if (mirror.date === today && mirror.questionsSolved > firestoreQuestions) {
-              return mirror.questionsSolved;
-            }
-          }
-        }
-        return firestoreQuestions;
+        if (isTimerRunning) return prev;
+        return data.questionsSolved || 0;
       });
       
       setElapsedSeconds(prev => {
         const firestoreTime = Math.min(data.studySeconds || 0, 86400);
-        // Preference: If timer is running, local mirror is usually more up-to-date due to batching
-        if (isTimerRunning) {
-          const mirrorStr = localStorage.getItem('pulse_active_session');
-          if (mirrorStr) {
-            const mirror = JSON.parse(mirrorStr);
-            if (mirror.date === today && mirror.studySeconds > firestoreTime) {
-              return mirror.studySeconds;
-            }
-          }
-        }
-        if (!isTimerRunning) return firestoreTime;
-        if (prev === 0 || firestoreTime > prev + 60) return firestoreTime;
-        return prev;
+        if (isTimerRunning) return prev;
+        return firestoreTime;
       });
 
       setLastSyncTime(new Date());
@@ -2054,6 +2071,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         const totalElapsed = accumulatedSeconds + sessionSeconds;
         
         setElapsedSeconds(totalElapsed);
+        setSessionTabSeconds(sessionSeconds);
         
         // Only update these every 5 seconds to reduce re-renders of heavy components
         if (tickCount % 5 === 0) {
@@ -2160,7 +2178,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
 
   // Memoized streak calculation for real-time updates
   useEffect(() => {
-    const s = calculateStreak(dailyStudySeconds, targetHours);
+    const s = calculateStreak({ ...dailyStudySeconds, [todayKey]: activeStudySecondsForToday }, targetHours);
     setStreak(s);
     
     // Auto-sync streak to leaderboard on load if stats were just loaded
@@ -2175,7 +2193,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         }
       });
     }
-  }, [dailyStudySeconds, targetHours, isStatsLoaded, user]);
+  }, [dailyStudySeconds, activeStudySecondsForToday, targetHours, isStatsLoaded, user, todayKey]);
 
   const calculateStreak = (secondsMap: Record<string, number>, target: number) => {
     if (!secondsMap || Object.keys(secondsMap).length === 0) return 0;
@@ -2345,6 +2363,8 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       setStartTime(now);
       setAccumulatedSeconds(newAccumulated);
       setIsTimerRunning(true);
+      setSessionTabSeconds(0);
+      setSessionTabQuestions(0);
       
       // Initialize chapter transition trackers on start to prevent attribution artifacts
       lastChapterSwitchSecondsRef.current = newAccumulated;
@@ -2358,12 +2378,13 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       const now = Date.now();
       const sessionSeconds = Math.max(0, Math.floor((now - startTime) / 1000));
       const finalElapsed = accumulatedSeconds + sessionSeconds;
-      const sessionQuestions = Math.max(0, currentQuestions - lastSyncedQuestionsRef.current);
+      const sessionQuestions = sessionTabQuestions;
       
       setElapsedSeconds(finalElapsed);
       setAccumulatedSeconds(finalElapsed);
       setStartTime(null);
-      await saveTimerState(false, null, finalElapsed);
+      setSessionTabSeconds(0);
+      setSessionTabQuestions(0);
       
       const sessionHours = sessionSeconds / 3600;
 
@@ -2442,7 +2463,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       const statsRef = doc(db, 'users', user.uid, 'dailyStats', today);
 
       // Total session study time delta to write
-      const sessionTotalStudySeconds = Math.max(0, finalElapsed - lastSavedProgressSecondsRef.current);
+      const sessionTotalStudySeconds = sessionSeconds;
       const sessionTotalQuestions = sessionQuestions;
 
       // Update Daily Stats using increment to ensure accuracy amidst multi-device sync
@@ -2476,7 +2497,8 @@ const TimerPage = ({ settings }: TimerPageProps) => {
 
       try {
         await batch.commit();
-        lastSyncedQuestionsRef.current = currentQuestions;
+        await saveTimerState(false, null, finalElapsed); // Moved here to ensure firestore commit first
+        lastSyncedQuestionsRef.current = currentQuestionsRef.current;
         lastSavedProgressSecondsRef.current = finalElapsed;
         lastTickElapsedRef.current = finalElapsed;
       } catch (error) {
@@ -2493,15 +2515,18 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   const updateQuestions = useCallback(async (val: number) => {
     const today = new Date().toDateString();
     
-    // Calculate REAL delta from the current processed total to prevent intra-render doubling
+    // Calculate REAL delta from the current processed total to prevent intra-render issues
     const delta = val - currentQuestionsRef.current;
     if (delta === 0) return;
 
     // Update ref immediately
     currentQuestionsRef.current = val;
     
-    // Update local state for responsiveness (the derived activeQuestionsForToday handles the visual)
+    // Update local state for responsiveness
     setCurrentQuestions(val);
+    if (isTimerRunning) {
+      setSessionTabQuestions(prev => prev + delta);
+    }
 
     const currentSub = selectedSubjectRef.current;
 
@@ -2607,7 +2632,10 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       for (const [dateStr, seconds] of daysToRepair) {
         console.warn(`Repairing unrealistic study time for ${dateStr}`);
         const statsRef = doc(db, 'users', user.uid, 'dailyStats', dateStr);
-        batch.update(statsRef, { studySeconds: 12 * 3600 }); 
+        batch.update(statsRef, { 
+          studySeconds: 12 * 3600,
+          subjectSeconds: {} // Clear subjects to ensure ratio is valid
+        }); 
         needsRepair = true;
       }
 
@@ -2615,7 +2643,10 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       const suspiciousQuestionDays = Object.entries(dailyQuestionCounts).filter(([_, q]) => (q as number) > 1200);
       for (const [dateStr, count] of suspiciousQuestionDays) {
           const statsRef = doc(db, 'users', user.uid, 'dailyStats', dateStr);
-          batch.update(statsRef, { questionsSolved: 300 }); 
+          batch.update(statsRef, { 
+            questionsSolved: 300,
+            subjectQuestions: {} // Clear subjects to ensure ratio is valid
+          }); 
           needsRepair = true;
       }
 
@@ -3522,8 +3553,8 @@ const TimerPage = ({ settings }: TimerPageProps) => {
 
             {activeTab === 'revision' && (
               <RevisionPage 
-                subjectStudySeconds={subjectStudySeconds}
-                subjectQuestionCounts={subjectQuestionCounts}
+                subjectStudySeconds={{ ...subjectStudySeconds, [todayKey]: activeSubjectSeconds }}
+                subjectQuestionCounts={{ ...subjectQuestionCounts, [todayKey]: activeSubjectQuestions }}
                 getSubjectColor={getSubjectColor}
                 revisionSlots={revisionSlots}
                 setRevisionSlots={setRevisionSlots}
