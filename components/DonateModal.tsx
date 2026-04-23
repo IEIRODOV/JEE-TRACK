@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Heart, X, Coffee, ShieldCheck, HeartPulse, Sparkles, Loader2, CheckCircle2 } from 'lucide-react';
+import { Heart, X, Coffee, ShieldCheck, HeartPulse, Sparkles, Loader2, CheckCircle2, Award } from 'lucide-react';
 import { playTickSound } from '@/src/lib/sounds';
+import { auth, db, addDoc, collection, serverTimestamp, query, orderBy, limit, onSnapshot } from '@/src/firebase';
 
 interface DonateModalProps {
   isOpen: boolean;
@@ -15,9 +16,25 @@ declare global {
 }
 
 const DonateModal: React.FC<DonateModalProps> = ({ isOpen, onClose }) => {
-  const [amount, setAmount] = useState('500');
+  const [amount, setAmount] = useState('499');
   const [isLoading, setIsLoading] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [donors, setDonors] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const q = query(
+      collection(db, 'donations'),
+      orderBy('createdAt', 'desc'),
+      limit(3)
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const docs: any[] = [];
+      snapshot.forEach(doc => docs.push({ id: doc.id, ...doc.data() }));
+      setDonors(docs);
+    });
+    return () => unsubscribe();
+  }, [isOpen]);
 
   useEffect(() => {
     // Load Razorpay script
@@ -79,6 +96,19 @@ const DonateModal: React.FC<DonateModalProps> = ({ isOpen, onClose }) => {
 
             const verifyData = await verifyRes.json();
             if (verifyData.success) {
+              // Record donation in Firestore
+              const user = auth.currentUser;
+              try {
+                await addDoc(collection(db, 'donations'), {
+                  uid: user?.uid || 'anonymous',
+                  displayName: user?.displayName || 'Anonymous Hero',
+                  photoURL: user?.photoURL || '',
+                  amount: parseInt(amount),
+                  createdAt: serverTimestamp()
+                });
+              } catch (e) {
+                console.error("Failed to record donation", e);
+              }
               setPaymentSuccess(true);
             } else {
               alert("Payment verification failed. Please contact support.");
@@ -210,7 +240,24 @@ const DonateModal: React.FC<DonateModalProps> = ({ isOpen, onClose }) => {
                     </button>
                   </div>
 
-                  <div className="mt-6 flex items-center justify-center gap-4 text-[8px] font-black uppercase tracking-[0.3em] text-white/10">
+                  <div className="mt-6 flex flex-col gap-3">
+                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/20">
+                      <Award className="w-3 h-3 text-red-500" />
+                      Recent Champions
+                    </div>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {donors.length > 0 ? donors.map((donor, i) => (
+                        <div key={donor.id} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/5 animate-in fade-in slide-in-from-bottom-2 duration-500" style={{ animationDelay: `${i * 100}ms` }}>
+                          <img src={donor.photoURL || `https://ui-avatars.com/api/?name=${donor.displayName}&background=random`} className="w-4 h-4 rounded-full border border-white/10" alt="" />
+                          <span className="text-[8px] font-bold text-white/50 uppercase tracking-widest">{donor.displayName}</span>
+                        </div>
+                      )) : (
+                        <div className="text-[8px] font-bold text-white/10 uppercase tracking-widest">No donors yet</div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-8 flex items-center justify-center gap-4 text-[8px] font-black uppercase tracking-[0.3em] text-white/10">
                     <div className="flex items-center gap-2">
                       <ShieldCheck className="w-3 h-3" />
                       Encrypted

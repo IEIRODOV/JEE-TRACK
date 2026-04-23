@@ -1262,26 +1262,24 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                   </div>
                 </div>
 
-                {user?.email === 'bablasaur19@gmail.com' && (
-                  <div className="mt-8 p-6 rounded-[24px] bg-black/40 backdrop-blur-xl border border-white/10 text-center relative overflow-hidden group shadow-2xl">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-red-500/20 transition-colors duration-1000" />
-                    <div className="absolute -bottom-16 -left-16 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl group-hover:bg-purple-500/20 transition-colors duration-1000" />
-                    
-                    <div className="relative z-10">
-                      <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/10 group-hover:scale-110 transition-transform duration-500">
-                        <Heart className="w-6 h-6 text-red-500 fill-red-500/20 animate-pulse" />
-                      </div>
-                      <h4 className="text-white font-black text-xs uppercase tracking-widest mb-2">Keep Pulse Free</h4>
-                      <p className="text-white/40 text-[9px] font-bold uppercase tracking-widest mb-6 leading-relaxed max-w-[160px] mx-auto">Help us sustain high-speed servers for thousands of students.</p>
-                      <button 
-                        onClick={() => { playTickSound(); setShowDonate(true); }}
-                        className="w-full py-4 bg-white text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-xl active:scale-95"
-                      >
-                        Donate Us
-                      </button>
+                <div className="mt-8 p-6 rounded-[24px] bg-black/40 backdrop-blur-xl border border-white/10 text-center relative overflow-hidden group shadow-2xl">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-red-500/20 transition-colors duration-1000" />
+                  <div className="absolute -bottom-16 -left-16 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl group-hover:bg-purple-500/20 transition-colors duration-1000" />
+                  
+                  <div className="relative z-10">
+                    <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/10 group-hover:scale-110 transition-transform duration-500">
+                      <Heart className="w-6 h-6 text-red-500 fill-red-500/20 animate-pulse" />
                     </div>
+                    <h4 className="text-white font-black text-xs uppercase tracking-widest mb-2">Keep Pulse Free</h4>
+                    <p className="text-white/40 text-[9px] font-bold uppercase tracking-widest mb-6 leading-relaxed max-w-[160px] mx-auto">Help us sustain high-speed servers for thousands of students.</p>
+                    <button 
+                      onClick={() => { playTickSound(); setShowDonate(true); }}
+                      className="w-full py-4 bg-white text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-xl active:scale-95"
+                    >
+                      Donate Us
+                    </button>
                   </div>
-                )}
+                </div>
               </div>
             </div>
           )}
@@ -1998,12 +1996,10 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
           </motion.div>
         )}
       </AnimatePresence>
-      {user?.email === 'bablasaur19@gmail.com' && (
-        <DonateModal 
-          isOpen={showDonate} 
-          onClose={() => setShowDonate(false)} 
-        />
-      )}
+      <DonateModal 
+        isOpen={showDonate} 
+        onClose={() => setShowDonate(false)} 
+      />
     </div>
   );
 };
