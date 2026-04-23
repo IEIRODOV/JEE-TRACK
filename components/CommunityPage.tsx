@@ -526,7 +526,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
   const [activeReactionPicker, setActiveReactionPicker] = useState<string | null>(null);
   const [replyText, setReplyText] = useState<{ [postId: string]: string }>({});
   const [replyToComment, setReplyToComment] = useState<{ postId: string, commentId: string, name: string } | null>(null);
-  const [showWarning, setShowWarning] = useState(true);
+  const [showWarning, setShowWarning] = useState(false);
   const [reportingPostId, setReportingPostId] = useState<string | null>(null);
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
@@ -1108,70 +1108,6 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
   return (
     <div className="w-full min-h-screen pt-24 pb-12 px-4 md:px-8">
       <AnimatePresence>
-        {showWarning && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/98 backdrop-blur-xl p-4"
-          >
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="max-w-2xl w-full bg-black border border-white/10 rounded-none overflow-hidden shadow-[0_0_100px_rgba(255,0,0,0.1)] flex flex-col md:flex-row"
-            >
-              <div className="bg-black p-12 flex flex-col items-center justify-center text-center border-b md:border-b-0 md:border-r border-white/5 min-w-[280px]">
-                <div className="relative mb-8">
-                  <motion.div 
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ repeat: Infinity, duration: 1.5 }}
-                    className="w-24 h-24 bg-red-600/20 rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(220,38,38,0.4)]"
-                  >
-                    <Flame className="w-12 h-12 text-red-600 fill-red-600" />
-                  </motion.div>
-                  <motion.div 
-                    animate={{ scale: [1, 2], opacity: [0.5, 0] }}
-                    transition={{ repeat: Infinity, duration: 1.5 }}
-                    className="absolute inset-0 bg-red-600/20 rounded-full"
-                  />
-                </div>
-                <h2 className="text-white text-5xl font-black uppercase tracking-tighter leading-none">
-                  PULSE <br /> <span className="text-red-600">ALERT</span>
-                </h2>
-              </div>
-              
-              <div className="p-12 bg-black flex flex-col justify-center">
-                <div className="mb-8">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="h-px w-8 bg-red-600" />
-                    <span className="text-red-600 text-[10px] font-black uppercase tracking-[0.3em]">Distraction Protocol</span>
-                  </div>
-                  <h3 className="text-white text-2xl font-black uppercase tracking-tight mb-4 leading-tight">
-                    MISSION CRITICAL: <br />STAY FOCUSED
-                  </h3>
-                  <p className="text-white/40 text-sm font-medium leading-relaxed uppercase tracking-wider">
-                    Open communities are high-risk zones for focus depletion. Proceed only if your daily targets are secured.
-                  </p>
-                </div>
-                
-                <div className="flex flex-col sm:flex-row gap-4 w-full">
-                  <button 
-                    onClick={() => setShowWarning(false)}
-                    className="flex-1 py-4 bg-white text-black rounded-none font-black uppercase tracking-[0.2em] text-[10px] hover:bg-red-600 hover:text-white transition-all active:scale-95"
-                  >
-                    Enter Feed
-                  </button>
-                  <button 
-                    onClick={() => window.location.href = '/'}
-                    className="flex-1 py-4 bg-transparent text-white/40 border border-white/10 rounded-none font-black uppercase tracking-[0.2em] text-[10px] hover:bg-white/5 hover:text-white transition-all active:scale-95"
-                  >
-                    Back to Focus
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
       </AnimatePresence>
 
       <div className="max-w-7xl mx-auto space-y-8">
