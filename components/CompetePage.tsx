@@ -75,6 +75,13 @@ const FriendTimer = memo(({ timerState }: { timerState: any }) => {
 });
 FriendTimer.displayName = 'FriendTimer';
 
+const formatTimeHM = (seconds: number) => {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h === 0) return `${m}m`;
+  return `${h}h ${m}m`;
+};
+
 const FriendListItem = memo(({ 
   friend, 
   isSelected, 
@@ -126,7 +133,7 @@ const FriendListItem = memo(({
         </div>
         <div className="text-left">
           <div className="text-[11px] font-black text-white uppercase tracking-tight mb-1 flex items-center gap-2">
-            {friend.displayName}
+            {friend.displayName || 'Friend'}
             {timerState?.isRunning && (
               <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
             )}
@@ -135,7 +142,7 @@ const FriendListItem = memo(({
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
                 <Clock className="w-2.5 h-2.5 text-emerald-400" />
-                <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">{(friend.stats.studySeconds / 3600).toFixed(1)}h</span>
+                <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">{formatTimeHM(friend.stats.studySeconds)}</span>
               </div>
               <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
                 <Target className="w-2.5 h-2.5 text-blue-400" />
@@ -398,8 +405,8 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
             
             updatedFriends[fIndex] = {
               ...updatedFriends[fIndex],
-              displayName: userData.displayName || updatedFriends[fIndex].displayName || 'Friend',
-              photoURL: userData.photoURL || updatedFriends[fIndex].photoURL || `https://ui-avatars.com/api/?name=${userData.displayName || 'Friend'}&background=random`,
+              displayName: userData.displayName || leadData.displayName || updatedFriends[fIndex].displayName || 'Student',
+              photoURL: userData.photoURL || leadData.photoURL || updatedFriends[fIndex].photoURL || `https://ui-avatars.com/api/?name=${userData.displayName || leadData.displayName || 'Friend'}&background=random`,
               totalQuestions: leadData.totalQuestions || 0,
               stats: statsData
             };
@@ -1132,9 +1139,9 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
                                           <FriendTimer timerState={friendsTimerStates[selectedFriend.uid]} />
                                         </div>
                                       ) : (
-                                        <>
-                                          {(selectedFriend.stats.studySeconds / 3600).toFixed(1)}<span className="text-lg ml-1 text-emerald-500/50">h</span>
-                                        </>
+                                        <div className="flex items-baseline gap-1">
+                                          <span className="text-4xl font-black text-white">{formatTimeHM(selectedFriend.stats.studySeconds)}</span>
+                                        </div>
                                       )}
                                     </div>
                                   </motion.div>

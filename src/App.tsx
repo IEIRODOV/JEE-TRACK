@@ -85,8 +85,14 @@ export default function App() {
               timerSoundType: data.timerSoundType || 'f1'
             });
             
-            // Ensure friendCode and friends array exist
+            // Ensure profile data, friendCode and friends array exist
             const updates: any = {};
+            if ((!data.displayName || data.displayName === 'Anonymous' || data.displayName === 'Friend') && currentUser.displayName) {
+              updates.displayName = currentUser.displayName;
+            }
+            if (!data.email && currentUser.email) updates.email = currentUser.email;
+            if (!data.photoURL && currentUser.photoURL) updates.photoURL = currentUser.photoURL;
+            
             if (!data.friendCode) {
               updates.friendCode = currentUser.uid.substring(0, 6).toUpperCase();
             }

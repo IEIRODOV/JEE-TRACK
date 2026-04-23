@@ -628,7 +628,7 @@ const SubjectMasteryTracker = ({ subjects, studySeconds, questionCounts, revisio
                       <div className="space-y-1.5">
                         <div className="flex justify-between text-[7px] font-black text-white/30 uppercase">
                           <span>Hours ({Math.round(timeProgress * 0.2)}%)</span>
-                          <span>{(totalStudyTime / 3600).toFixed(1)}/10h</span>
+                          <span>{formatTimeHM(totalStudyTime)}/10h</span>
                         </div>
                         <div className="h-1 bg-white/5 rounded-full overflow-hidden">
                           <motion.div animate={{ width: `${timeProgress}%` }} className="h-full bg-blue-500" />
@@ -979,7 +979,21 @@ const QuestionLab = React.memo(({ currentQuestions, updateQuestions, playTickSou
 
 const DistributionCharts = React.memo(({ subjectStudySeconds, subjectQuestionCounts, dailyStudySeconds, dailyQuestionCounts, getSubjectColor }: any) => {
   const today = new Date().toDateString();
-  const todayStudyData = Object.entries(subjectStudySeconds[today] || {}).map(([name, count]: any) => ({ name, value: count }));
+  
+  // Normalize data: Ensure subject times don't exceed total daily time (Legacy data fix)
+  const todayStudyDataRaw = Object.entries(subjectStudySeconds[today] || {}).map(([name, count]: any) => ({ name, value: count }));
+  const todayTotalStudySeconds = dailyStudySeconds[today] || 0;
+  const currentSumSubjects = todayStudyDataRaw.reduce((acc, curr) => acc + curr.value, 0);
+  
+  const todayStudyData = React.useMemo(() => {
+    // If the sum of subjects is wildly different from the recorded total (off by more than 10%), scale to match reality
+    if (currentSumSubjects > todayTotalStudySeconds * 1.05 && todayTotalStudySeconds > 0) {
+      const ratio = todayTotalStudySeconds / currentSumSubjects;
+      return todayStudyDataRaw.map(item => ({ ...item, value: Math.round(item.value * ratio) }));
+    }
+    return todayStudyDataRaw;
+  }, [todayStudyDataRaw, todayTotalStudySeconds, currentSumSubjects]);
+
   const todayQuestionData = Object.entries(subjectQuestionCounts[today] || {}).map(([name, count]: any) => ({ name, value: count }));
 
   return (
@@ -1000,32 +1014,33 @@ const DistributionCharts = React.memo(({ subjectStudySeconds, subjectQuestionCou
                 <Pie
                   data={todayStudyData.length > 0 ? todayStudyData : [{ name: 'No Data', value: 1 }]}
                   cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value"
+                  animationDuration={800}
                 >
                   {todayStudyData.length === 0 ? <Cell fill="rgba(255,255,255,0.05)" stroke="none" /> : 
                     todayStudyData.map((entry, index) => <Cell key={`cell-${index}`} fill={getSubjectColor(entry.name, index)} stroke="none" />)}
                 </Pie>
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                  contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', backdropFilter: 'blur(10px)' }}
                   itemStyle={{ color: '#fff', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
-                  formatter={(value: number) => [`${(value / 3600).toFixed(1)}h`, 'Study Time']}
+                  formatter={(value: number) => [formatTimeHM(value), 'Study Time']}
                 />
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Total</span>
               <span className="text-2xl font-mono font-black text-white">
-                {((dailyStudySeconds[today] || 0) / 3600).toFixed(1)}h
+                {formatTimeHM(dailyStudySeconds[today] || 0)}
               </span>
             </div>
           </div>
           <div className="w-full mt-6 space-y-2">
-            {Object.entries(subjectStudySeconds[today] || {}).map(([name, count]: any, index) => (
-              <div key={name} className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/10">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getSubjectColor(name, index) }} />
-                  <span className="text-[10px] font-bold text-white/80 uppercase tracking-wider">{name}</span>
+            {todayStudyData.map((entry: any, index: number) => (
+              <div key={entry.name} className="flex items-center justify-between p-2.5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all group">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full shadow-[0_0_8px_currentColor]" style={{ backgroundColor: getSubjectColor(entry.name, index), color: getSubjectColor(entry.name, index) }} />
+                  <span className="text-[10px] font-black text-white/60 uppercase tracking-widest group-hover:text-white transition-colors">{entry.name}</span>
                 </div>
-                <span className="text-[10px] font-mono font-bold text-white">{(count / 3600).toFixed(1)}h</span>
+                <span className="text-[10px] font-mono font-black text-white">{formatTimeHM(entry.value)}</span>
               </div>
             ))}
           </div>
@@ -1372,7 +1387,21 @@ const getSubjectColor = (subject: string, index: number) => {
   return defaultColors[colorIndex];
 };
 
-const formatTime = (seconds: number) => {
+const formatTimeFull = (seconds: number) => {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h === 0) return `${m}m ${seconds % 60}s`;
+  return `${h}h ${m}m`;
+};
+
+const formatTimeHM = (seconds: number) => {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h === 0) return `${m}m`;
+  return `${h}h ${m}m`;
+};
+
+const formatTimeShort = (seconds: number) => {
   if (seconds < 60) return `${seconds}s`;
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
   const h = Math.floor(seconds / 3600);
@@ -1518,18 +1547,15 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     currentQuestionsRef.current = currentQuestions;
     elapsedSecondsRef.current = elapsedSeconds;
     
-    // Sync lastSyncedQuestionsRef on initial load
-    if (isStatsLoaded && lastSyncedQuestionsRef.current === 0 && currentQuestions > 0) {
-      lastSyncedQuestionsRef.current = currentQuestions;
+    // CRITICAL: Initialize ALL session boundary refs whenever data is loaded or refreshed
+    if (isStatsLoaded) {
+      if (lastSavedProgressSecondsRef.current === 0) lastSavedProgressSecondsRef.current = elapsedSeconds;
+      if (lastTickElapsedRef.current === 0) lastTickElapsedRef.current = elapsedSeconds;
+      if (lastChapterSwitchSecondsRef.current === 0) lastChapterSwitchSecondsRef.current = elapsedSeconds;
+      if (lastChapterSwitchQuestionsRef.current === 0) lastChapterSwitchQuestionsRef.current = currentQuestions;
+      if (lastSyncedQuestionsRef.current === 0) lastSyncedQuestionsRef.current = currentQuestions;
     }
-
-    // Initialize lastSavedProgressSecondsRef when elapsedSeconds is first loaded
-    if (lastSavedProgressSecondsRef.current === 0 && elapsedSeconds > 0) {
-      lastSavedProgressSecondsRef.current = elapsedSeconds;
-      lastChapterSwitchSecondsRef.current = elapsedSeconds;
-      lastChapterSwitchQuestionsRef.current = currentQuestions;
-    }
-  }, [dailyStudySeconds, completedStudyDays, targetHours, subjectStudySeconds, subjectQuestionCounts, selectedSubject, currentQuestions, elapsedSeconds]);
+  }, [dailyStudySeconds, completedStudyDays, targetHours, subjectStudySeconds, subjectQuestionCounts, selectedSubject, currentQuestions, elapsedSeconds, isStatsLoaded]);
 
   // Mirror session to localStorage for real-time Dashboard/Progress sync
   useEffect(() => {
@@ -1992,6 +2018,12 @@ const TimerPage = ({ settings }: TimerPageProps) => {
           setDailyStudySeconds(newSeconds);
 
           const currentSub = selectedSubjectRef.current;
+          
+          // Safety: If lastTickElapsedRef is still 0 but we have valid totalElapsed, jump-start it
+          if (lastTickElapsedRef.current === 0 && totalElapsed > 0) {
+            lastTickElapsedRef.current = totalElapsed;
+          }
+          
           const delta = totalElapsed - lastTickElapsedRef.current;
           
           if (delta > 0 && currentSub) {
@@ -2035,58 +2067,8 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     }
     return () => {
       clearInterval(interval);
-      
-      // Final save on unmount if timer was running
-      if (isTimerRunning && startTime) {
-        const now = Date.now();
-        const sessionSeconds = Math.floor((now - startTime) / 1000);
-        const totalElapsed = accumulatedSeconds + sessionSeconds;
-        const todayStr = new Date().toDateString();
-        const currentSub = selectedSubjectRef.current;
-        const currentChap = selectedChapterRef.current;
-        const delta = totalElapsed - lastSavedProgressSecondsRef.current;
-
-        if (user) {
-          const batch = writeBatch(db);
-          const statsRef = doc(db, 'users', user.uid, 'dailyStats', todayStr);
-          
-          // Construct updated subject-wise stats for the day document
-          const updatedSubjectSeconds = { ...(subjectStudySecondsRef.current[todayStr] || {}) };
-          const updatedSubjectQuestions = { ...(subjectQuestionCountsRef.current[todayStr] || {}) };
-          
-          if (currentSub) {
-            updatedSubjectSeconds[currentSub] = (updatedSubjectSeconds[currentSub] || 0) + delta;
-            updatedSubjectQuestions[currentSub] = (updatedSubjectQuestions[currentSub] || 0) + (currentQuestionsRef.current - lastSyncedQuestionsRef.current);
-          }
-
-          batch.set(statsRef, {
-            studySeconds: totalElapsed,
-            subjectSeconds: updatedSubjectSeconds,
-            subjectQuestions: updatedSubjectQuestions,
-            lastUpdated: serverTimestamp()
-          }, { merge: true });
-
-          if (currentChap && currentSub && delta > 0) {
-            const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
-            const year = localStorage.getItem('pulse_user_year') || '2027';
-            const examBase = exam === 'jee' ? 'jee' : exam;
-            const examId = `${examBase}_${year}`;
-            const progressRef = doc(db, 'users', user.uid, 'data', `progress-${examId}`);
-            batch.set(progressRef, {
-              progress: {
-                [currentSub]: {
-                  [currentChap]: {
-                    studyTime: increment(delta)
-                  }
-                }
-              }
-            }, { merge: true });
-          }
-          batch.commit().catch(err => console.error("Final unmount save failed:", err));
-        }
-      }
     };
-  }, [isTimerRunning, startTime, accumulatedSeconds, selectedSubject]);
+  }, [isTimerRunning, startTime, accumulatedSeconds, selectedSubject, isStatsLoaded]);
 
   const saveToFirestore = async (dateStr: string, data: any) => {
     // Safety check: Prevent saving unrealistic study time (more than 24 hours)
@@ -2335,12 +2317,20 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       setStartTime(now);
       setAccumulatedSeconds(newAccumulated);
       setIsTimerRunning(true);
+      
+      // Initialize chapter transition trackers on start to prevent attribution artifacts
+      lastChapterSwitchSecondsRef.current = newAccumulated;
+      lastChapterSwitchQuestionsRef.current = currentQuestions;
+      lastTickElapsedRef.current = newAccumulated;
+      sessionChapterStatsRef.current = {};
+      
       await saveTimerState(true, now, newAccumulated);
     } else {
       setIsTimerRunning(false);
       const now = Date.now();
       const sessionSeconds = Math.max(0, Math.floor((now - startTime) / 1000));
       const finalElapsed = accumulatedSeconds + sessionSeconds;
+      const sessionQuestions = Math.max(0, currentQuestions - lastSyncedQuestionsRef.current);
       
       setElapsedSeconds(finalElapsed);
       setAccumulatedSeconds(finalElapsed);
@@ -2348,7 +2338,6 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       await saveTimerState(false, null, finalElapsed);
       
       const sessionHours = sessionSeconds / 3600;
-      const questionDiff = currentQuestions - lastSyncedQuestionsRef.current;
 
       const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
       const year = localStorage.getItem('pulse_user_year') || '2027';
@@ -2438,16 +2427,20 @@ const TimerPage = ({ settings }: TimerPageProps) => {
 
       const batch = writeBatch(db);
       const statsRef = doc(db, 'users', user.uid, 'dailyStats', today);
-      const currentTotalQuestions = dailyQuestionCounts[today] || 0;
 
-      // Update Daily Stats (Total study time, total questions)
+      // Total session study time delta to write
+      const sessionTotalStudySeconds = Math.max(0, finalElapsed - lastSavedProgressSecondsRef.current);
+      const sessionTotalQuestions = sessionQuestions;
+
+      // Update Daily Stats using increment to ensure accuracy amidst multi-device sync
       const dailyStatsData: any = {
-        studySeconds: finalElapsed,
-        questionsSolved: currentTotalQuestions,
+        studySeconds: increment(sessionTotalStudySeconds),
+        questionsSolved: increment(sessionTotalQuestions),
         lastUpdated: serverTimestamp(),
+        date: today
       };
 
-      // Add segmented subject updates to dailyStats
+      // Add segmented subject updates to dailyStats using dot notation
       Object.entries(sessionSubTotals).forEach(([sub, stats]) => {
         if (stats.seconds > 0) dailyStatsData[`subjectSeconds.${sub}`] = increment(stats.seconds);
         if (stats.questions > 0) dailyStatsData[`subjectQuestions.${sub}`] = increment(stats.questions);
@@ -2463,15 +2456,16 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       // Update Leaderboard
       const leaderboardRef = doc(db, 'leaderboard', user.uid);
       batch.set(leaderboardRef, {
-        totalQuestions: increment(questionDiff),
+        totalQuestions: increment(sessionTotalQuestions),
         totalHours: increment(sessionHours),
         lastUpdated: serverTimestamp()
       }, { merge: true });
 
       try {
         await batch.commit();
-        lastSyncedQuestionsRef.current = currentTotalQuestions;
+        lastSyncedQuestionsRef.current = currentQuestions;
         lastSavedProgressSecondsRef.current = finalElapsed;
+        lastTickElapsedRef.current = finalElapsed;
       } catch (error) {
         handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/dailyStats/${today}`);
       }
@@ -2508,10 +2502,37 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       return;
     }
 
-    // Ultra Scale Change: No more background Firestore writes for questions.
-    // They are now batched into the write that happens on "STOP" or "PAUSE" or Tab Close.
-    // This saves thousands of writes per day at 2000 user scale.
-  }, [user, dailyQuestionCounts]);
+    // Debounce Firestore Sync for Questions when timer is NOT running
+    if (!isTimerRunning) {
+      if (questionSyncTimeoutRef.current) clearTimeout(questionSyncTimeoutRef.current);
+      questionSyncTimeoutRef.current = setTimeout(async () => {
+        try {
+          const syncDelta = val - lastSyncedQuestionsRef.current;
+          if (syncDelta <= 0) return;
+
+          const statsRef = doc(db, 'users', user.uid, 'dailyStats', today);
+          const updates: any = {
+            questionsSolved: increment(syncDelta),
+            lastUpdated: serverTimestamp(),
+            date: today
+          };
+          if (currentSub) updates[`subjectQuestions.${currentSub}`] = increment(syncDelta);
+
+          await setDoc(statsRef, updates, { merge: true });
+          
+          const leaderboardRef = doc(db, 'leaderboard', user.uid);
+          await setDoc(leaderboardRef, {
+            totalQuestions: increment(syncDelta),
+            lastUpdated: serverTimestamp()
+          }, { merge: true });
+
+          lastSyncedQuestionsRef.current = val;
+        } catch (error) {
+          console.error("Idle question sync error:", error);
+        }
+      }, 3000);
+    }
+  }, [user, dailyQuestionCounts, isTimerRunning]);
 
   const removeOneHour = useCallback(async () => {
     const today = new Date().toDateString();
@@ -3147,7 +3168,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                           <div className="flex flex-col items-center">
                             <div className="text-8xl font-mono font-black text-white tracking-tighter tabular-nums relative">
                               <span className="bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]">
-                                {formatTime(elapsedSeconds)}
+                                {formatTimeShort(elapsedSeconds)}
                               </span>
                             </div>
                             <div className="mt-4 flex items-center gap-3">

@@ -74,6 +74,9 @@ const AuthPage = ({ onBack }: AuthPageProps) => {
       const user = auth.currentUser;
       if (user) {
         const examData = {
+          displayName: user.displayName,
+          email: user.email,
+          photoURL: user.photoURL,
           exam: selectedExam === 'more' ? customExamName : selectedExam,
           year: selectedYear,
           subExam: selectedExam === 'jee' ? selectedSubExam : null,

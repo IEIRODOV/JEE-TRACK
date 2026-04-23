@@ -1232,6 +1232,30 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
 
           {/* Main Content */}
           <div className={`${activeView === 'feed' ? 'lg:col-span-9' : 'lg:col-span-12'} space-y-6`}>
+            {/* Mobile/Tablet Donation Box */}
+            {activeView === 'feed' && (
+              <div className="lg:hidden p-6 rounded-[32px] bg-gradient-to-br from-red-500/10 via-purple-500/5 to-transparent border border-white/10 text-center relative overflow-hidden group shadow-xl">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full blur-3xl -mr-16 -mt-16" />
+                <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-4 text-left">
+                    <div className="w-10 h-10 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 shrink-0">
+                      <Heart className="w-5 h-5 text-red-500 fill-red-500/20 animate-pulse" />
+                    </div>
+                    <div>
+                      <h4 className="text-white font-black text-[10px] uppercase tracking-widest mb-1">Help Us Keep Pulse Free</h4>
+                      <p className="text-white/40 text-[8px] font-bold uppercase tracking-widest">Sustain high-speed servers</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => { playTickSound(); setShowDonate(true); }}
+                    className="w-full sm:w-auto px-6 py-3 bg-white text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-xl"
+                  >
+                    Donate
+                  </button>
+                </div>
+              </div>
+            )}
+
             {activeView === 'resources' ? (
               <div className="space-y-8 relative">
                 <div className="relative z-10 space-y-8">

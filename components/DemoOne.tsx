@@ -318,10 +318,17 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
         sessionSeconds = Math.max(0, Math.floor((Date.now() - timerState.startTime) / 1000));
       }
 
+      const formatTimeHM = (seconds: number) => {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        if (h === 0) return `${m}m`;
+        return `${h}h ${m}m`;
+      };
+
       const displayStudySeconds = baseStudyTimeSeconds + sessionSeconds;
       const displayQuestions = baseQuestionsSolved + sessionQuestions;
 
-      const studyTimeDisplay = `${(displayStudySeconds / 3600).toFixed(1)}h`;
+      const studyTimeDisplay = formatTimeHM(displayStudySeconds);
 
       const savedTargets = localStorage.getItem('jee-daily-targets');
       let dailyGoal = "0%";
@@ -438,13 +445,22 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
       }, { merge: true });
 
       const sessionHours = sessionSeconds / 3600;
-      // Note: syncGlobalProgress in DemoOne doesn't handle chapter breakdown.
-      // But TimerPage will handle it if open. If not, it's just a raw study time bump.
-      await syncGlobalProgress(0, sessionHours);
+      
+      const sessionQuestions = 0; // In DemoOne, we don't have a direct question incrementer, 
+      // but if we were to support it, we'd extract it from active session mirror.
+      const activeSessionStr = localStorage.getItem('pulse_active_session');
+      let sessionQ = 0;
+      if (activeSessionStr) {
+        const session = JSON.parse(activeSessionStr);
+        sessionQ = session.questionsSolved || 0;
+      }
+      
+      await syncGlobalProgress(sessionQ, sessionHours);
 
       const statsRef = doc(db, 'users', user.uid, 'dailyStats', today);
       await setDoc(statsRef, {
-        studySeconds: totalElapsed,
+        studySeconds: increment(sessionSeconds), // Use increment for safety
+        questionsSolved: increment(sessionQ),
         date: today,
         lastUpdated: serverTimestamp(),
         [`subjectSeconds.${localStorage.getItem('pulse_selected_subject') || 'Other'}`]: increment(sessionSeconds)
