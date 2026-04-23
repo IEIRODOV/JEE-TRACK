@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, TrendingUp, Zap, Trash2, Cloud, CloudOff, Loader2, Activity, Clock, Target, Shield, Rocket, ZapIcon, History, Check, AlertTriangle } from 'lucide-react';
 import { 
   playTickSound, 
@@ -1459,6 +1459,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const isSyncingRef = useRef(false);
+  
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [accumulatedSeconds, setAccumulatedSeconds] = useState<number>(0);
@@ -1546,6 +1547,32 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   const sessionChapterStatsRef = useRef<Record<string, Record<string, { seconds: number, questions: number }>>>({});
   const lastChapterSwitchSecondsRef = useRef(0);
   const lastChapterSwitchQuestionsRef = useRef(0);
+
+  // Derived state for display to eliminate doubling (Pure Firestore + Current Live Delta)
+  const todayKey = new Date().toDateString();
+  const sessionStudyDelta = isTimerRunning ? Math.max(0, elapsedSeconds - lastSavedProgressSecondsRef.current) : 0;
+  const sessionQuestionDelta = Math.max(0, currentQuestions - lastSyncedQuestionsRef.current);
+  
+  const activeStudySecondsForToday = (dailyStudySeconds[todayKey] || 0) + sessionStudyDelta;
+  const activeQuestionsForToday = (dailyQuestionCounts[todayKey] || 0) + sessionQuestionDelta;
+  
+  const activeSubjectSeconds = useMemo(() => {
+    const data = { ...(subjectStudySeconds[todayKey] || {}) };
+    const currentSub = selectedSubject;
+    if (isTimerRunning && currentSub) {
+      data[currentSub] = (data[currentSub] || 0) + sessionStudyDelta;
+    }
+    return data;
+  }, [subjectStudySeconds, todayKey, isTimerRunning, selectedSubject, sessionStudyDelta]);
+
+  const activeSubjectQuestions = useMemo(() => {
+    const data = { ...(subjectQuestionCounts[todayKey] || {}) };
+    const currentSub = selectedSubject;
+    if (isTimerRunning && currentSub) {
+      data[currentSub] = (data[currentSub] || 0) + sessionQuestionDelta;
+    }
+    return data;
+  }, [subjectQuestionCounts, todayKey, isTimerRunning, selectedSubject, sessionQuestionDelta]);
 
   useEffect(() => {
     dailyStudySecondsRef.current = dailyStudySeconds;
@@ -2030,50 +2057,16 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         
         // Only update these every 5 seconds to reduce re-renders of heavy components
         if (tickCount % 5 === 0) {
-          const newSeconds = { ...dailyStudySecondsRef.current, [today]: totalElapsed };
-          setDailyStudySeconds(newSeconds);
-
+          // REMOVED: local updates to dailyStudySeconds and subjectStudySeconds here 
+          // because it causes doubling when combined with Firestore increment snapshot.
+          // The UI will now calculate (Persisted + SessionDelta) for active display.
+          
           const currentSub = selectedSubjectRef.current;
+          const currentChap = selectedChapterRef.current;
           
-          // Safety: If lastTickElapsedRef is still 0 but we have valid totalElapsed, jump-start it
-          if (lastTickElapsedRef.current === 0 && totalElapsed > 0) {
-            lastTickElapsedRef.current = totalElapsed;
-          }
+          // Still update chapter switch trackers for internal session accounting
+          // but we don't push them to the shared dailyStudySeconds state anymore.
           
-          const delta = totalElapsed - lastTickElapsedRef.current;
-          
-          if (delta > 0 && currentSub) {
-            setSubjectStudySeconds(prev => {
-              const todaySubjects = prev[today] || {};
-              const prevSubjectSeconds = todaySubjects[currentSub] || 0;
-              return {
-                ...prev,
-                [today]: {
-                  ...todaySubjects,
-                  [currentSub]: prevSubjectSeconds + delta
-                }
-              };
-            });
-          }
-          lastTickElapsedRef.current = totalElapsed;
-
-          // 12-hour Auto-Off Safety Protocol
-          const SESSION_LIMIT = 12 * 3600;
-          const sessionSeconds = Math.floor((now - startTime) / 1000);
-          const INACTIVITY_LIMIT_MS = 7 * 3600 * 1000; // 7 hours of literal zero movement/keypress
-
-          if (sessionSeconds >= SESSION_LIMIT) {
-            console.warn("Safety Protocol: 12h session limit reached. Terminating timer.");
-            toggleTimer();
-            return;
-          }
-
-          if (Date.now() - lastActivityTimestamp > INACTIVITY_LIMIT_MS && sessionSeconds > 3600) {
-            console.warn("Safety Protocol: Inactivity detected during long session. Terminating timer.");
-            toggleTimer();
-            return;
-          }
-
           if (totalElapsed >= targetHoursRef.current * 3600 && !completedStudyDaysRef.current.includes(today)) {
             setCompletedStudyDays(prev => [...prev, today]);
           }
@@ -2500,35 +2493,23 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   const updateQuestions = useCallback(async (val: number) => {
     const today = new Date().toDateString();
     
-    // Calculate REAL delta from the current processed total to prevent intra-render doubling/random numbers
+    // Calculate REAL delta from the current processed total to prevent intra-render doubling
     const delta = val - currentQuestionsRef.current;
     if (delta === 0) return;
 
-    // Update ref immediately so next sequential click uses proper base
+    // Update ref immediately
     currentQuestionsRef.current = val;
     
-    // Update local state immediately for responsiveness
+    // Update local state for responsiveness (the derived activeQuestionsForToday handles the visual)
     setCurrentQuestions(val);
-    setDailyQuestionCounts(prev => ({ ...prev, [today]: val }));
 
     const currentSub = selectedSubjectRef.current;
-    if (currentSub) {
-      setSubjectQuestionCounts(prev => {
-        const todaySubjects = { ...(prev[today] || {}) };
-        const prevSubCount = todaySubjects[currentSub] || 0;
-        todaySubjects[currentSub] = Math.max(0, prevSubCount + delta);
-        return {
-          ...prev,
-          [today]: todaySubjects
-        };
-      });
-    }
 
     if (!user) {
       const localData = JSON.parse(localStorage.getItem('pulse_calendar_data') || '{}');
       if (!localData[today]) localData[today] = {};
-      localData[today].questionsSolved = val;
-      const todaySubQ = { ...(subjectQuestionCountsRef.current[today] || {}) };
+      localData[today].questionsSolved = (localData[today].questionsSolved || 0) + delta;
+      const todaySubQ = { ...(localData[today].subjectQuestions || {}) };
       if (currentSub) todaySubQ[currentSub] = (todaySubQ[currentSub] || 0) + delta;
       localData[today].subjectQuestions = todaySubQ;
       localStorage.setItem('pulse_calendar_data', JSON.stringify(localData));
@@ -2565,7 +2546,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         }
       }, 3000);
     }
-  }, [user, dailyQuestionCounts, isTimerRunning]);
+  }, [user, isTimerRunning]);
 
   const removeOneHour = useCallback(async () => {
     const today = new Date().toDateString();
@@ -2605,6 +2586,81 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/dailyStats/${today}`);
     }
   }, [user]);
+
+  // 12-hour Auto-Off Safety Protocol
+  const SESSION_LIMIT = 12 * 3600;
+  const INACTIVITY_LIMIT_MS = 7 * 3600 * 1000;
+
+  // DATA REPAIR UTILITY - Runs once to fix corrupted "doubled/tripled" values
+  useEffect(() => {
+    const repairData = async () => {
+      if (!user || !isStatsLoaded) return;
+      const repairFlag = `pulse_repair_v4_${user.uid}`;
+      if (localStorage.getItem(repairFlag)) return;
+
+      console.log("Starting data integrity check...");
+      const batch = writeBatch(db);
+      let needsRepair = false;
+
+      // 1. Sanitize unrealistic daily totals
+      const daysToRepair = Object.entries(dailyStudySeconds).filter(([_, s]) => (s as number) > 18 * 3600); 
+      for (const [dateStr, seconds] of daysToRepair) {
+        console.warn(`Repairing unrealistic study time for ${dateStr}`);
+        const statsRef = doc(db, 'users', user.uid, 'dailyStats', dateStr);
+        batch.update(statsRef, { studySeconds: 12 * 3600 }); 
+        needsRepair = true;
+      }
+
+      // 2. Sanitize unrealistic question counts
+      const suspiciousQuestionDays = Object.entries(dailyQuestionCounts).filter(([_, q]) => (q as number) > 1200);
+      for (const [dateStr, count] of suspiciousQuestionDays) {
+          const statsRef = doc(db, 'users', user.uid, 'dailyStats', dateStr);
+          batch.update(statsRef, { questionsSolved: 300 }); 
+          needsRepair = true;
+      }
+
+      // 3. Sanitize Progress collection (Chapter stats)
+      try {
+        const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
+        const year = localStorage.getItem('pulse_user_year') || '2027';
+        const examId = `${exam}_${year}`;
+        const progressRef = doc(db, 'users', user.uid, 'data', `progress-${examId}`);
+        const progressSnap = await getDoc(progressRef);
+        
+        if (progressSnap.exists()) {
+            const progressData = progressSnap.data().progress || {};
+            let pRepair = false;
+            const cleanedProgress = JSON.parse(JSON.stringify(progressData));
+            
+            Object.entries(progressData).forEach(([subject, chapters]: [string, any]) => {
+                Object.entries(chapters).forEach(([chapterId, chData]: [string, any]) => {
+                    if ((chData.studyTime || 0) > 100 * 3600) { 
+                        cleanedProgress[subject][chapterId].studyTime = 20 * 3600;
+                        pRepair = true;
+                    }
+                    if ((chData.questions || 0) > 2000) {
+                        cleanedProgress[subject][chapterId].questions = 300;
+                        pRepair = true;
+                    }
+                });
+            });
+            
+            if (pRepair) {
+                batch.update(progressRef, { progress: cleanedProgress });
+                needsRepair = true;
+            }
+        }
+      } catch (e) { console.error("Repair progress error:", e); }
+
+      if (needsRepair) {
+        await batch.commit();
+        console.log("Data repair complete.");
+      }
+      localStorage.setItem(repairFlag, 'true');
+    };
+
+    repairData();
+  }, [user, isStatsLoaded, dailyStudySeconds, dailyQuestionCounts]);
 
   const toggleMockTest = async (dateStr: string) => {
     const isCurrentlyMock = mockTestDates.includes(dateStr);
@@ -2685,14 +2741,20 @@ const TimerPage = ({ settings }: TimerPageProps) => {
 
   const monthStudySeconds = Array.from({ length: totalDays }, (_, i) => {
     const d = i + 1;
-    const dateStr = new Date(year, month, d).toDateString();
-    return dailyStudySeconds[dateStr] || 0;
+    const date = new Date(year, month, d);
+    const dateStr = date.toDateString();
+    let val = dailyStudySeconds[dateStr] || 0;
+    if (dateStr === todayKey) val = activeStudySecondsForToday;
+    return val;
   }).reduce((a, b) => a + b, 0);
 
   const monthQuestionCount = Array.from({ length: totalDays }, (_, i) => {
     const d = i + 1;
-    const dateStr = new Date(year, month, d).toDateString();
-    return dailyQuestionCounts[dateStr] || 0;
+    const date = new Date(year, month, d);
+    const dateStr = date.toDateString();
+    let val = dailyQuestionCounts[dateStr] || 0;
+    if (dateStr === todayKey) val = activeQuestionsForToday;
+    return val;
   }).reduce((a, b) => a + b, 0);
 
   const monthStudyHours = (monthStudySeconds / 3600).toFixed(1);
@@ -2701,10 +2763,18 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
     const dateStr = d.toDateString();
+    let seconds = dailyStudySeconds[dateStr] || 0;
+    let questions = dailyQuestionCounts[dateStr] || 0;
+    
+    if (dateStr === todayKey) {
+      seconds = activeStudySecondsForToday;
+      questions = activeQuestionsForToday;
+    }
+
     return {
       name: d.toLocaleDateString('default', { weekday: 'short' }),
-      hours: Number(((dailyStudySeconds[dateStr] || 0) / 3600).toFixed(1)),
-      questions: dailyQuestionCounts[dateStr] || 0,
+      hours: Number((seconds / 3600).toFixed(1)),
+      questions: questions,
       fullDate: dateStr
     };
   });
@@ -2730,9 +2800,12 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     });
     const isRevisionDay = dayRevisions.length > 0;
     const eventLabel = markedEvents[dateStr];
-    const studySeconds = dailyStudySeconds[dateStr] || 0;
+    const studySecondsRaw = dailyStudySeconds[dateStr] || 0;
+    const studySeconds = isToday ? activeStudySecondsForToday : studySecondsRaw;
     const studyHours = (studySeconds / 3600).toFixed(1);
-    const questionCount = dailyQuestionCounts[dateStr] || 0;
+    
+    const questionCountRaw = dailyQuestionCounts[dateStr] || 0;
+    const questionCount = isToday ? activeQuestionsForToday : questionCountRaw;
     const hasActivity = studySeconds > 0 || questionCount > 0;
 
     const handleDayClick = () => {
@@ -3055,9 +3128,9 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                   {/* Left Column: Stats & Metrics */}
                   <div className="space-y-6 order-2 lg:order-1">
                     <PerformanceNode 
-                      elapsedSeconds={elapsedSeconds} 
+                      elapsedSeconds={activeStudySecondsForToday} 
                       targetHours={targetHours} 
-                      currentQuestions={currentQuestions} 
+                      currentQuestions={activeQuestionsForToday} 
                     />
 
                     <StreakBox 
@@ -3245,10 +3318,10 @@ const TimerPage = ({ settings }: TimerPageProps) => {
 
           {/* Distribution Charts */}
           <DistributionCharts 
-            subjectStudySeconds={subjectStudySeconds}
-            subjectQuestionCounts={subjectQuestionCounts}
-            dailyStudySeconds={dailyStudySeconds}
-            dailyQuestionCounts={dailyQuestionCounts}
+            subjectStudySeconds={{ ...subjectStudySeconds, [todayKey]: activeSubjectSeconds }}
+            subjectQuestionCounts={{ ...subjectQuestionCounts, [todayKey]: activeSubjectQuestions }}
+            dailyStudySeconds={{ ...dailyStudySeconds, [todayKey]: activeStudySecondsForToday }}
+            dailyQuestionCounts={{ ...dailyQuestionCounts, [todayKey]: activeQuestionsForToday }}
             getSubjectColor={getSubjectColor}
           />
 
