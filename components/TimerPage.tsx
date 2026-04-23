@@ -2252,20 +2252,20 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       let finalScore = Math.round((newTotalQuestions + (newTotalHours * 10)) / 2);
 
       // Anti-Cheat Mechanism: Eliminate HYPER-FAKE scores
-      // 1. Zero/Near-zero study time but many questions (e.g. 0hr study, 700 ques)
-      if (newTotalHours < 0.2 && newTotalQuestions > 20) {
-        finalScore = 0; // Eliminate from leaderboard completely
+      // 1. Zero/Near-zero study time but many questions (e.g. 0hr study with many Qs)
+      if (newTotalHours < 0.1 && newTotalQuestions > 25) {
+        finalScore = 0; // Eliminate from rankings
       }
       
-      // 2. Impossible Rate (e.g. >120 questions per hour consistently)
+      // 2. Impossible Rate (e.g. >80 questions per hour consistently)
       const globalRate = newTotalQuestions / Math.max(newTotalHours, 0.05);
-      if (globalRate > 120 && newTotalQuestions > 30) {
-        finalScore = Math.round(finalScore * 0.01); // Effectively remove from top ranks
+      if (globalRate > 80 && newTotalQuestions > 35) {
+        finalScore = 0; // Eliminate from rankings
       }
 
-      // 3. Current session validation (e.g. adding 100 questions in 0 minutes)
+      // 3. Current session validation
       const currentRate = questions / Math.max(hours, 0.01);
-      if (currentRate > 150 && questions > 20) {
+      if (currentRate > 120 && questions > 15) {
         finalScore = Math.round(currentData.rankScore || 0); 
       }
 
@@ -3174,7 +3174,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                   <div className="order-1 lg:order-2">
                     <motion.div 
                       whileHover={{ scale: 1.02 }}
-                      className="p-10 rounded-[60px] bg-neutral-950 border border-white/10 flex flex-col items-center justify-center text-center group relative overflow-hidden w-full max-w-[450px] mx-auto will-change-transform"
+                      className="p-12 rounded-[64px] bg-neutral-950 border border-white/10 flex flex-col items-center justify-center text-center group relative overflow-hidden w-full max-w-[500px] mx-auto shadow-[0_20px_50px_rgba(0,0,0,0.5)] will-change-transform"
                     >
                       {/* Animated Background Rings */}
                       <div className="absolute inset-0 z-0">
@@ -3209,10 +3209,10 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                       <div className="absolute inset-[2px] bg-black rounded-[58px] z-0" />
 
                       <div className="relative z-10 flex flex-col items-center w-full">
-                        <div className="flex flex-col w-full mb-10">
-                          <div className="flex items-center justify-center gap-2 mb-4">
-                            <Rocket className="w-4 h-4 text-purple-400" />
-                            <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.4em]">Mission Status</span>
+                        <div className="flex flex-col w-full mb-12">
+                          <div className="flex items-center justify-center gap-3 mb-6">
+                            <Rocket className="w-5 h-5 text-purple-400" />
+                            <span className="text-[11px] font-black text-white/40 uppercase tracking-[0.4em]">Mission Protocol</span>
                           </div>
                           
                           {/* Subject Selection */}

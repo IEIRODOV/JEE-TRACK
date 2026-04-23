@@ -684,10 +684,19 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
       let players: any[] = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
-        players.push({
-          uid: doc.id,
-          ...data
-        });
+        const questions = data.totalQuestions || 0;
+        const hours = data.totalHours || 0;
+        
+        // ANTI-CHEAT FILTER: Eliminate users with hyper-fake rates
+        const questionsPerHour = questions / Math.max(hours, 0.05);
+        const isSuspicious = (questionsPerHour > 80 && questions > 30) || (hours < 0.1 && questions > 25);
+        
+        if (!isSuspicious) {
+          players.push({
+            uid: doc.id,
+            ...data
+          });
+        }
       });
       setLeaderboard(players);
     } catch (error) {
@@ -718,24 +727,35 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
             ? data.rankScore 
             : (questions / 10 + hours)); 
           
-          players.push({ uid: doc.id, ...data, rankScore });
+          // ANTI-CHEAT FILTER: Eliminate users with hyper-fake rates (e.g. >80 questions/hr or 0hr study with many Qs)
+          const questionsPerHour = questions / Math.max(hours, 0.05);
+          const isSuspicious = (questionsPerHour > 80 && questions > 30) || (hours < 0.1 && questions > 25);
+          
+          if (!isSuspicious) {
+            players.push({ uid: doc.id, ...data, rankScore });
+          }
         });
 
         // Simple fallback only if completely empty
         if (players.length === 0) {
-          const usersQuery = query(collection(db, 'users'), limit(30));
+          const usersQuery = query(collection(db, 'users'), limit(50));
           const usersSnap = await getDocs(usersQuery);
           usersSnap.forEach(userDoc => {
             const userData = userDoc.data();
-            players.push({
-              uid: userDoc.id,
-              displayName: userData.displayName || 'Student',
-              photoURL: userData.photoURL || `https://ui-avatars.com/api/?name=${userData.displayName}&background=random`,
-              totalQuestions: userData.totalQuestions || 0,
-              totalHours: userData.totalHours || 0,
-              rankScore: userData.rankScore || 0,
-              streak: userData.streak || 0
-            });
+            const questions = userData.totalQuestions || 0;
+            const hours = userData.totalHours || 0;
+            const qp = questions / Math.max(hours, 0.05);
+            if (!(qp > 80 && questions > 30)) {
+              players.push({
+                uid: userDoc.id,
+                displayName: userData.displayName || 'Student',
+                photoURL: userData.photoURL || `https://ui-avatars.com/api/?name=${userData.displayName}&background=random`,
+                totalQuestions: questions,
+                totalHours: hours,
+                rankScore: userData.rankScore || 0,
+                streak: userData.streak || 0
+              });
+            }
           });
         }
         
@@ -746,7 +766,7 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
           return (b.totalQuestions || 0) - (a.totalQuestions || 0);
         });
 
-        setLeaderboard(players.slice(0, 20));
+        setLeaderboard(players.slice(0, 30));
         setIsLoading(false);
       } catch (error) {
         console.error('Leaderboard fetch error:', error);
