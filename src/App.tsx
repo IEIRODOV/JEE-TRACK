@@ -12,6 +12,7 @@ import { AnimatePresence, motion } from 'motion/react';
 
 import ProfilePage from "@/components/ProfilePage";
 import PulseLoader from "@/components/ui/pulse-loader";
+import LegalModal from "@/components/LegalModal";
 
 import { playTickSound } from '@/src/lib/sounds';
 
@@ -20,6 +21,10 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
+  const [legalModal, setLegalModal] = useState<{ isOpen: boolean, type: 'terms' | 'privacy' | 'refund' | 'cancellation' }>({
+    isOpen: false,
+    type: 'terms'
+  });
   const [settings, setSettings] = useState({ 
     activateChat: true, 
     activateCommunity: true, 
@@ -125,6 +130,21 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    // Check URL parameters for legal pages (for Razorpay compliance bot)
+    const urlParams = new URLSearchParams(window.location.search);
+    const page = urlParams.get('page');
+    if (page && ['terms', 'privacy', 'refund', 'cancellation'].includes(page)) {
+      setLegalModal({ isOpen: true, type: page as any });
+    }
+
+    const handleLegal = (e: any) => {
+      setLegalModal({ isOpen: true, type: e.detail });
+    };
+    window.addEventListener('show-legal', handleLegal);
+    return () => window.removeEventListener('show-legal', handleLegal);
+  }, []);
+
   if (loading) {
     return <PulseLoader fullScreen />;
   }
@@ -176,6 +196,11 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+      <LegalModal 
+        isOpen={legalModal.isOpen} 
+        onClose={() => setLegalModal(prev => ({ ...prev, isOpen: false }))} 
+        type={legalModal.type} 
+      />
 
       {!showAuth && <Navbar activeTab={activeTab} setActiveTab={handleTabChange} activateCommunity={settings.activateCommunity} />}
       </main>

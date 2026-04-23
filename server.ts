@@ -39,9 +39,10 @@ async function startServer() {
 
       const order = await razorpay.orders.create(options);
       res.json(order);
-    } catch (error) {
-      console.error("Razorpay order creation error:", error);
-      res.status(500).json({ error: "Internal Server Error" });
+    } catch (error: any) {
+      console.error("Razorpay order creation error FULL:", error);
+      const errorMessage = error.description || error.message || "Unknown Razorpay Error";
+      res.status(500).json({ error: `Razorpay Error: ${errorMessage}` });
     }
   });
 

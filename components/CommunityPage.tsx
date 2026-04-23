@@ -1280,6 +1280,16 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                     </button>
                   </div>
                 </div>
+
+                <div className="mt-8 flex items-center justify-center gap-4 text-[7px] font-black uppercase tracking-[0.2em] text-white/10 px-2 flex-wrap">
+                  <button onClick={() => { playTickSound(); window.dispatchEvent(new CustomEvent('show-legal', { detail: 'terms' })); }} className="hover:text-white/40 transition-colors pointer-events-auto cursor-pointer">Terms</button>
+                  <div className="w-1 h-1 bg-white/5 rounded-full" />
+                  <button onClick={() => { playTickSound(); window.dispatchEvent(new CustomEvent('show-legal', { detail: 'privacy' })); }} className="hover:text-white/40 transition-colors pointer-events-auto cursor-pointer">Privacy</button>
+                  <div className="w-1 h-1 bg-white/5 rounded-full" />
+                  <button onClick={() => { playTickSound(); window.dispatchEvent(new CustomEvent('show-legal', { detail: 'refund' })); }} className="hover:text-white/40 transition-colors pointer-events-auto cursor-pointer">Refund</button>
+                  <div className="w-1 h-1 bg-white/5 rounded-full" />
+                  <button onClick={() => { playTickSound(); window.dispatchEvent(new CustomEvent('show-legal', { detail: 'cancellation' })); }} className="hover:text-white/40 transition-colors pointer-events-auto cursor-pointer">Cancellation</button>
+                </div>
               </div>
             </div>
           )}

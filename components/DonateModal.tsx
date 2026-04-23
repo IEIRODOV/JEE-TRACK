@@ -65,14 +65,20 @@ const DonateModal: React.FC<DonateModalProps> = ({ isOpen, onClose }) => {
         }),
       });
 
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || `Server responded with ${response.status}`);
+      }
+
       const order = await response.json();
 
-      if (order.error) {
-        throw new Error(order.error);
+      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
+      if (!razorpayKey) {
+        throw new Error("Razorpay Key ID is missing in the environment configuration.");
       }
 
       const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        key: razorpayKey,
         amount: order.amount,
         currency: order.currency,
         name: "Pulse Mission Control",
@@ -133,9 +139,9 @@ const DonateModal: React.FC<DonateModalProps> = ({ isOpen, onClose }) => {
         alert("Payment failed: " + response.error.description);
       });
       rzp.open();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Order creation failed", error);
-      alert("Failed to initialize payment. Please check your connection.");
+      alert(`Payment Initialization Failed: ${error.message || "Please check your internet connection and try again."}`);
     } finally {
       setIsLoading(false);
     }
@@ -257,15 +263,27 @@ const DonateModal: React.FC<DonateModalProps> = ({ isOpen, onClose }) => {
                     </div>
                   </div>
 
-                  <div className="mt-8 flex items-center justify-center gap-4 text-[8px] font-black uppercase tracking-[0.3em] text-white/10">
-                    <div className="flex items-center gap-2">
-                      <ShieldCheck className="w-3 h-3" />
-                      Encrypted
+                  <div className="mt-8 flex flex-col gap-6">
+                    <div className="flex items-center justify-center gap-4 text-[7px] font-black uppercase tracking-[0.2em] text-white/20">
+                      <button onClick={() => { playTickSound(); window.dispatchEvent(new CustomEvent('show-legal', { detail: 'terms' })); }} className="hover:text-red-500 transition-colors pointer-events-auto">Terms</button>
+                      <div className="w-1 h-1 bg-white/10 rounded-full" />
+                      <button onClick={() => { playTickSound(); window.dispatchEvent(new CustomEvent('show-legal', { detail: 'privacy' })); }} className="hover:text-red-500 transition-colors pointer-events-auto">Privacy</button>
+                      <div className="w-1 h-1 bg-white/10 rounded-full" />
+                      <button onClick={() => { playTickSound(); window.dispatchEvent(new CustomEvent('show-legal', { detail: 'refund' })); }} className="hover:text-red-500 transition-colors pointer-events-auto">Refund</button>
+                      <div className="w-1 h-1 bg-white/10 rounded-full" />
+                      <button onClick={() => { playTickSound(); window.dispatchEvent(new CustomEvent('show-legal', { detail: 'cancellation' })); }} className="hover:text-red-500 transition-colors pointer-events-auto">Cancel</button>
                     </div>
-                    <div className="w-1 h-1 bg-white/5 rounded-full" />
-                    <div className="flex items-center gap-2 text-red-600/40">
-                      <Sparkles className="w-3 h-3" />
-                      Impact
+
+                    <div className="flex items-center justify-center gap-4 text-[8px] font-black uppercase tracking-[0.3em] text-white/10">
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck className="w-3 h-3 text-white/20" />
+                        Encrypted
+                      </div>
+                      <div className="w-1 h-1 bg-white/5 rounded-full" />
+                      <div className="flex items-center gap-2 text-red-600/40">
+                        <Sparkles className="w-3 h-3" />
+                        Impact
+                      </div>
                     </div>
                   </div>
                 </div>
