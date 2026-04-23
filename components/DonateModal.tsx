@@ -36,113 +36,38 @@ const DonateModal: React.FC<DonateModalProps> = ({ isOpen, onClose }) => {
     return () => unsubscribe();
   }, [isOpen]);
 
-  useEffect(() => {
-    // Load Razorpay script
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.async = true;
-    document.body.appendChild(script);
-
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
-
   const handleDonate = async () => {
     playTickSound();
     setIsLoading(true);
 
     try {
-      // Create Order
-      const response = await fetch('/api/create-order', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount: parseInt(amount) * 100, // paise
-          currency: 'INR',
-        }),
-      });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || `Server responded with ${response.status}`);
+      // Record donation attempt in Firestore (optional, but keeps the "Champions" list fresh)
+      const user = auth.currentUser;
+      try {
+        await addDoc(collection(db, 'donations'), {
+          uid: user?.uid || 'anonymous',
+          displayName: user?.displayName || 'Anonymous Hero',
+          photoURL: user?.photoURL || '',
+          amount: parseInt(amount),
+          createdAt: serverTimestamp(),
+          status: 'redirected'
+        });
+      } catch (e) {
+        console.error("Failed to record donation attempt", e);
       }
 
-      const order = await response.json();
+      // Open direct Razorpay payment page
+      window.open('https://razorpay.me/@jeepulse', '_blank');
+      
+      // Delay slightly then show success screen
+      setTimeout(() => {
+        setPaymentSuccess(true);
+        setIsLoading(false);
+      }, 1500);
 
-      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
-      if (!razorpayKey) {
-        throw new Error("Razorpay Key ID is missing in the environment configuration.");
-      }
-
-      const options = {
-        key: razorpayKey,
-        amount: order.amount,
-        currency: order.currency,
-        name: "Pulse Mission Control",
-        description: "Supporting free education and server hosting for students",
-        image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Pulse",
-        order_id: order.id,
-        handler: async (response: any) => {
-          // Verify Payment
-          try {
-            const verifyRes = await fetch('/api/verify-payment', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-              }),
-            });
-
-            const verifyData = await verifyRes.json();
-            if (verifyData.success) {
-              // Record donation in Firestore
-              const user = auth.currentUser;
-              try {
-                await addDoc(collection(db, 'donations'), {
-                  uid: user?.uid || 'anonymous',
-                  displayName: user?.displayName || 'Anonymous Hero',
-                  photoURL: user?.photoURL || '',
-                  amount: parseInt(amount),
-                  createdAt: serverTimestamp()
-                });
-              } catch (e) {
-                console.error("Failed to record donation", e);
-              }
-              setPaymentSuccess(true);
-            } else {
-              alert("Payment verification failed. Please contact support.");
-            }
-          } catch (e) {
-            console.error("Verification failed", e);
-          }
-        },
-        prefill: {
-          name: "",
-          email: "",
-          contact: ""
-        },
-        theme: {
-          color: "#9333ea"
-        }
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzp.on('payment.failed', function (response: any) {
-        console.error(response.error);
-        alert("Payment failed: " + response.error.description);
-      });
-      rzp.open();
     } catch (error: any) {
-      console.error("Order creation failed", error);
-      alert(`Payment Initialization Failed: ${error.message || "Please check your internet connection and try again."}`);
-    } finally {
+      console.error("Redirect failed", error);
+      alert("Failed to open payment page. Please check your browser's popup settings.");
       setIsLoading(false);
     }
   };
