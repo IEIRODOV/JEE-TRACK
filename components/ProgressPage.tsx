@@ -55,7 +55,19 @@ const ProgressPage = () => {
     const syncSession = () => {
       const sessionStr = localStorage.getItem('pulse_active_session');
       if (sessionStr) {
-        setSessionDelta(JSON.parse(sessionStr));
+        try {
+          const session = JSON.parse(sessionStr);
+          // Safety: If the session data is older than 60 seconds, ignore it (likely a stale tab/crash)
+          // This prevents "stale session doubling" where a crashed session's time is added to persistent data
+          if (session.lastUpdate && Date.now() - session.lastUpdate < 60000) {
+            setSessionDelta(session);
+          } else {
+            console.log("ProgressPage: Stale session detected, ignoring live delta.");
+            setSessionDelta({});
+          }
+        } catch (e) {
+          setSessionDelta({});
+        }
       } else {
         setSessionDelta({});
       }
@@ -385,7 +397,9 @@ const ProgressPage = () => {
         let liveTime = 0;
         let liveQuestions = 0;
         if (activeSub === subject && activeProp === id && sessionDelta.isRunning) {
-          liveTime = sessionDelta.studySeconds || 0;
+          // IMPORTANT: Use chapter-specific seconds from the live session mirror, NOT the total session studySeconds
+          // This avoids the "Chapter A" time being added to "Chapter B" if the user switches mid-session.
+          liveTime = sessionDelta.chapterSeconds || 0;
           liveQuestions = sessionDelta.questionsSolved || 0;
         }
 
@@ -653,7 +667,7 @@ const ProgressPage = () => {
                                           const activeChap = localStorage.getItem('pulse_selected_chapter');
                                           let liveTime = 0;
                                           if (activeSub === activeSubject && activeChap === chapter.id && sessionDelta.isRunning) {
-                                            liveTime = sessionDelta.studySeconds || 0;
+                                            liveTime = sessionDelta.chapterSeconds || 0;
                                           }
                                           const totalTime = (progress.studyTime || 0) + liveTime;
                                           return `${Math.floor(totalTime / 3600)}h ${Math.floor((totalTime % 3600) / 60)}m`;

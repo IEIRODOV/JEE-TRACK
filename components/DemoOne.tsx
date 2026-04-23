@@ -267,25 +267,26 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
   };
 
   const calculateStreak = (secondsMap: Record<string, number>, target: number) => {
+    if (!secondsMap || Object.keys(secondsMap).length === 0) return 0;
+    
     let currentStreak = 0;
     let checkDate = new Date();
     checkDate.setHours(0, 0, 0, 0);
-    const targetSeconds = target * 3600;
+    const targetSeconds = 30 * 60; // 30 minutes minimum for a streak day
 
     const todayStr = checkDate.toDateString();
     const todaySeconds = secondsMap[todayStr] || 0;
 
-    // If today's goal isn't met, check if yesterday's was. If not, streak is 0.
     if (todaySeconds < targetSeconds) {
       const yesterday = new Date(checkDate);
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayStr = yesterday.toDateString();
       if ((secondsMap[yesterdayStr] || 0) < targetSeconds) return 0;
-      // If yesterday was met, start counting from yesterday
       checkDate = yesterday;
     }
 
-    while (true) {
+    let safety = 0;
+    while (safety < 1000) {
       const dateStr = checkDate.toDateString();
       const seconds = secondsMap[dateStr] || 0;
       if (seconds >= targetSeconds) {
@@ -294,6 +295,7 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
       } else {
         break;
       }
+      safety++;
     }
     return currentStreak;
   };

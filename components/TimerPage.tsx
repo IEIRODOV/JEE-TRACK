@@ -1447,7 +1447,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   const [subjectQuestionCounts, setSubjectQuestionCounts] = useState<Record<string, Record<string, number>>>({});
   const [globalStats, setGlobalStats] = useState({ totalStudents: 0, totalQuestions: 0 });
   
-  const [targetHours, setTargetHours] = useState<number>(6);
+  const [targetHours, setTargetHours] = useState<number>(4);
   const [questionTarget, setQuestionTarget] = useState<number>(50);
   
   const [currentQuestions, setCurrentQuestions] = useState<number>(0);
@@ -1458,6 +1458,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   const [availableChapters, setAvailableChapters] = useState<{id: string, name: string}[]>([]);
   
   const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const isSyncingRef = useRef(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [accumulatedSeconds, setAccumulatedSeconds] = useState<number>(0);
@@ -1571,8 +1572,12 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   // Mirror session to localStorage for real-time Dashboard/Progress sync
   useEffect(() => {
     if (isTimerRunning && startTime) {
+      // Calculate duration spent specifically on the current chapter in this live session
+      const currentChapterLiveSeconds = elapsedSeconds - lastChapterSwitchSecondsRef.current;
+      
       const liveSession = {
-        studySeconds: elapsedSeconds - accumulatedSeconds,
+        studySeconds: elapsedSeconds - accumulatedSeconds, // Total session time
+        chapterSeconds: Math.max(0, currentChapterLiveSeconds), // Current chapter time
         questionsSolved: currentQuestions - lastSyncedQuestionsRef.current,
         isRunning: true,
         startTime,
@@ -2162,29 +2167,48 @@ const TimerPage = ({ settings }: TimerPageProps) => {
 
   // Memoized streak calculation for real-time updates
   useEffect(() => {
-    setStreak(calculateStreak(dailyStudySeconds, targetHours));
-  }, [dailyStudySeconds, targetHours]);
+    const s = calculateStreak(dailyStudySeconds, targetHours);
+    setStreak(s);
+    
+    // Auto-sync streak to leaderboard on load if stats were just loaded
+    if (isStatsLoaded && user) {
+      const leaderboardRef = doc(db, 'leaderboard', user.uid);
+      getDoc(leaderboardRef).then(snap => {
+        if (snap.exists()) {
+          const data = snap.data();
+          if (data.streak !== s) {
+            updateDoc(leaderboardRef, { streak: s, lastUpdated: serverTimestamp() });
+          }
+        }
+      });
+    }
+  }, [dailyStudySeconds, targetHours, isStatsLoaded, user]);
 
   const calculateStreak = (secondsMap: Record<string, number>, target: number) => {
+    if (!secondsMap || Object.keys(secondsMap).length === 0) return 0;
+    
     let currentStreak = 0;
     let checkDate = new Date();
     checkDate.setHours(0, 0, 0, 0);
-    const targetSeconds = target * 3600;
+    const targetSeconds = 30 * 60; // 30 minutes minimum for a streak day as requested by user
 
     const todayStr = checkDate.toDateString();
     const todaySeconds = secondsMap[todayStr] || 0;
 
-    // If today's goal isn't met, check if yesterday's was. If not, streak is 0.
+    // If today's goal isn't met, we check if yesterday's was. 
+    // If neither today (so far) nor yesterday met 30m target, streak is 0.
     if (todaySeconds < targetSeconds) {
       const yesterday = new Date(checkDate);
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayStr = yesterday.toDateString();
       if ((secondsMap[yesterdayStr] || 0) < targetSeconds) return 0;
-      // If yesterday was met, start counting from yesterday
+      // Start counting backwards from yesterday
       checkDate = yesterday;
     }
 
-    while (true) {
+    // Safety: prevent infinite loops if dates go weird
+    let safety = 0;
+    while (safety < 1000) {
       const dateStr = checkDate.toDateString();
       const seconds = secondsMap[dateStr] || 0;
       if (seconds >= targetSeconds) {
@@ -2193,6 +2217,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       } else {
         break;
       }
+      safety++;
     }
     return currentStreak;
   };
@@ -2304,12 +2329,11 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   }, [isAuthReady, !!user, isStatsLoaded]);
 
   const toggleTimer = async () => {
-    if (!isStatsLoaded || isTimerLoading) {
-      console.warn("Cannot toggle timer: Stats not yet loaded from Firestore.");
-      return;
-    }
-
-    if (settings?.timerSoundEnabled) {
+    if (!isStatsLoaded || isTimerLoading || isSyncingRef.current) return;
+    isSyncingRef.current = true;
+    
+    try {
+      if (settings?.timerSoundEnabled) {
       if (settings.timerSoundType === 'tank') {
         playTankSound();
       } else if (settings.timerSoundType === 'jet') {
@@ -2356,71 +2380,56 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       const examId = `${examBase}_${year}`;
       const progressRef = doc(db, 'users', user.uid, 'data', `progress-${examId}`);
 
-      // Final "flush" of the current chapter's session segment
       const currentSub = selectedSubjectRef.current;
       const currentChap = selectedChapterRef.current;
-      
       const finalTimeDeltaForChapter = finalElapsed - lastChapterSwitchSecondsRef.current;
       const finalQuestionDeltaForChapter = currentQuestions - lastChapterSwitchQuestionsRef.current;
+
+      // 1. Accumulate session segments locally per chapter to avoid multiple increment objects for the same field
+      const localChapterDelta: Record<string, Record<string, { seconds: number, questions: number }>> = {};
       
-      const chapterUpdates: Record<string, any> = {};
-      
-      // 1. Roll up historical session segments (from chapter switches)
+      const rollup = (sub: string, chap: string, s: number, q: number) => {
+        if (!localChapterDelta[sub]) localChapterDelta[sub] = {};
+        if (!localChapterDelta[sub][chap]) localChapterDelta[sub][chap] = { seconds: 0, questions: 0 };
+        localChapterDelta[sub][chap].seconds += s;
+        localChapterDelta[sub][chap].questions += q;
+      };
+
+      // Add historical segments from switches
       Object.entries(sessionChapterStatsRef.current).forEach(([sub, chapters]) => {
         Object.entries(chapters).forEach(([chap, stats]) => {
           if (stats.seconds > 0 || stats.questions > 0) {
-            if (!chapterUpdates[sub]) chapterUpdates[sub] = {};
-            chapterUpdates[sub][chap] = {
-              studyTime: increment(stats.seconds),
-              questions: increment(stats.questions)
-            };
+            rollup(sub, chap, stats.seconds, stats.questions);
           }
         });
       });
 
-      // 2. Roll up final segment since last switch/tick
+      // Add final segment since last switch/tick
       if (currentSub && currentChap && (finalTimeDeltaForChapter > 0 || finalQuestionDeltaForChapter > 0)) {
-        if (!chapterUpdates[currentSub]) chapterUpdates[currentSub] = {};
-        if (!chapterUpdates[currentSub][currentChap]) chapterUpdates[currentSub][currentChap] = { studyTime: 0, questions: 0 };
-        
-        // Use a safe helper to get numerical value from possibly-increment object
-        const getVal = (v: any) => (typeof v === 'number' ? v : (v?.n || 0));
-        
-        chapterUpdates[currentSub][currentChap] = {
-          studyTime: increment(getVal(chapterUpdates[currentSub][currentChap].studyTime) + Math.max(0, finalTimeDeltaForChapter)),
-          questions: increment(getVal(chapterUpdates[currentSub][currentChap].questions) + Math.max(0, finalQuestionDeltaForChapter))
-        };
+        rollup(currentSub, currentChap, Math.max(0, finalTimeDeltaForChapter), Math.max(0, finalQuestionDeltaForChapter));
       }
+      
+      // 2. Convert local delta to Firestore increment updates
+      const chapterUpdates: Record<string, any> = {};
+      Object.entries(localChapterDelta).forEach(([sub, chapters]) => {
+        Object.entries(chapters).forEach(([chap, stats]) => {
+          if (!chapterUpdates[sub]) chapterUpdates[sub] = {};
+          chapterUpdates[sub][chap] = {
+            studyTime: increment(stats.seconds),
+            questions: increment(stats.questions)
+          };
+        });
+      });
 
       // 3. Construct updates for dailyStats subject-wise tracking
-      const subjectSecondsUpdates: Record<string, any> = {};
-      const subjectQuestionsUpdates: Record<string, any> = {};
-      
-      // Also account for all segments in chapterUpdates
-      Object.entries(chapterUpdates).forEach(([sub, chaps]) => {
-         let subTime = 0;
-         let subQues = 0;
-         Object.values(chaps).forEach((stats: any) => {
-            // Note: chapterUpdates values are increment() objects. We need to extract the value we just put in.
-            // But actually, we just need to sum up the sessionChapterStats and the final segment.
-            // Let's do it directly from sessionChapterStatsRef.current
-         });
-      });
-      
-      // Correct approach: Calculate subject totals from session stats + final segment
       const sessionSubTotals: Record<string, { seconds: number, questions: number }> = {};
-      Object.entries(sessionChapterStatsRef.current).forEach(([sub, chaps]) => {
+      Object.entries(localChapterDelta).forEach(([sub, chapters]) => {
         if (!sessionSubTotals[sub]) sessionSubTotals[sub] = { seconds: 0, questions: 0 };
-        Object.values(chaps).forEach(stats => {
+        Object.values(chapters).forEach(stats => {
           sessionSubTotals[sub].seconds += stats.seconds;
           sessionSubTotals[sub].questions += stats.questions;
         });
       });
-      if (currentSub) {
-        if (!sessionSubTotals[currentSub]) sessionSubTotals[currentSub] = { seconds: 0, questions: 0 };
-        sessionSubTotals[currentSub].seconds += Math.max(0, finalTimeDeltaForChapter);
-        sessionSubTotals[currentSub].questions += Math.max(0, finalQuestionDeltaForChapter);
-      }
 
       // Reset session accumulators
       sessionChapterStatsRef.current = {};
@@ -2480,6 +2489,11 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       } catch (error) {
         handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/dailyStats/${today}`);
       }
+    }
+    } catch (error) {
+      console.error("Timer toggle error:", error);
+    } finally {
+      isSyncingRef.current = false;
     }
   };
 

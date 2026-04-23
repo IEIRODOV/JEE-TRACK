@@ -28,7 +28,7 @@ export default function App() {
   const [settings, setSettings] = useState({ 
     activateChat: true, 
     activateCommunity: true, 
-    streakGoal: 7,
+    streakGoal: 4,
     timerSoundEnabled: true,
     timerSoundType: 'f1'
   });
@@ -80,7 +80,7 @@ export default function App() {
             setSettings({
               activateChat: data.activateChat !== undefined ? data.activateChat : (data.deactivateChat !== undefined ? !data.deactivateChat : true),
               activateCommunity: data.activateCommunity !== undefined ? data.activateCommunity : (data.deactivateCommunity !== undefined ? !data.deactivateCommunity : true),
-              streakGoal: data.streakGoal || 7,
+              streakGoal: data.streakGoal || 4,
               timerSoundEnabled: data.timerSoundEnabled !== undefined ? data.timerSoundEnabled : true,
               timerSoundType: data.timerSoundType || 'f1'
             });
