@@ -3102,9 +3102,9 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(17,24,39,1)_0%,rgba(0,0,0,1)_100%)] pointer-events-none" />
       
       <div className="relative z-10 flex flex-col items-center pt-16 pb-24 px-4">
-        <div className="w-full max-w-4xl">
+        <div className="w-full max-w-[1400px]">
           {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-6 max-w-4xl mx-auto w-full">
             <div className="flex items-center gap-6">
               <div className="relative">
                 <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center group overflow-hidden">
@@ -3130,11 +3130,12 @@ const TimerPage = ({ settings }: TimerPageProps) => {
           </div>
 
           {/* Motivational Quote Banner */}
-          <motion.div 
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="w-full mb-8 relative group"
-          >
+          <div className="max-w-4xl mx-auto w-full">
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full mb-8 relative group"
+            >
             <div className="absolute inset-0 bg-zinc-800/20 rounded-2xl blur-xl opacity-50" />
             <div className="relative py-6 px-10 rounded-xl bg-zinc-900/90 backdrop-blur-xl border border-white/10 overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
               <div className="flex items-center gap-6 flex-1 min-w-0">
@@ -3175,8 +3176,9 @@ const TimerPage = ({ settings }: TimerPageProps) => {
               </div>
             </div>
           </motion.div>
+        </div>
 
-          <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait">
             {activeTab === 'timer' && (
               <motion.div
                 key="timer-tab"
@@ -3184,9 +3186,11 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.3 }}
+                className="w-full"
               >
                 {/* Monthly Stats Summary */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div className="max-w-4xl mx-auto w-full">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -3217,9 +3221,10 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                     </div>
                   </motion.div>
                 </div>
+              </div>
 
-                {/* Trackers Section */}
-                <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr_1fr] gap-8 mb-12 items-start">
+              {/* Trackers Section */}
+              <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr_320px] gap-6 mb-12 items-start w-full max-w-7xl mx-auto">
                   {/* Left Column: Stats & Metrics */}
                   <div className="space-y-6 order-2 lg:order-1">
                     <PerformanceNode 
@@ -3235,10 +3240,10 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                   </div>
 
                   {/* Center Column: Futuristic Stopwatch */}
-                  <div className="order-1 lg:order-2">
+                  <div className="order-1 lg:order-2 flex justify-center">
                     <motion.div 
                       whileHover={{ scale: 1.01 }}
-                      className="p-16 rounded-[72px] bg-neutral-950 border border-white/10 flex flex-col items-center justify-center text-center group relative overflow-hidden w-full max-w-[850px] mx-auto shadow-[0_40px_100px_rgba(0,0,0,0.7)] border-glow-violet transition-all duration-500"
+                      className="p-14 rounded-[72px] bg-neutral-950 border border-white/10 flex flex-col items-center justify-center text-center group relative overflow-hidden w-full max-w-[850px] shadow-[0_40px_100px_rgba(0,0,0,0.7)] border-glow-violet transition-all duration-500"
                     >
                       {/* Animated Background Rings */}
                       <div className="absolute inset-0 z-0">
@@ -3381,17 +3386,17 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                                 </>
                               )}
                               
-                              <div className="flex items-center justify-center gap-4 md:gap-8 w-full">
+                              <div className="flex items-center justify-center gap-6 md:gap-10 w-full">
                                 {[
                                   { val: Math.floor(elapsedSeconds / 3600), label: 'HOURS' },
                                   { val: Math.floor((elapsedSeconds % 3600) / 60), label: 'MINUTES' },
                                   { val: elapsedSeconds % 60, label: 'SECONDS' }
                                 ].map((unit, i) => (
                                   <div key={unit.label} className="flex flex-col items-center">
-                                    <div className="text-6xl md:text-8xl lg:text-9xl font-mono font-black text-white tabular-nums tracking-tighter leading-none bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]">
+                                    <div className="text-7xl md:text-8xl lg:text-9xl font-mono font-black text-white tabular-nums tracking-tighter leading-none bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]">
                                       {unit.val.toString().padStart(2, '0')}
                                     </div>
-                                    <div className="mt-4 text-[9px] md:text-[11px] font-black text-white/20 uppercase tracking-[0.3em] font-mono">
+                                    <div className="mt-4 text-[10px] md:text-[11px] font-black text-white/20 uppercase tracking-[0.3em] font-mono">
                                       {unit.label}
                                     </div>
                                   </div>
@@ -3437,22 +3442,24 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                   />
                 </div>
 
-          {/* Distribution Charts */}
-          <DistributionCharts 
-            subjectStudySeconds={{ ...subjectStudySeconds, [todayKey]: activeSubjectSeconds }}
-            subjectQuestionCounts={{ ...subjectQuestionCounts, [todayKey]: activeSubjectQuestions }}
-            dailyStudySeconds={{ ...dailyStudySeconds, [todayKey]: activeStudySecondsForToday }}
-            dailyQuestionCounts={{ ...dailyQuestionCounts, [todayKey]: activeQuestionsForToday }}
-            getSubjectColor={getSubjectColor}
-          />
+          <div className="max-w-5xl mx-auto w-full">
+            {/* Distribution Charts */}
+            <DistributionCharts 
+              subjectStudySeconds={{ ...subjectStudySeconds, [todayKey]: activeSubjectSeconds }}
+              subjectQuestionCounts={{ ...subjectQuestionCounts, [todayKey]: activeSubjectQuestions }}
+              dailyStudySeconds={{ ...dailyStudySeconds, [todayKey]: activeStudySecondsForToday }}
+              dailyQuestionCounts={{ ...dailyQuestionCounts, [todayKey]: activeQuestionsForToday }}
+              getSubjectColor={getSubjectColor}
+            />
 
-          {/* Bar Graphs Section */}
-          <BarGraphs 
-            barChartData={barChartData}
-            targetHours={targetHours}
-            questionTarget={questionTarget}
-            revisionSlots={revisionSlots}
-          />
+            {/* Bar Graphs Section */}
+            <BarGraphs 
+              barChartData={barChartData}
+              targetHours={targetHours}
+              questionTarget={questionTarget}
+              revisionSlots={revisionSlots}
+            />
+          </div>
 
           {/* Go to Test Section Button Removed as per User Request */}
 
@@ -3460,13 +3467,14 @@ const TimerPage = ({ settings }: TimerPageProps) => {
             )}
 
             {activeTab === 'test' && (
-        <motion.div
-          key="test-tab"
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
-          transition={{ duration: 0.3 }}
-        >
+              <motion.div
+                key="test-tab"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                className="w-full max-w-4xl mx-auto"
+              >
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-6">
             <div className="flex items-center gap-2 bg-white/5 p-1 rounded-xl border border-white/10 backdrop-blur-xl">
               <button 
@@ -3642,15 +3650,17 @@ const TimerPage = ({ settings }: TimerPageProps) => {
             )}
 
             {activeTab === 'revision' && (
-              <RevisionPage 
-                subjectStudySeconds={{ ...subjectStudySeconds, [todayKey]: activeSubjectSeconds }}
-                subjectQuestionCounts={{ ...subjectQuestionCounts, [todayKey]: activeSubjectQuestions }}
-                getSubjectColor={getSubjectColor}
-                revisionSlots={revisionSlots}
-                setRevisionSlots={setRevisionSlots}
-                availableSubjects={availableSubjects}
-                setSubjectRevisionCounts={setSubjectRevisionCounts}
-              />
+              <div className="w-full max-w-5xl mx-auto">
+                <RevisionPage 
+                  subjectStudySeconds={{ ...subjectStudySeconds, [todayKey]: activeSubjectSeconds }}
+                  subjectQuestionCounts={{ ...subjectQuestionCounts, [todayKey]: activeSubjectQuestions }}
+                  getSubjectColor={getSubjectColor}
+                  revisionSlots={revisionSlots}
+                  setRevisionSlots={setRevisionSlots}
+                  availableSubjects={availableSubjects}
+                  setSubjectRevisionCounts={setSubjectRevisionCounts}
+                />
+              </div>
             )}
 
             {activeTab === 'calendar' && (
@@ -3659,7 +3669,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="space-y-8"
+                className="space-y-8 w-full max-w-5xl mx-auto"
               >
                 <div className="flex items-center justify-between">
                    <div className="flex items-center gap-4">
