@@ -9,6 +9,7 @@ import AuthPage from "@/components/AuthPage";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { auth, onAuthStateChanged, User, db, setDoc, doc, getDoc } from '@/src/firebase';
 import { AnimatePresence, motion } from 'motion/react';
+import { Toaster } from 'sonner';
 
 import ProfilePage from "@/components/ProfilePage";
 import PulseLoader from "@/components/ui/pulse-loader";
@@ -209,6 +210,7 @@ export default function App() {
       />
 
       {!showAuth && <Navbar activeTab={activeTab} setActiveTab={handleTabChange} activateCommunity={settings.activateCommunity} />}
+      <Toaster position="top-right" expand={false} richColors theme="dark" />
       </main>
     </ErrorBoundary>
   );

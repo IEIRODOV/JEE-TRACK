@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, MessageSquare, Heart, X, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'sonner';
 import { auth, db, collection, query, where, orderBy, onSnapshot, limit, doc, updateDoc, serverTimestamp, writeBatch } from '@/src/firebase';
 
 const Notifications = () => {
@@ -22,6 +23,33 @@ const Notifications = () => {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const notifs: any[] = [];
       let unread = 0;
+      
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          const data = change.doc.data();
+          // Only show toast for unread notifications that were created recently (not on initial load)
+          if (!data.read && data.createdAt) {
+            const now = Date.now();
+            const createdAt = data.createdAt.toMillis ? data.createdAt.toMillis() : (data.createdAt.seconds ? data.createdAt.seconds * 1000 : new Date(data.createdAt).getTime());
+            
+            // If notification is very recent (less than 5 seconds ago)
+            if (now - createdAt < 5000) {
+              toast(data.fromName, {
+                description: data.type === 'reaction' ? `reacted ${data.content} to your post` : 
+                             data.type === 'post_reply' ? `replied: "${data.content}"` :
+                             data.type === 'comment_reply' ? `replied: "${data.content}"` :
+                             'new notification',
+                icon: data.type === 'reaction' ? <Heart className="w-4 h-4 text-rose-500" /> : <MessageSquare className="w-4 h-4 text-blue-500" />,
+                action: {
+                  label: 'View',
+                  onClick: () => setIsOpen(true)
+                }
+              });
+            }
+          }
+        }
+      });
+
       snapshot.forEach((doc) => {
         const data = doc.data();
         notifs.push({ id: doc.id, ...data });

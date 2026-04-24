@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, memo, useCallback } from '
 import { Trophy, Users, Target, Zap, ChevronRight, Globe, ShieldCheck, TrendingUp, Medal, Plus, Award, Clock, Trash2, X, UserPlus, HelpCircle, Send, MessageSquare, Copy, RefreshCw } from 'lucide-react';
 import PulseLoader from "@/components/ui/pulse-loader";
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'sonner';
 import { auth, onAuthStateChanged, User, db, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, limit, Timestamp, setDoc, doc, getDoc, getDocs, where, arrayUnion, arrayRemove, increment, handleFirestoreError, OperationType, getCountFromServer, writeBatch } from '@/src/firebase';
 import { playTickSound } from '@/src/lib/sounds';
 
@@ -687,9 +688,9 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
         const questions = data.totalQuestions || 0;
         const hours = data.totalHours || 0;
         
-        // ANTI-CHEAT FILTER: Eliminate users with hyper-fake rates
+        // ANTI-CHEAT FILTER: Eliminate users with hyper-fake rates (e.g. >60 questions/hr or 0hr study with many Qs)
         const questionsPerHour = questions / Math.max(hours, 0.05);
-        const isSuspicious = (questionsPerHour > 80 && questions > 30) || (hours < 0.1 && questions > 25);
+        const isSuspicious = (questionsPerHour > 60 && questions > 30) || (hours < 0.1 && questions > 25);
         
         if (!isSuspicious) {
           players.push({
@@ -727,9 +728,9 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
             ? data.rankScore 
             : (questions / 10 + hours)); 
           
-          // ANTI-CHEAT FILTER: Eliminate users with hyper-fake rates (e.g. >80 questions/hr or 0hr study with many Qs)
+          // ANTI-CHEAT FILTER: Eliminate users with hyper-fake rates (e.g. >60 questions/hr or 0hr study with many Qs)
           const questionsPerHour = questions / Math.max(hours, 0.05);
-          const isSuspicious = (questionsPerHour > 80 && questions > 30) || (hours < 0.1 && questions > 25);
+          const isSuspicious = (questionsPerHour > 60 && questions > 30) || (hours < 0.1 && questions > 25);
           
           if (!isSuspicious) {
             players.push({ uid: doc.id, ...data, rankScore });
@@ -1187,7 +1188,7 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
                                 {messages.map((msg) => {
                                   const isMe = msg.senderId === user.uid;
                                   return (
-                                    <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                    <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} group/msg`}>
                                       <div className={`max-w-[80%] rounded-2xl p-3 relative
                                         ${isMe ? 'bg-purple-600 text-white rounded-tr-none' : 'bg-white/10 text-white rounded-tl-none border border-white/10'}
                                         ${msg.type === 'doubt' ? 'ring-2 ring-amber-500/50 border-amber-500/30' : ''}`}
@@ -1198,7 +1199,9 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
                                             <span className="text-[8px] font-black uppercase tracking-widest text-amber-400">Doubt</span>
                                           </div>
                                         )}
-                                        <p className="text-xs leading-relaxed">{msg.text}</p>
+                                        <div className="flex items-center justify-between gap-4 mb-1">
+                                          <p className="text-xs leading-relaxed select-text cursor-text">{msg.text}</p>
+                                        </div>
                                       </div>
                                     </div>
                                   );

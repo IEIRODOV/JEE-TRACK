@@ -30,9 +30,12 @@ import {
   ShieldCheck,
   Pencil,
   Share2,
-  RotateCcw
+  RotateCcw,
+  Copy,
+  Check
 } from 'lucide-react';
 import PulseLoader from "@/components/ui/pulse-loader";
+import { toast } from 'sonner';
 import { 
   auth, 
   onAuthStateChanged, 
@@ -1042,7 +1045,18 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
 
   const handleShare = (postId: string) => {
     const url = `${window.location.origin}/community?post=${postId}`;
-    navigator.clipboard.writeText(url).catch(err => console.error("Failed to copy:", err));
+    navigator.clipboard.writeText(url).then(() => {
+      toast.success("Link copied to clipboard!");
+    }).catch(err => console.error("Failed to copy:", err));
+  };
+
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const copyToClipboard = (text: string, id: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedId(id);
+      toast.success("Text copied!");
+      setTimeout(() => setCopiedId(null), 2000);
+    });
   };
 
   const formatTime = React.useCallback((timestamp: any) => {
@@ -1297,8 +1311,8 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                           <div className={`w-12 h-12 rounded-2xl ${resource.bg} flex items-center justify-center mb-6 border border-white/5`}>
                             <resource.icon className={`w-6 h-6 ${resource.color}`} />
                           </div>
-                          <h3 className="text-lg font-black text-white mb-2 tracking-tight uppercase">{resource.title}</h3>
-                          <p className="text-white/40 text-[10px] leading-relaxed mb-6 font-bold uppercase tracking-widest line-clamp-2">
+                          <h3 className="text-lg font-black text-white mb-2 tracking-tight uppercase select-text">{resource.title}</h3>
+                          <p className="text-white/40 text-[10px] leading-relaxed mb-6 font-bold uppercase tracking-widest line-clamp-2 select-text">
                             {resource.description}
                           </p>
                           <div className="flex items-center justify-between">
@@ -1550,9 +1564,9 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                                 </div>
                               </div>
                             ) : (
-                              <p className="text-[#d7dadc] text-sm leading-relaxed font-medium whitespace-pre-wrap break-words">
-                                {post.text}
-                              </p>
+                                <p className="text-[#d7dadc] text-sm leading-relaxed font-medium whitespace-pre-wrap break-words select-text">
+                                  {post.text}
+                                </p>
                             )}
                           </div>
 
@@ -1770,9 +1784,9 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                                                     </div>
                                                   </div>
                                                 ) : (
-                                                  <p className="text-white/80 text-sm leading-relaxed break-words">
-                                                    {comment.text}
-                                                  </p>
+                                                    <p className="text-white/80 text-sm leading-relaxed break-words select-text">
+                                                      {comment.text}
+                                                    </p>
                                                 )}
                                               </div>
 
@@ -1855,12 +1869,12 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                                                           </div>
                                                         </div>
                                                       ) : (
-                                                        <p className="text-white/80 text-xs leading-relaxed break-words">
-                                                          {reply.replyTo && (
-                                                            <span className="text-purple-400 font-black mr-1.5">@{reply.replyTo}</span>
-                                                          )}
-                                                          {reply.text}
-                                                        </p>
+                                                          <p className="text-white/80 text-xs leading-relaxed break-words select-text">
+                                                            {reply.replyTo && (
+                                                              <span className="text-purple-400 font-black mr-1.5">@{reply.replyTo}</span>
+                                                            )}
+                                                            {reply.text}
+                                                          </p>
                                                       )}
                                                     </div>
                                                     
