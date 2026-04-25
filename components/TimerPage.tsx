@@ -55,7 +55,7 @@ const SpringLeverNav = ({ activeTab, setActiveTab, setShowDeleteConfirm }: { act
 
   return (
     <div className="flex flex-col items-center gap-8 mb-16 pt-8">
-      <div className="flex items-center gap-2 p-1.5 rounded-[18px] bg-[#080808] border border-white/5 shadow-2xl backdrop-blur-3xl">
+      <div className="flex items-center gap-2 p-1.5 rounded-[18px] bg-[#080808] border border-white/15 shadow-2xl backdrop-blur-3xl">
         {tabs.map((tab, idx) => (
           <button
             key={tab.id}
@@ -229,7 +229,7 @@ const RevisionPage = ({ subjectStudySeconds, subjectQuestionCounts, getSubjectCo
       className="space-y-12"
     >
       {/* 1-4-12 Technique Overview */}
-      <div className="p-10 rounded-[56px] bg-gradient-to-br from-zinc-900 via-black to-zinc-900 border border-white/10 relative overflow-hidden shadow-2xl">
+      <div className="p-10 rounded-[56px] bg-gradient-to-br from-zinc-900 via-black to-zinc-900 border border-white/20 relative overflow-hidden shadow-2xl">
         <div className="absolute top-0 right-0 p-8 opacity-[0.03]">
           <Shield className="w-64 h-64" />
         </div>
@@ -245,8 +245,8 @@ const RevisionPage = ({ subjectStudySeconds, subjectQuestionCounts, getSubjectCo
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <div className="flex border border-white/5 rounded-2xl p-1 bg-black/40 backdrop-blur-xl">
-                <div className="px-4 py-2 text-[11px] font-bold text-white/40 uppercase tracking-wide border-r border-white/5">Science-backed learning</div>
+              <div className="flex border border-white/10 rounded-2xl p-1 bg-black/40 backdrop-blur-xl">
+                <div className="px-4 py-2 text-[11px] font-bold text-white/40 uppercase tracking-wide border-r border-white/10">Science-backed learning</div>
                 <div className="px-4 py-2 text-[11px] font-bold text-amber-500 uppercase tracking-wide animate-pulse">Running</div>
               </div>
               <button 
@@ -265,10 +265,10 @@ const RevisionPage = ({ subjectStudySeconds, subjectQuestionCounts, getSubjectCo
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: i * 0.1 }}
-                className="flex flex-col gap-6 p-8 rounded-[40px] bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all group relative"
+                className="flex flex-col gap-6 p-8 rounded-[40px] bg-white/[0.02] border border-white/10 hover:bg-white/[0.04] transition-all group relative"
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent rounded-[40px] opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className={`w-12 h-12 rounded-2xl bg-black/40 flex items-center justify-center ${stage.color} ${stage.glow} border border-white/5 transition-transform group-hover:scale-110`}>
+                <div className={`w-12 h-12 rounded-2xl bg-black/40 flex items-center justify-center ${stage.color} ${stage.glow} border border-white/20 transition-transform group-hover:scale-110`}>
                   <stage.icon className="w-6 h-6" />
                 </div>
                 <div>
@@ -364,7 +364,7 @@ const RevisionPage = ({ subjectStudySeconds, subjectQuestionCounts, getSubjectCo
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.5, transition: { duration: 0.2 } }}
                 whileHover={{ y: -8, scale: 1.02 }}
-                className="p-8 rounded-[48px] bg-zinc-900/40 border border-white/5 backdrop-blur-3xl relative overflow-hidden group shadow-xl h-full flex flex-col"
+                className="p-8 rounded-[48px] bg-zinc-900/40 border border-white/10 backdrop-blur-3xl relative overflow-hidden group shadow-xl h-full flex flex-col"
               >
               <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-20 transition-all duration-500 transform group-hover:rotate-12">
                 <Zap className="w-20 h-20" style={{ color: getSubjectColor(slot.subject) }} />
@@ -396,7 +396,7 @@ const RevisionPage = ({ subjectStudySeconds, subjectQuestionCounts, getSubjectCo
               <div className="space-y-6 relative z-10">
                 {/* Spaced Repetition Nodes */}
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center text-xs font-bold text-white/40 uppercase tracking-wide">
+                  <div className="flex justify-between items-center text-xs font-bold text-white/40 uppercase tracking-wide border-b border-white/10 pb-2 mb-2">
                      <span>Revision Milestones</span>
                      <span>Status</span>
                   </div>
@@ -453,7 +453,7 @@ const RevisionPage = ({ subjectStudySeconds, subjectQuestionCounts, getSubjectCo
                   </div>
                 </div>
 
-                <div className="pt-6 mt-6 border-t border-white/5 flex gap-2">
+                <div className="pt-6 mt-6 border-t border-white/10 flex gap-2">
                   <button 
                     disabled={slot.completed || ((slot.currentStage === 1 && daysSinceStart < 4) || (slot.currentStage === 2 && daysSinceStart < 12))}
                     onClick={() => markStageComplete(slot)}
@@ -473,9 +473,9 @@ const RevisionPage = ({ subjectStudySeconds, subjectQuestionCounts, getSubjectCo
               </div>
               
               {/* Status Footer */}
-              <div className="flex justify-between items-center mt-6 pt-4 border-t border-white/5 opacity-60">
+              <div className="flex justify-between items-center mt-6 pt-4 border-t border-white/10 opacity-60">
                  <div className="text-[7px] font-black text-white/20 uppercase tracking-widest font-mono">Day {daysSinceStart + 1} of 12</div>
-                 <div className="flex items-center gap-1.5 p-1 px-2 rounded-full bg-white/5 border border-white/5">
+                 <div className="flex items-center gap-1.5 p-1 px-2 rounded-full bg-white/5 border border-white/10">
                     <div className={`w-1 h-1 rounded-full ${slot.completed ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
                     <span className="text-[6px] font-black text-white/40 uppercase tracking-widest leading-none">{slot.completed ? 'Win' : 'Cycling'}</span>
                  </div>
@@ -502,7 +502,7 @@ const PerformanceNode = React.memo(({ elapsedSeconds, targetHours, currentQuesti
   <motion.div 
     initial={{ opacity: 0, x: -20 }}
     animate={{ opacity: 1, x: 0 }}
-    className="p-6 rounded-[24px] bg-[#0c0c0c] border border-white/5 relative overflow-hidden group shadow-xl"
+    className="p-6 rounded-[24px] bg-[#0c0c0c] border border-white/15 relative overflow-hidden group shadow-xl"
   >
     <div className="flex items-center justify-between mb-8">
       <div className="flex items-center gap-2">
@@ -589,7 +589,7 @@ const SubjectMasteryTracker = ({ subjects, studySeconds, questionCounts, revisio
             <motion.div
               key={sub}
               whileHover={{ y: -5 }}
-              className="p-8 rounded-[32px] bg-[#0c0c0c] border border-white/5 relative overflow-hidden group shadow-2xl"
+              className="p-8 rounded-[32px] bg-[#0c0c0c] border border-white/15 relative overflow-hidden group shadow-2xl"
             >
               <div 
                 className="absolute top-0 right-0 w-32 h-32 blur-[80px] opacity-10 group-hover:opacity-20 transition-opacity"
@@ -686,7 +686,7 @@ const StreakBox = React.memo(({ streak, dailyStudySeconds }: { streak: number, d
     initial={{ opacity: 0, x: -20 }}
     animate={{ opacity: 1, x: 0 }}
     transition={{ delay: 0.2 }}
-    className="p-8 rounded-[24px] bg-[#0c0c0c] border border-white/5 relative overflow-hidden group shadow-xl"
+    className="p-8 rounded-[24px] bg-[#0c0c0c] border border-white/15 relative overflow-hidden group shadow-xl"
   >
     <div className="flex items-center justify-between mb-10">
       <div className="flex items-center gap-2">
@@ -706,7 +706,7 @@ const StreakBox = React.memo(({ streak, dailyStudySeconds }: { streak: number, d
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-1.5 p-1 rounded-2xl bg-black/40 border border-white/5">
+      <div className="grid grid-cols-7 gap-1.5 p-1 rounded-2xl bg-black/40 border border-white/10">
         {[...Array(7)].map((_, i) => {
           const date = new Date();
           date.setDate(date.getDate() - (6 - i));
@@ -717,7 +717,7 @@ const StreakBox = React.memo(({ streak, dailyStudySeconds }: { streak: number, d
             <div key={i} className="flex flex-col items-center gap-2 flex-1">
               <div 
                 className={`w-full aspect-square rounded-lg transition-all duration-700 flex items-center justify-center border
-                  ${isDone ? 'bg-amber-500/80 border-amber-400/50' : 'bg-white/2 border-white/5'}`}
+                  ${isDone ? 'bg-amber-500/80 border-amber-400/50' : 'bg-white/2 border-white/15'}`}
               >
                 {isDone && <Check className="w-3 h-3 text-black font-black" />}
               </div>
@@ -767,14 +767,14 @@ const QuestionLab = React.memo(({ currentQuestions, currentQuestionsRef, updateQ
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
         whileHover={{ scale: 1.005 }}
-        className="p-10 rounded-[28px] bg-[#0d0d0d] border border-white/5 flex flex-col items-center justify-center text-center group relative overflow-hidden min-h-[420px] shadow-2xl"
+        className="p-10 rounded-[28px] bg-[#0d0d0d] border border-white/15 flex flex-col items-center justify-center text-center group relative overflow-hidden min-h-[420px] shadow-2xl"
       >
         <div className="absolute inset-0 z-0 px-1.5 pointer-events-none">
           <div className="absolute inset-0 bg-gradient-to-b from-pink-500/5 via-transparent to-transparent opacity-20" />
         </div>
 
         <div className="relative z-10 w-full flex flex-col items-center">
-          <div className="flex items-center gap-2 mb-10 bg-white/5 p-1 px-3 rounded-full border border-white/5">
+          <div className="flex items-center gap-2 mb-10 bg-white/5 p-1 px-3 rounded-full border border-white/10">
             <Target className="w-3 h-3 text-pink-400" />
             <span className="text-[8px] font-black text-white/40 uppercase tracking-[0.4em]">Questions Tracked</span>
           </div>
@@ -790,7 +790,7 @@ const QuestionLab = React.memo(({ currentQuestions, currentQuestionsRef, updateQ
             <button
                disabled={!isTimerRunning}
                onClick={() => { if(isTimerRunning) { updateQuestions(Math.max(0, (currentQuestionsRef?.current || currentQuestions) - 1)); }}}
-               className={`p-6 rounded-2xl bg-white/[0.02] border border-white/5 text-white/20 transition-all flex flex-col items-center justify-center gap-1
+               className={`p-6 rounded-2xl bg-white/[0.02] border border-white/10 text-white/20 transition-all flex flex-col items-center justify-center gap-1
                  ${!isTimerRunning ? 'opacity-10 cursor-not-allowed' : 'hover:bg-white/5 hover:text-white/60 active:scale-95'}`}
             >
               <div className="w-4 h-[1.5px] bg-current opacity-40" />
@@ -971,7 +971,7 @@ const DistributionCharts = React.memo(({ subjectStudySeconds, subjectQuestionCou
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="p-8 rounded-[40px] glass border border-white/10 relative overflow-hidden will-change-transform"
+        className="p-8 rounded-[40px] glass border border-white/20 relative overflow-hidden will-change-transform"
       >
         <div className="flex items-center gap-2 mb-8">
           <div className="w-1.5 h-1.5 bg-violet-500 rounded-full" />
@@ -1020,7 +1020,7 @@ const DistributionCharts = React.memo(({ subjectStudySeconds, subjectQuestionCou
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="p-8 rounded-[40px] glass border border-white/10 relative overflow-hidden will-change-transform"
+        className="p-8 rounded-[40px] glass border border-white/20 relative overflow-hidden will-change-transform"
       >
         <div className="flex items-center gap-2 mb-8">
           <div className="w-1.5 h-1.5 bg-rose-500 rounded-full" />
@@ -1094,7 +1094,7 @@ const BarGraphs = React.memo(({ barChartData, targetHours, questionTarget, revis
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-6 rounded-[32px] glass border border-white/10 will-change-transform"
+          className="p-6 rounded-[32px] glass border border-white/20 will-change-transform"
         >
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
@@ -1135,7 +1135,7 @@ const BarGraphs = React.memo(({ barChartData, targetHours, questionTarget, revis
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-6 rounded-[32px] glass border border-white/10 will-change-transform"
+          className="p-6 rounded-[32px] glass border border-white/20 will-change-transform"
         >
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
@@ -2874,7 +2874,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       <div 
         key={key} 
         onClick={handleDayClick}
-        className={`h-16 md:h-20 border border-white/10 p-1.5 transition-all duration-300 hover:scale-[1.05] hover:z-20 hover:border-white/40 group relative cursor-pointer overflow-hidden
+        className={`h-16 md:h-20 border border-white/20 p-1.5 transition-all duration-300 hover:scale-[1.05] hover:z-20 hover:border-white/40 group relative cursor-pointer overflow-hidden
           ${isToday ? 'bg-white/15 border-blue-500 ring-2 ring-blue-500/20' : 'bg-white/2 shadow-[inset_0_0_20px_rgba(255,255,255,0.01)]'}
           ${!showOnlyTests && calendarType === 'questions' && isQuestionMet ? 'bg-pink-500/20' : ''}
           ${!showOnlyTests && calendarType === 'study' && isStudyMet ? 'bg-emerald-500/20' : ''}
@@ -2971,7 +2971,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     if (viewMode === 'month') {
       // Fill empty slots for previous month
       for (let i = 0; i < startDay; i++) {
-        daysArr.push(<div key={`empty-${i}`} className="h-16 md:h-20 border border-white/5 bg-white/2 opacity-20" />);
+        daysArr.push(<div key={`empty-${i}`} className="h-16 md:h-20 border border-white/15 bg-white/2 opacity-20" />);
       }
 
       // Fill days of current month
@@ -3029,7 +3029,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-zinc-900 border border-white/10 p-8 rounded-[32px] max-w-sm w-full text-center"
+              className="bg-zinc-900 border border-white/20 p-8 rounded-[32px] max-w-sm w-full text-center"
             >
               <div className="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <Trash2 className="w-8 h-8 text-red-500" />
@@ -3062,7 +3062,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-6 max-w-4xl mx-auto w-full">
             <div className="flex items-center gap-6">
               <div className="relative">
-                <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center group overflow-hidden">
+                <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/20 flex items-center justify-center group overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/20 via-pink-500/20 to-violet-500/20 opacity-0 group-hover:opacity-100 transition-opacity" />
                   <Activity className="w-8 h-8 text-white group-hover:scale-110 transition-transform relative z-10" />
                 </div>
@@ -3092,7 +3092,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
               className="w-full mb-8 relative group"
             >
             <div className="absolute inset-0 bg-zinc-800/20 rounded-2xl blur-xl opacity-50" />
-            <div className="relative py-6 px-10 rounded-xl bg-zinc-900/90 backdrop-blur-xl border border-white/10 overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
+            <div className="relative py-6 px-10 rounded-xl bg-zinc-900/90 backdrop-blur-xl border border-white/20 overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
               <div className="flex items-center gap-6 flex-1 min-w-0">
                 <div className="hidden md:flex p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
                   <Zap className="w-5 h-5 text-purple-400" />
@@ -3149,7 +3149,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="p-8 rounded-[40px] glass bg-white/[0.02] border border-white/5 flex items-center justify-between group hover:bg-white/[0.04] transition-all"
+                    className="p-8 rounded-[40px] glass bg-white/[0.02] border border-white/15 flex items-center justify-between group hover:bg-white/[0.04] transition-all"
                   >
                     <div>
                        <div className="text-xs font-bold text-amber-500/60 uppercase tracking-wider mb-2">Monthly Time</div>
@@ -3185,25 +3185,68 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                       <div className="flex-[2] min-w-0">
                         <motion.div 
                           whileHover={{ scale: 1.002 }}
-                          className="h-full p-10 rounded-[48px] bg-[#050505] border border-white/5 flex flex-col items-center justify-center text-center group relative overflow-hidden shadow-2xl transition-all duration-500"
+                          className="h-full p-10 rounded-[48px] bg-[#050505] border border-white/15 flex flex-col items-center justify-center text-center group relative overflow-hidden shadow-2xl transition-all duration-500"
                         >
                           <div className="absolute inset-0 z-0">
                             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.02)_0%,transparent_70%)]" />
                           </div>
 
                           {isTimerRunning && (
-                            <div className="absolute inset-0 z-0 overflow-hidden">
+                            <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
                               <motion.div
                                 animate={{ opacity: [0.3, 0.5, 0.3] }}
                                 transition={{ duration: 2, repeat: Infinity }}
                                 className="absolute inset-0 bg-white/[0.01]"
                               />
+                              <svg className="absolute inset-0 w-full h-full overflow-visible pointer-events-none">
+                                <motion.rect
+                                  x="0"
+                                  y="0"
+                                  width="100%"
+                                  height="100%"
+                                  fill="none"
+                                  stroke="white"
+                                  strokeWidth="3"
+                                  rx="48"
+                                  initial={{ pathLength: 0.15, pathOffset: 0, opacity: 0 }}
+                                  animate={{ 
+                                    pathOffset: 1, 
+                                    opacity: [0.3, 0.7, 0.3] 
+                                  }}
+                                  transition={{
+                                    pathOffset: { duration: 3, repeat: Infinity, ease: "linear" },
+                                    opacity: { duration: 1.5, repeat: Infinity, ease: "easeInOut" }
+                                  }}
+                                  style={{ 
+                                    filter: "drop-shadow(0 0 12px rgba(255,255,255,0.8)) blur(0.5px)"
+                                  }}
+                                />
+                                {/* Secondary faster faint light for depth */}
+                                <motion.rect
+                                  x="0"
+                                  y="0"
+                                  width="100%"
+                                  height="100%"
+                                  fill="none"
+                                  stroke="white"
+                                  strokeWidth="1"
+                                  rx="48"
+                                  initial={{ pathLength: 0.05, pathOffset: 0.5, opacity: 0 }}
+                                  animate={{ 
+                                    pathOffset: -1, 
+                                    opacity: 0.2
+                                  }}
+                                  transition={{
+                                    pathOffset: { duration: 5, repeat: Infinity, ease: "linear" }
+                                  }}
+                                />
+                              </svg>
                             </div>
                           )}
                           
                           <div className="relative z-10 flex flex-col items-center w-full">
                             <div className="flex flex-col w-full mb-10">
-                              <div className="flex items-center justify-between gap-6 mb-10 bg-white/[0.02] p-6 rounded-2xl border border-white/5">
+                              <div className="flex items-center justify-between gap-6 mb-10 bg-white/[0.02] p-6 rounded-2xl border border-white/10">
                                 <div className="flex items-center gap-4">
                                   <div className="p-3 rounded-xl bg-white/5 border border-white/5">
                                     <Rocket className={`w-5 h-5 ${isTimerRunning ? 'text-white' : 'text-white/20'}`} />
@@ -3295,22 +3338,23 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                                     />
                                   )}
                                   
-                                  <div className="flex items-center justify-center gap-6 md:gap-12 w-full">
+                                  <div className="flex items-center justify-center gap-4 md:gap-8 w-full">
                                     {[
                                       { val: Math.floor(elapsedSeconds / 3600), label: 'HOURS' },
                                       { val: Math.floor((elapsedSeconds % 3600) / 60), label: 'MINUTES' },
+                                      { val: elapsedSeconds % 60, label: 'SECONDS' }
                                     ].map((unit, i) => (
                                       <React.Fragment key={unit.label}>
                                         <div className="flex flex-col items-center">
-                                          <div className="text-[70px] md:text-[100px] lg:text-[120px] font-mono font-black text-white tabular-nums tracking-[-0.1em] leading-none">
+                                          <div className="text-[50px] md:text-[70px] lg:text-[90px] font-mono font-black text-white tabular-nums tracking-[-0.1em] leading-none">
                                             {unit.val.toString().padStart(2, '0')}
                                           </div>
                                           <div className="mt-4 text-xs font-bold text-white/40 uppercase tracking-widest">
                                             {unit.label}
                                           </div>
                                         </div>
-                                        {i < 1 && (
-                                          <div className="text-4xl md:text-6xl lg:text-7xl font-mono font-black text-white/5 -mt-10">:</div>
+                                        {i < 2 && (
+                                          <div className="text-3xl md:text-5xl lg:text-6xl font-mono font-black text-white/5 -mt-10">:</div>
                                         )}
                                       </React.Fragment>
                                     ))}
@@ -3423,7 +3467,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
           </div>
 
           {/* Calendar Grid */}
-          <div className="glass rounded-3xl overflow-hidden shadow-2xl mb-8">
+          <div className="glass rounded-3xl overflow-hidden shadow-2xl mb-8 border border-white/20">
             <div className="p-4 border-b border-white/10 bg-white/5 flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <button onClick={prevPeriod} className="p-1.5 rounded-lg hover:bg-white/10 text-white/60 transition-colors">
@@ -3455,7 +3499,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
 
           {/* Stats & Analytics */}
           <div className="grid grid-cols-1 gap-6 mb-12">
-            <div className="p-6 rounded-3xl glass">
+            <div className="p-6 rounded-3xl glass border border-white/20">
               <div className="flex items-center gap-2 mb-6">
                 <TrendingUp className="w-4 h-4 text-purple-400" />
                 <h3 className="text-xs font-black text-white uppercase tracking-widest">Performance Analytics</h3>
@@ -3645,7 +3689,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                    </button>
                 </div>
 
-                <div className="glass rounded-[48px] overflow-hidden shadow-2xl p-8 bg-black/40 border border-white/5">
+                <div className="glass rounded-[48px] overflow-hidden shadow-2xl p-8 bg-black/40 border border-white/15">
                   <div className="grid grid-cols-7 mb-6">
                     {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
                       <div key={day} className="text-center text-xs font-bold text-white/30 uppercase tracking-wide py-2">
