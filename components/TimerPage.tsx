@@ -980,11 +980,25 @@ const DistributionCharts = React.memo(({ subjectStudySeconds, subjectQuestionCou
 
   const studyData = Object.entries(studyDataMap)
     .map(([name, value]) => ({ name, value }))
-    .sort((a,b) => ALL_FIXED_SUBJECTS.indexOf(a.name) - ALL_FIXED_SUBJECTS.indexOf(b.name));
+    .sort((a,b) => {
+      const idxA = ALL_FIXED_SUBJECTS.indexOf(a.name);
+      const idxB = ALL_FIXED_SUBJECTS.indexOf(b.name);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.name.localeCompare(b.name);
+    });
 
   const questionData = Object.entries(questionDataMap)
     .map(([name, value]) => ({ name, value }))
-    .sort((a,b) => ALL_FIXED_SUBJECTS.indexOf(a.name) - ALL_FIXED_SUBJECTS.indexOf(b.name));
+    .sort((a,b) => {
+      const idxA = ALL_FIXED_SUBJECTS.indexOf(a.name);
+      const idxB = ALL_FIXED_SUBJECTS.indexOf(b.name);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.name.localeCompare(b.name);
+    });
 
   const chartCardClass = "p-8 rounded-[40px] glass border border-white/20 relative overflow-hidden shadow-2xl transition-all duration-500 hover:border-white/30";
   const sectionTitleClass = "text-[10px] font-black text-white/40 uppercase tracking-widest";
@@ -1598,18 +1612,31 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   const activeQuestionsForToday = isTimerRunning ? currentQuestions : (dailyQuestionCounts[todayKey] || 0);
   
   const activeSubjectSeconds = useMemo(() => {
-    const data = { ...(subjectStudySeconds[todayKey] || {}) };
+    // 0. Base data from Firestore (normalized)
+    const rawData = subjectStudySeconds[todayKey] || {};
+    const data: Record<string, number> = {};
+    const CORE_KEYS = ['Physics', 'Chemistry', 'Maths'];
+
+    Object.entries(rawData).forEach(([sub, val]: any) => {
+      let key = sub;
+      const matched = CORE_KEYS.find(k => k.toLowerCase() === sub.toLowerCase());
+      if (matched) key = matched;
+      data[key] = (data[key] || 0) + val;
+    });
     
     // 1. Add finalized segments from current session (segments closed via switch)
     Object.entries(sessionChapterStatsRef.current).forEach(([sub, chapters]: any) => {
+      let key = sub;
+      const matched = CORE_KEYS.find(k => k.toLowerCase() === sub.toLowerCase());
+      if (matched) key = matched;
+
       Object.values(chapters).forEach((chap: any) => {
-        data[sub] = (data[sub] || 0) + chap.seconds;
+        data[key] = (data[key] || 0) + chap.seconds;
       });
     });
 
     // 2. Add THE ACTIVE SEGMENT using REFs to prevent state "shifting" drift
     let currentSub = selectedSubjectRef.current || 'Other / Unsorted';
-    const CORE_KEYS = ['Physics', 'Chemistry', 'Maths'];
     const matched = CORE_KEYS.find(k => k.toLowerCase() === currentSub.toLowerCase());
     if (matched) currentSub = matched;
 
@@ -1621,27 +1648,40 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   }, [subjectStudySeconds, todayKey, isTimerRunning, elapsedSeconds, sessionVersion]);
 
   const activeSubjectQuestions = useMemo(() => {
-    const data = { ...(subjectQuestionCounts[todayKey] || {}) };
+    // 0. Base data from Firestore (normalized)
+    const rawData = subjectQuestionCounts[todayKey] || {};
+    const data: Record<string, number> = {};
+    const CORE_KEYS = ['Physics', 'Chemistry', 'Maths'];
+
+    Object.entries(rawData).forEach(([sub, val]: any) => {
+      let key = sub;
+      const matched = CORE_KEYS.find(k => k.toLowerCase() === sub.toLowerCase());
+      if (matched) key = matched;
+      data[key] = (data[key] || 0) + val;
+    });
     
     // 1. Finalized session segments
     Object.entries(sessionChapterStatsRef.current).forEach(([sub, chapters]: any) => {
+      let key = sub;
+      const matched = CORE_KEYS.find(k => k.toLowerCase() === sub.toLowerCase());
+      if (matched) key = matched;
+
       Object.values(chapters).forEach((chap: any) => {
-        data[sub] = (data[sub] || 0) + chap.questions;
+        data[key] = (data[key] || 0) + chap.questions;
       });
     });
 
     // 2. Current active segment using REFs to prevent state "shifting" drift
     let currentSub = selectedSubjectRef.current || 'Other / Unsorted';
-    const CORE_KEYS = ['Physics', 'Chemistry', 'Maths'];
     const matched = CORE_KEYS.find(k => k.toLowerCase() === currentSub.toLowerCase());
     if (matched) currentSub = matched;
-    
+
     if (isTimerRunning) {
-      const activeSegmentQuestions = Math.max(0, currentQuestionsRef.current - lastChapterSwitchQuestionsRef.current);
+      const activeSegmentQuestions = Math.max(0, currentQuestions - lastChapterSwitchQuestionsRef.current);
       data[currentSub] = (data[currentSub] || 0) + activeSegmentQuestions;
     }
     return data;
-  }, [subjectQuestionCounts, todayKey, isTimerRunning, sessionVersion]);
+  }, [subjectQuestionCounts, todayKey, isTimerRunning, currentQuestions, sessionVersion]);
 
   // Sync refs safely: ONLY update selectedSubjectRef/selectedChapterRef when NOT running 
   // or via handleChapterSwitch to avoid race conditions during session segmentation.
@@ -1719,8 +1759,14 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     if (matched) newSubject = matched;
     
     if (isTimerRunning) {
-      const currentSub = selectedSubjectRef.current;
+      const currentSubRaw = selectedSubjectRef.current;
       const currentChap = selectedChapterRef.current;
+      
+      // Normalize currentSub for lookup
+      const CORE_KEYS = ['Physics', 'Chemistry', 'Maths'];
+      let currentSub = currentSubRaw || "";
+      const currentMatched = CORE_KEYS.find(k => k.toLowerCase() === currentSub.toLowerCase());
+      if (currentMatched) currentSub = currentMatched;
       
       const timeDelta = elapsedSecondsRef.current - lastChapterSwitchSecondsRef.current;
       const questionDelta = currentQuestionsRef.current - lastChapterSwitchQuestionsRef.current;
@@ -2434,6 +2480,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       // Initialize chapter transition trackers on start to prevent attribution artifacts
       lastChapterSwitchSecondsRef.current = newAccumulated;
       lastChapterSwitchQuestionsRef.current = currentQuestions;
+      setSessionVersion(v => v + 1);
       lastTickElapsedRef.current = newAccumulated;
       sessionChapterStatsRef.current = {};
       
@@ -2456,8 +2503,6 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       setSessionTabSeconds(0);
       setSessionTabQuestions(0);
       
-      const sessionHours = sessionSeconds / 3600;
-
       const exam = (localStorage.getItem('pulse_user_exam') || 'jee').toLowerCase();
       const year = localStorage.getItem('pulse_user_year') || '2027';
       const examBase = exam === 'jee' ? 'jee' : exam;
@@ -2507,11 +2552,17 @@ const TimerPage = ({ settings }: TimerPageProps) => {
 
       // 3. Construct updates for dailyStats subject-wise tracking
       const sessionSubTotals: Record<string, { seconds: number, questions: number }> = {};
+      const CORE_KEYS = ['Physics', 'Chemistry', 'Maths'];
+
       Object.entries(localChapterDelta).forEach(([sub, chapters]) => {
-        if (!sessionSubTotals[sub]) sessionSubTotals[sub] = { seconds: 0, questions: 0 };
+        let key = sub;
+        const matched = CORE_KEYS.find(k => k.toLowerCase() === sub.toLowerCase());
+        if (matched) key = matched;
+
+        if (!sessionSubTotals[key]) sessionSubTotals[key] = { seconds: 0, questions: 0 };
         Object.values(chapters).forEach(stats => {
-          sessionSubTotals[sub].seconds += stats.seconds;
-          sessionSubTotals[sub].questions += stats.questions;
+          sessionSubTotals[key].seconds += stats.seconds;
+          sessionSubTotals[key].questions += stats.questions;
         });
       });
 
@@ -2553,10 +2604,31 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         return;
       }
 
-      const batch = writeBatch(db);
-      const statsRef = doc(db, 'users', user.uid, 'dailyStats', today);
+      // Progress updates (Chapter level)
+      const progressUpdates: any = {
+        lastUpdatedAt: serverTimestamp(),
+        dailyStudySeconds: { [today]: increment(sessionTotalStudySeconds) },
+        dailyQuestionCounts: { [today]: increment(sessionTotalQuestions) }
+      };
 
-      // Update Daily Stats using increment to ensure accuracy amidst multi-device sync
+      // Add segmented subject updates to progressRef using dot notation to match sync schema
+      Object.entries(sessionSubTotals).forEach(([sub, stats]) => {
+        if (stats.seconds > 0) {
+          progressUpdates[`subjectStudySeconds.${today}.${sub}`] = increment(stats.seconds);
+        }
+        if (stats.questions > 0) {
+          progressUpdates[`subjectQuestionCounts.${today}.${sub}`] = increment(stats.questions);
+        }
+      });
+
+      // Chapter-level rollup
+      if (Object.keys(chapterUpdates).length > 0) {
+        progressUpdates.progress = chapterUpdates;
+      }
+
+      await setDoc(progressRef, progressUpdates, { merge: true });
+
+      // Daily stats rollup 
       const dailyStatsData: any = {
         studySeconds: increment(sessionTotalStudySeconds),
         questionsSolved: increment(sessionTotalQuestions),
@@ -2564,35 +2636,35 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         date: today
       };
 
-      // Add segmented subject updates to dailyStats using dot notation
+      // Add segmented subject updates to dailyStats using consistent naming
       Object.entries(sessionSubTotals).forEach(([sub, stats]) => {
-        if (stats.seconds > 0) dailyStatsData[`subjectSeconds.${sub}`] = increment(stats.seconds);
-        if (stats.questions > 0) dailyStatsData[`subjectQuestions.${sub}`] = increment(stats.questions);
+        if (stats.seconds > 0) {
+          dailyStatsData[`subjectSeconds.${sub}`] = increment(stats.seconds);
+        }
+        if (stats.questions > 0) {
+          dailyStatsData[`subjectQuestions.${sub}`] = increment(stats.questions);
+        }
       });
 
-      batch.set(statsRef, dailyStatsData, { merge: true });
-
-      // Update Subject Progress (Chapter level)
-      if (Object.keys(chapterUpdates).length > 0) {
-        batch.set(progressRef, { progress: chapterUpdates }, { merge: true });
-      }
+      const statsRef = doc(db, 'users', user.uid, 'dailyStats', today);
+      await setDoc(statsRef, dailyStatsData, { merge: true });
 
       // Update Leaderboard
       const leaderboardRef = doc(db, 'leaderboard', user.uid);
-      batch.set(leaderboardRef, {
+      const sessionHours = sessionTotalStudySeconds / 3600;
+      await setDoc(leaderboardRef, {
         totalQuestions: increment(sessionTotalQuestions),
         totalHours: increment(sessionHours),
         lastUpdated: serverTimestamp()
       }, { merge: true });
 
       try {
-        await batch.commit();
-        await saveTimerState(false, null, finalElapsed); // Moved here to ensure firestore commit first
+        await saveTimerState(false, null, finalElapsed); 
         lastSyncedQuestionsRef.current = currentQuestionsRef.current;
         lastSavedProgressSecondsRef.current = finalElapsed;
         lastTickElapsedRef.current = finalElapsed;
       } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/dailyStats/${today}`);
+        console.error("Session Save Error:", error);
       }
     }
     } catch (error) {
@@ -2618,15 +2690,28 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       setSessionTabQuestions(prev => prev + delta);
     }
 
-    const currentSub = selectedSubjectRef.current;
+    const currentSubRaw = selectedSubjectRef.current;
+    
+    // Normalize currentSub
+    const CORE_KEYS = ['Physics', 'Chemistry', 'Maths'];
+    let currentSub = currentSubRaw || "";
+    const matched = CORE_KEYS.find(k => k.toLowerCase() === currentSub.toLowerCase());
+    if (matched) currentSub = matched;
+    else if (!currentSub) currentSub = "Other / Unsorted";
 
     if (!user) {
       const localData = JSON.parse(localStorage.getItem('pulse_calendar_data') || '{}');
       if (!localData[today]) localData[today] = {};
       localData[today].questionsSolved = (localData[today].questionsSolved || 0) + delta;
-      const todaySubQ = { ...(localData[today].subjectQuestions || {}) };
-      if (currentSub) todaySubQ[currentSub] = (todaySubQ[currentSub] || 0) + delta;
-      localData[today].subjectQuestions = todaySubQ;
+      
+      // IMPORTANT: Only update subject-wise for guests if timer NOT running
+      // If timer IS running, the subject-wise distribution is handled by stopTimer re-aggregation
+      if (!isTimerRunning && currentSub) {
+        const todaySubQ = { ...(localData[today].subjectQuestions || {}) };
+        todaySubQ[currentSub] = (todaySubQ[currentSub] || 0) + delta;
+        localData[today].subjectQuestions = todaySubQ;
+      }
+      
       localStorage.setItem('pulse_calendar_data', JSON.stringify(localData));
       return;
     }
@@ -3348,11 +3433,9 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                                         <select
                                           value={selectedChapter}
                                           onChange={(e) => {
-                                            setSelectedChapter(e.target.value);
-                                            localStorage.setItem('pulse_selected_chapter', e.target.value);
+                                            handleChapterSwitch(selectedSubject, e.target.value);
                                           }}
-                                          disabled={isTimerRunning}
-                                          className="w-full bg-white/2 border border-white/5 rounded-lg px-4 py-2.5 text-xs font-bold text-white/60 uppercase tracking-wide focus:outline-none focus:border-white/20 transition-all appearance-none cursor-pointer disabled:opacity-20 hover:bg-white/5"
+                                          className="w-full bg-white/2 border border-white/5 rounded-lg px-4 py-2.5 text-xs font-bold text-white/60 uppercase tracking-wide focus:outline-none focus:border-white/20 transition-all appearance-none cursor-pointer hover:bg-white/5"
                                         >
                                           {availableChapters.map(chapter => (
                                             <option key={chapter.id} value={chapter.id} className="bg-zinc-950 text-white">
@@ -3378,12 +3461,8 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                                     <button
                                       key={sub}
                                       onClick={() => {
-                                        if (!isTimerRunning) {
-                                          setSelectedSubject(sub);
-                                          localStorage.setItem('pulse_selected_subject', sub);
-                                        }
+                                        handleChapterSwitch(sub, '');
                                       }}
-                                      disabled={isTimerRunning}
                                       style={isActive ? { 
                                         backgroundColor: `${subColor}20`,
                                         borderColor: `${subColor}40`,
@@ -3391,7 +3470,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                                       } : {}}
                                       className={`px-3 py-3 rounded-lg text-[8px] font-black uppercase tracking-[0.2em] transition-all border
                                         ${isActive ? '' : `bg-white/[0.01] border-white/5 text-white/40 hover:bg-white/5 hover:border-white/10`}
-                                        ${isTimerRunning ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer active:scale-95'}`}
+                                        cursor-pointer active:scale-95`}
                                     >
                                       {sub}
                                     </button>
