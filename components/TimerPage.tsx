@@ -3178,191 +3178,197 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                 </div>
               </div>
 
-              {/* Trackers Section */}
-              <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr_280px] gap-6 mb-12 items-start w-full max-w-7xl mx-auto">
-                  {/* Left Column: Stats & Metrics */}
-                  <div className="space-y-6 order-2 lg:order-1">
-                    <PerformanceNode 
-                      elapsedSeconds={activeStudySecondsForToday} 
-                      targetHours={targetHours} 
-                      currentQuestions={activeQuestionsForToday} 
-                    />
+              {/* Trackers Section - Side-by-Side Focused Layout */}
+              <div className="space-y-12 mb-20 w-full max-w-7xl mx-auto px-4">
+                  <div className="flex flex-col xl:flex-row items-stretch gap-8">
+                      {/* Hero Timer - 2/3 width on xl */}
+                      <div className="flex-[2] min-w-0">
+                        <motion.div 
+                          whileHover={{ scale: 1.002 }}
+                          className="h-full p-10 rounded-[48px] bg-[#050505] border border-white/5 flex flex-col items-center justify-center text-center group relative overflow-hidden shadow-2xl transition-all duration-500"
+                        >
+                          <div className="absolute inset-0 z-0">
+                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.02)_0%,transparent_70%)]" />
+                          </div>
 
-                    <StreakBox 
-                      streak={streak} 
-                      dailyStudySeconds={dailyStudySeconds} 
-                    />
-                  </div>
-
-                  {/* Center Column: Futuristic Stopwatch */}
-                  <div className="order-1 lg:order-2 flex justify-center">
-                    <motion.div 
-                      whileHover={{ scale: 1.002 }}
-                      className="p-10 rounded-[32px] bg-[#050505] border border-white/5 flex flex-col items-center justify-center text-center group relative overflow-hidden w-full max-w-[850px] shadow-2xl transition-all duration-500"
-                    >
-                      {/* Subtler Background Elements */}
-                      <div className="absolute inset-0 z-0">
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.02)_0%,transparent_70%)]" />
-                      </div>
-
-                      {isTimerRunning && (
-                        <div className="absolute inset-0 z-0 overflow-hidden">
-                          <motion.div
-                            animate={{ opacity: [0.3, 0.5, 0.3] }}
-                            transition={{ duration: 2, repeat: Infinity }}
-                            className="absolute inset-0 bg-white/[0.01]"
-                          />
-                        </div>
-                      )}
-                      
-                      <div className="relative z-10 flex flex-col items-center w-full">
-                        <div className="flex flex-col w-full mb-10">
-                          <div className="flex items-center justify-between gap-6 mb-10 bg-white/[0.02] p-6 rounded-2xl border border-white/5">
-                            <div className="flex items-center gap-4">
-                              <div className="p-3 rounded-xl bg-white/5 border border-white/5">
-                                <Rocket className={`w-5 h-5 ${isTimerRunning ? 'text-white' : 'text-white/20'}`} />
-                              </div>
-                              <div className="flex flex-col">
-                                <span className="text-xs font-bold text-white/30 uppercase tracking-widest mb-1">
-                                  {isTimerRunning ? 'Focusing' : 'Ready'}
-                                </span>
-                                <span className="text-[14px] font-black text-white uppercase tracking-wider truncate max-w-[120px]">
-                                  {selectedSubject || 'Choose Subject'}
-                                </span>
-                              </div>
+                          {isTimerRunning && (
+                            <div className="absolute inset-0 z-0 overflow-hidden">
+                              <motion.div
+                                animate={{ opacity: [0.3, 0.5, 0.3] }}
+                                transition={{ duration: 2, repeat: Infinity }}
+                                className="absolute inset-0 bg-white/[0.01]"
+                              />
                             </div>
+                          )}
+                          
+                          <div className="relative z-10 flex flex-col items-center w-full">
+                            <div className="flex flex-col w-full mb-10">
+                              <div className="flex items-center justify-between gap-6 mb-10 bg-white/[0.02] p-6 rounded-2xl border border-white/5">
+                                <div className="flex items-center gap-4">
+                                  <div className="p-3 rounded-xl bg-white/5 border border-white/5">
+                                    <Rocket className={`w-5 h-5 ${isTimerRunning ? 'text-white' : 'text-white/20'}`} />
+                                  </div>
+                                  <div className="flex flex-col text-left">
+                                    <span className="text-xs font-bold text-white/30 uppercase tracking-widest mb-1">
+                                      {isTimerRunning ? 'Focusing' : 'Ready'}
+                                    </span>
+                                    <span className="text-[14px] font-black text-white uppercase tracking-wider truncate max-w-[150px]">
+                                      {selectedSubject || 'Choose Subject'}
+                                    </span>
+                                  </div>
+                                </div>
 
-                            <div className="h-10 w-px bg-white/5" />
+                                <div className="h-10 w-px bg-white/5" />
 
-                            <div className="flex-1 min-w-0">
-                              {selectedSubject && availableChapters.length > 0 && (
-                                <div className="w-full">
-                                  <div className="text-[11px] font-bold text-white/30 uppercase tracking-widest mb-1.5 ml-1 text-left">Current Chapter</div>
-                                  <div className="relative group/sel">
-                                    <select
-                                      value={selectedChapter}
-                                      onChange={(e) => {
-                                        setSelectedChapter(e.target.value);
-                                        localStorage.setItem('pulse_selected_chapter', e.target.value);
+                                <div className="flex-1 min-w-0">
+                                  {selectedSubject && availableChapters.length > 0 && (
+                                    <div className="w-full">
+                                      <div className="text-[11px] font-bold text-white/30 uppercase tracking-widest mb-1.5 ml-1 text-left">Current Chapter</div>
+                                      <div className="relative group/sel">
+                                        <select
+                                          value={selectedChapter}
+                                          onChange={(e) => {
+                                            setSelectedChapter(e.target.value);
+                                            localStorage.setItem('pulse_selected_chapter', e.target.value);
+                                          }}
+                                          disabled={isTimerRunning}
+                                          className="w-full bg-white/2 border border-white/5 rounded-lg px-4 py-2.5 text-xs font-bold text-white/60 uppercase tracking-wide focus:outline-none focus:border-white/20 transition-all appearance-none cursor-pointer disabled:opacity-20 hover:bg-white/5"
+                                        >
+                                          {availableChapters.map(chapter => (
+                                            <option key={chapter.id} value={chapter.id} className="bg-zinc-950 text-white">
+                                              {chapter.name}
+                                            </option>
+                                          ))}
+                                        </select>
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-20">
+                                          <ChevronRight className="w-3 h-3 rotate-90" />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                                {availableSubjects.map((sub, idx) => {
+                                  const isActive = selectedSubject === sub;
+                                  const subColor = SUBJECT_COLORS[sub] || '#ffffff';
+                                  
+                                  return (
+                                    <button
+                                      key={sub}
+                                      onClick={() => {
+                                        if (!isTimerRunning) {
+                                          setSelectedSubject(sub);
+                                          localStorage.setItem('pulse_selected_subject', sub);
+                                        }
                                       }}
                                       disabled={isTimerRunning}
-                                      className="w-full bg-white/2 border border-white/5 rounded-lg px-4 py-2.5 text-xs font-bold text-white/60 uppercase tracking-wide focus:outline-none focus:border-white/20 transition-all appearance-none cursor-pointer disabled:opacity-20 hover:bg-white/5"
+                                      style={isActive ? { 
+                                        backgroundColor: `${subColor}20`,
+                                        borderColor: `${subColor}40`,
+                                        color: subColor 
+                                      } : {}}
+                                      className={`px-3 py-3 rounded-lg text-[8px] font-black uppercase tracking-[0.2em] transition-all border
+                                        ${isActive ? '' : `bg-white/[0.01] border-white/5 text-white/40 hover:bg-white/5 hover:border-white/10`}
+                                        ${isTimerRunning ? 'opacity-10' : 'cursor-pointer active:scale-95'}`}
                                     >
-                                      {availableChapters.map(chapter => (
-                                        <option key={chapter.id} value={chapter.id} className="bg-zinc-950 text-white">
-                                          {chapter.name}
-                                        </option>
-                                      ))}
-                                    </select>
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-20">
-                                      <ChevronRight className="w-3 h-3 rotate-90" />
+                                      {sub}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                            
+                            <div className="relative mb-14 w-full">
+                              {isTimerLoading ? (
+                                <div className="flex justify-center py-16">
+                                  <PulseLoader size={48} />
+                                </div>
+                              ) : (
+                                <div className="relative flex flex-col items-center">
+                                  {isTimerRunning && (
+                                    <motion.div
+                                      animate={{ opacity: [0.02, 0.05, 0.02] }}
+                                      transition={{ duration: 4, repeat: Infinity }}
+                                      className="absolute inset-0 bg-white/5 rounded-full blur-[100px]"
+                                    />
+                                  )}
+                                  
+                                  <div className="flex items-center justify-center gap-6 md:gap-12 w-full">
+                                    {[
+                                      { val: Math.floor(elapsedSeconds / 3600), label: 'HOURS' },
+                                      { val: Math.floor((elapsedSeconds % 3600) / 60), label: 'MINUTES' },
+                                    ].map((unit, i) => (
+                                      <React.Fragment key={unit.label}>
+                                        <div className="flex flex-col items-center">
+                                          <div className="text-[70px] md:text-[100px] lg:text-[120px] font-mono font-black text-white tabular-nums tracking-[-0.1em] leading-none">
+                                            {unit.val.toString().padStart(2, '0')}
+                                          </div>
+                                          <div className="mt-4 text-xs font-bold text-white/40 uppercase tracking-widest">
+                                            {unit.label}
+                                          </div>
+                                        </div>
+                                        {i < 1 && (
+                                          <div className="text-4xl md:text-6xl lg:text-7xl font-mono font-black text-white/5 -mt-10">:</div>
+                                        )}
+                                      </React.Fragment>
+                                    ))}
+                                  </div>
+
+                                  <div className="mt-12 flex items-center gap-3 bg-white/5 px-4 py-2 rounded-full border border-white/5">
+                                    <div className={`w-1 h-1 rounded-full ${isTimerRunning ? 'bg-emerald-500 animate-pulse' : 'bg-white/20'}`} />
+                                    <div className="text-[8px] font-black text-white/30 uppercase tracking-[0.5em]">
+                                      {isTimerRunning ? 'PROGRESS TRACKING' : 'READY TO START'}
                                     </div>
                                   </div>
                                 </div>
                               )}
                             </div>
-                          </div>
-                          
-                          {/* Subject Toggles */}
-                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                            {availableSubjects.map((sub, idx) => {
-                              const isActive = selectedSubject === sub;
-                              
-                              return (
-                                <button
-                                  key={sub}
-                                  onClick={() => {
-                                    if (!isTimerRunning) {
-                                      setSelectedSubject(sub);
-                                      localStorage.setItem('pulse_selected_subject', sub);
-                                    }
-                                  }}
-                                  disabled={isTimerRunning}
-                                  className={`px-3 py-3 rounded-lg text-[8px] font-black uppercase tracking-[0.2em] transition-all border
-                                    ${isActive ? 'bg-white/10 border-white/30 text-white' : `bg-white/[0.01] border-white/5 text-white/40 hover:bg-white/5 hover:border-white/10`}
-                                    ${isTimerRunning ? 'opacity-10' : 'cursor-pointer active:scale-95'}`}
-                                >
-                                  {sub}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                        
-                        <div className="relative mb-14 w-full">
-                          {isTimerLoading ? (
-                            <div className="flex justify-center py-16">
-                              <PulseLoader size={48} />
-                            </div>
-                          ) : (
-                            <div className="relative flex flex-col items-center">
-                              {isTimerRunning && (
-                                <motion.div
-                                  animate={{ opacity: [0.02, 0.05, 0.02] }}
-                                  transition={{ duration: 4, repeat: Infinity }}
-                                  className="absolute inset-0 bg-white/5 rounded-full blur-[100px]"
-                                />
-                              )}
-                              
-                              <div className="flex items-center justify-center gap-4 md:gap-8 w-full">
-                                {[
-                                  { val: Math.floor(elapsedSeconds / 3600), label: 'HOURS' },
-                                  { val: Math.floor((elapsedSeconds % 3600) / 60), label: 'MINUTES' },
-                                  { val: elapsedSeconds % 60, label: 'SECONDS' }
-                                ].map((unit, i) => (
-                                  <React.Fragment key={unit.label}>
-                                    <div className="flex flex-col items-center">
-                                      <div className="text-[80px] md:text-[140px] lg:text-[180px] font-mono font-black text-white tabular-nums tracking-[-0.1em] leading-none">
-                                        {unit.val.toString().padStart(2, '0')}
-                                      </div>
-                                      <div className="mt-4 text-xs font-bold text-white/40 uppercase tracking-widest">
-                                        {unit.label}
-                                      </div>
-                                    </div>
-                                    {i < 2 && (
-                                      <div className="text-6xl md:text-8xl lg:text-9xl font-mono font-black text-white/5 -mt-10">:</div>
-                                    )}
-                                  </React.Fragment>
-                                ))}
-                              </div>
 
-                              <div className="mt-12 flex items-center gap-3 bg-white/5 px-4 py-2 rounded-full border border-white/5">
-                                <div className={`w-1 h-1 rounded-full ${isTimerRunning ? 'bg-emerald-500 animate-pulse' : 'bg-white/20'}`} />
-                                <div className="text-[8px] font-black text-white/30 uppercase tracking-[0.5em]">
-                                  {isTimerRunning ? 'TIMER RUNNING' : 'STANDING BY'}
-                                </div>
-                              </div>
+                            <div className="flex items-center gap-4 w-full max-w-sm">
+                              <button 
+                                onClick={toggleTimer}
+                                disabled={isTimerLoading}
+                                className={`flex-1 py-6 rounded-2xl font-black uppercase tracking-[0.4em] text-[10px] transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-4 group relative overflow-hidden border
+                                  ${isTimerRunning 
+                                    ? 'bg-black text-rose-500 border-rose-500/30' 
+                                    : 'bg-white text-black border-transparent shadow-[0_20px_60px_rgba(255,255,255,0.15)]'}`}
+                              >
+                                {isTimerRunning ? <CloudOff className="w-4 h-4" /> : <Rocket className="w-4 h-4" />}
+                                {isTimerLoading || !isStatsLoaded ? 'SYNCING...' : (isTimerRunning ? 'STOP SESSION' : 'START FOCUS')}
+                              </button>
                             </div>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-4 w-full max-w-md">
-                          <button 
-                            onClick={toggleTimer}
-                            disabled={isTimerLoading}
-                            className={`flex-1 py-7 rounded-2xl font-black uppercase tracking-[0.4em] text-[11px] transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-4 group relative overflow-hidden border
-                              ${isTimerRunning 
-                                ? 'bg-black text-rose-500 border-rose-500/30' 
-                                : 'bg-white text-black border-transparent shadow-[0_20px_60px_rgba(255,255,255,0.15)]'}`}
-                          >
-                            {isTimerRunning ? <CloudOff className="w-4 h-4" /> : <Rocket className="w-4 h-4" />}
-                            {isTimerLoading || !isStatsLoaded ? 'SYNCING...' : (isTimerRunning ? 'STOP SESSION' : 'START FOCUS')}
-                          </button>
-                        </div>
+                          </div>
+                        </motion.div>
                       </div>
-                    </motion.div>
+
+                      {/* Side Tracker - 1/3 width on xl */}
+                      <div className="flex-1 w-full xl:max-w-md">
+                        <QuestionLab 
+                          currentQuestions={currentQuestions} 
+                          currentQuestionsRef={currentQuestionsRef}
+                          updateQuestions={updateQuestions} 
+                          playTickSound={playTickSound} 
+                          removeOneHour={removeOneHour}
+                          isTimerRunning={isTimerRunning}
+                        />
+                      </div>
                   </div>
 
-                  {/* Right Column: Question Tracker */}
-                  <QuestionLab 
-                    currentQuestions={currentQuestions} 
-                    currentQuestionsRef={currentQuestionsRef}
-                    updateQuestions={updateQuestions} 
-                    playTickSound={playTickSound} 
-                    removeOneHour={removeOneHour}
-                    isTimerRunning={isTimerRunning}
-                  />
-                </div>
+                  {/* Secondary Metrics - Centered below hero row */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-5xl mx-auto">
+                    <PerformanceNode 
+                      elapsedSeconds={activeStudySecondsForToday} 
+                      targetHours={targetHours} 
+                      currentQuestions={activeQuestionsForToday} 
+                    />
+                    <StreakBox 
+                      streak={streak} 
+                      dailyStudySeconds={dailyStudySeconds} 
+                    />
+                  </div>
+              </div>
 
           <div className="max-w-5xl mx-auto w-full">
             {/* Distribution Charts */}
