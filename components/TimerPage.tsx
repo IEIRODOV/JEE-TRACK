@@ -953,56 +953,38 @@ const DistributionCharts = React.memo(({ subjectStudySeconds, subjectQuestionCou
     questionDataMap[s] = 0;
   });
 
-  // Populate from local data (today's totals before current session segments)
+  // Populate from local data (activeSubjectSeconds has the day totals)
   Object.entries(todayStudyRaw).forEach(([name, value]: any) => {
-    const key = (name === 'Other' || name === 'Unsorted' || !name) ? 'Other / Unsorted' : name;
-    if (ALL_FIXED_SUBJECTS.includes(key)) {
-      studyDataMap[key] = (studyDataMap[key] || 0) + value;
+    // Normalize names to match core subjects
+    let key = name;
+    if (!name || name === 'Other' || name === 'Unsorted' || name === 'Other / Unsorted') {
+      key = 'Other / Unsorted';
     } else {
-      // If it's a valid subject not in core, keep it or merge to Unsorted? 
-      // Requirement says "see all 4 options", implying these 4 are primary.
-      studyDataMap[key] = (studyDataMap[key] || 0) + value;
+      // Find matching core subject ignoring case
+      const matched = ALL_FIXED_SUBJECTS.find(s => s.toLowerCase() === name.toLowerCase());
+      if (matched) key = matched;
     }
+    studyDataMap[key] = (studyDataMap[key] || 0) + value;
   });
 
   Object.entries(todayQuestionRaw).forEach(([name, value]: any) => {
-    const key = (name === 'Other' || name === 'Unsorted' || !name) ? 'Other / Unsorted' : name;
+    let key = name;
+    if (!name || name === 'Other' || name === 'Unsorted' || name === 'Other / Unsorted') {
+      key = 'Other / Unsorted';
+    } else {
+      const matched = ALL_FIXED_SUBJECTS.find(s => s.toLowerCase() === name.toLowerCase());
+      if (matched) key = matched;
+    }
     questionDataMap[key] = (questionDataMap[key] || 0) + value;
   });
 
-  // Consistency Shield: Account for any "lost" time by comparing sum to total day seconds
-  const studySum = Object.values(todayStudyRaw).reduce((acc: number, curr: any) => acc + (curr || 0), 0);
-  if (studySum < totalStudySeconds) {
-    const diff = totalStudySeconds - studySum;
-    if (diff > 2) studyDataMap['Other / Unsorted'] += diff;
-  }
-  const qSum = Object.values(todayQuestionRaw).reduce((acc: number, curr: any) => acc + (curr || 0), 0);
-  if (qSum < totalQuestions) {
-    const diff = totalQuestions - qSum;
-    if (diff > 0) questionDataMap['Other / Unsorted'] += diff;
-  }
-
   const studyData = Object.entries(studyDataMap)
     .map(([name, value]) => ({ name, value }))
-    .sort((a,b) => {
-      const idxA = ALL_FIXED_SUBJECTS.indexOf(a.name);
-      const idxB = ALL_FIXED_SUBJECTS.indexOf(b.name);
-      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-      if (idxA !== -1) return -1;
-      if (idxB !== -1) return 1;
-      return a.name.localeCompare(b.name);
-    });
+    .sort((a,b) => ALL_FIXED_SUBJECTS.indexOf(a.name) - ALL_FIXED_SUBJECTS.indexOf(b.name));
 
   const questionData = Object.entries(questionDataMap)
     .map(([name, value]) => ({ name, value }))
-    .sort((a,b) => {
-      const idxA = ALL_FIXED_SUBJECTS.indexOf(a.name);
-      const idxB = ALL_FIXED_SUBJECTS.indexOf(b.name);
-      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-      if (idxA !== -1) return -1;
-      if (idxB !== -1) return 1;
-      return a.name.localeCompare(b.name);
-    });
+    .sort((a,b) => ALL_FIXED_SUBJECTS.indexOf(a.name) - ALL_FIXED_SUBJECTS.indexOf(b.name));
 
   const chartCardClass = "p-8 rounded-[40px] glass border border-white/20 relative overflow-hidden shadow-2xl transition-all duration-500 hover:border-white/30";
   const sectionTitleClass = "text-[10px] font-black text-white/40 uppercase tracking-widest";
@@ -1626,7 +1608,11 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     });
 
     // 2. Add THE ACTIVE SEGMENT using REFs to prevent state "shifting" drift
-    const currentSub = selectedSubjectRef.current || 'Other / Unsorted';
+    let currentSub = selectedSubjectRef.current || 'Other / Unsorted';
+    const CORE_KEYS = ['Physics', 'Chemistry', 'Maths'];
+    const matched = CORE_KEYS.find(k => k.toLowerCase() === currentSub.toLowerCase());
+    if (matched) currentSub = matched;
+
     if (isTimerRunning) {
       const activeSegmentSeconds = Math.max(0, elapsedSeconds - lastChapterSwitchSecondsRef.current);
       data[currentSub] = (data[currentSub] || 0) + activeSegmentSeconds;
@@ -1645,7 +1631,11 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     });
 
     // 2. Current active segment using REFs to prevent state "shifting" drift
-    const currentSub = selectedSubjectRef.current || 'Other / Unsorted';
+    let currentSub = selectedSubjectRef.current || 'Other / Unsorted';
+    const CORE_KEYS = ['Physics', 'Chemistry', 'Maths'];
+    const matched = CORE_KEYS.find(k => k.toLowerCase() === currentSub.toLowerCase());
+    if (matched) currentSub = matched;
+    
     if (isTimerRunning) {
       const activeSegmentQuestions = Math.max(0, currentQuestionsRef.current - lastChapterSwitchQuestionsRef.current);
       data[currentSub] = (data[currentSub] || 0) + activeSegmentQuestions;
@@ -1722,7 +1712,12 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   }, []);
 
   const handleChapterSwitch = useCallback((newSubRaw: string, newChapter: string) => {
-    const newSubject = newSubRaw ? newSubRaw.charAt(0).toUpperCase() + newSubRaw.slice(1).toLowerCase() : "";
+    // Exact capitalization match for core subjects
+    const CORE_KEYS = ['Physics', 'Chemistry', 'Maths'];
+    let newSubject = newSubRaw || "";
+    const matched = CORE_KEYS.find(k => k.toLowerCase() === newSubject.toLowerCase());
+    if (matched) newSubject = matched;
+    
     if (isTimerRunning) {
       const currentSub = selectedSubjectRef.current;
       const currentChap = selectedChapterRef.current;
@@ -2428,8 +2423,13 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       setSessionTabQuestions(0);
       
       // CRITICAL: Force update refs before starting to ensure correct attribution
-      selectedSubjectRef.current = selectedSubject;
-      selectedChapterRef.current = selectedChapter;
+      const CORE_KEYS = ['Physics', 'Chemistry', 'Maths'];
+      let startSub = selectedSubject;
+      const matched = CORE_KEYS.find(k => k.toLowerCase() === startSub.toLowerCase());
+      if (matched) startSub = matched;
+
+      selectedSubjectRef.current = startSub || 'Other / Unsorted';
+      selectedChapterRef.current = selectedChapter || 'Unsorted';
       
       // Initialize chapter transition trackers on start to prevent attribution artifacts
       lastChapterSwitchSecondsRef.current = newAccumulated;
