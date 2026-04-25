@@ -935,138 +935,179 @@ const QuestionLab = React.memo(({ currentQuestions, currentQuestionsRef, updateQ
 const DistributionCharts = React.memo(({ subjectStudySeconds, subjectQuestionCounts, dailyStudySeconds, dailyQuestionCounts, getSubjectColor }: any) => {
   const today = new Date().toDateString();
   
-  // Normalize data: Ensure subject times don't exceed total daily time (Legacy data fix)
-  const todayStudyDataRaw = Object.entries(subjectStudySeconds[today] || {}).map(([name, count]: any) => ({ name, value: count }));
-  const todayTotalStudySeconds = dailyStudySeconds[today] || 0;
-  const currentSumSubjects = todayStudyDataRaw.reduce((acc, curr) => acc + curr.value, 0);
-  
-  const todayStudyData = React.useMemo(() => {
-    // If the sum of subjects is wildly different from the recorded total (off by more than 10%), scale to match reality
-    if (currentSumSubjects > todayTotalStudySeconds * 1.05 && todayTotalStudySeconds > 0) {
-      const ratio = todayTotalStudySeconds / currentSumSubjects;
-      return todayStudyDataRaw.map(item => ({ ...item, value: Math.round(item.value * ratio) }));
-    }
-    return todayStudyDataRaw;
-  }, [todayStudyDataRaw, todayTotalStudySeconds, currentSumSubjects]);
+  // Get raw data for today
+  const todayStudyRaw = subjectStudySeconds[today] || {};
+  const todayQuestionRaw = subjectQuestionCounts[today] || {};
 
-  const todayQuestionDataRaw = Object.entries(subjectQuestionCounts[today] || {}).map(([name, count]: any) => ({ name, value: count }));
-  const todayTotalQuestions = dailyQuestionCounts[today] || 0;
-  const currentSumQuestions = todayQuestionDataRaw.reduce((acc, curr) => acc + curr.value, 0);
+  // Transform into chart data - filter out subjects with 0 values to keep charts clean
+  const studyData = Object.entries(todayStudyRaw)
+    .map(([name, value]: any) => ({ name, value }))
+    .filter(item => item.value > 0);
 
-  const todayQuestionData = React.useMemo(() => {
-    // If the sum of subjects is larger than recorded total, or total is 0 but subjects exist
-    if (currentSumQuestions > todayTotalQuestions || (todayTotalQuestions === 0 && currentSumQuestions > 0)) {
-      const target = Math.max(todayTotalQuestions, currentSumQuestions);
-      // If todayTotalQuestions is 0, we can't scale down, so we just show them as is, but UI total will match sum
-      if (todayTotalQuestions === 0) return todayQuestionDataRaw;
-      
-      const ratio = todayTotalQuestions / currentSumQuestions;
-      return todayQuestionDataRaw.map(item => ({ ...item, value: Math.round(item.value * ratio) }));
-    }
-    return todayQuestionDataRaw;
-  }, [todayQuestionDataRaw, todayTotalQuestions, currentSumQuestions]);
+  const questionData = Object.entries(todayQuestionRaw)
+    .map(([name, value]: any) => ({ name, value }))
+    .filter(item => item.value > 0);
+
+  // Totals for display
+  const totalStudySeconds = dailyStudySeconds[today] || 0;
+  const totalQuestions = dailyQuestionCounts[today] || 0;
+
+  const chartCardClass = "p-8 rounded-[40px] glass border border-white/20 relative overflow-hidden shadow-2xl transition-all duration-500 hover:border-white/30";
+  const sectionTitleClass = "text-[10px] font-black text-white/40 uppercase tracking-widest";
+  const itemRowClass = "flex items-center justify-between p-3 rounded-2xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] transition-all group";
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
+      {/* Time Distribution */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="p-8 rounded-[40px] glass border border-white/20 relative overflow-hidden will-change-transform"
+        className={chartCardClass}
       >
-        <div className="flex items-center gap-2 mb-8">
-          <div className="w-1.5 h-1.5 bg-violet-500 rounded-full" />
-          <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Subject Time Distribution</span>
+        <div className="flex items-center gap-2 mb-10">
+          <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
+          <span className={sectionTitleClass}>Subject Time Distribution</span>
         </div>
+        
         <div className="flex flex-col items-center">
-          <div className="h-64 w-full relative">
+          <div className="h-72 w-full relative">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={todayStudyData.length > 0 ? todayStudyData : [{ name: 'No Data', value: 1 }]}
-                  cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value"
-                  animationDuration={800}
+                  data={studyData.length > 0 ? studyData : [{ name: 'Empty', value: 1 }]}
+                  cx="50%" cy="50%" innerRadius={70} outerRadius={95} paddingAngle={4} dataKey="value"
+                  animationDuration={1000}
                 >
-                  {todayStudyData.length === 0 ? <Cell fill="rgba(255,255,255,0.05)" stroke="none" /> : 
-                    todayStudyData.map((entry, index) => <Cell key={`cell-${index}`} fill={getSubjectColor(entry.name, index)} stroke="none" />)}
+                  {studyData.length === 0 ? (
+                    <Cell fill="rgba(255,255,255,0.03)" stroke="none" />
+                  ) : (
+                    studyData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={getSubjectColor(entry.name, index)} stroke="none" />
+                    ))
+                  )}
                 </Pie>
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', backdropFilter: 'blur(10px)' }}
-                  itemStyle={{ color: '#fff', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
-                  formatter={(value: number) => [formatTimeHM(value), 'Study Time']}
+                  contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', backdropFilter: 'blur(20px)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}
+                  itemStyle={{ color: '#fff', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                  formatter={(value: number) => [formatTimeHM(value), 'Time']}
                 />
               </PieChart>
             </ResponsiveContainer>
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Total</span>
-              <span className="text-2xl font-mono font-black text-white">
-                {formatTimeHM(dailyStudySeconds[today] || 0)}
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none translate-y-2">
+              <span className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em] mb-1">Total Time</span>
+              <span className="text-3xl font-mono font-black text-white tabular-nums">
+                {formatTimeHM(totalStudySeconds)}
               </span>
             </div>
           </div>
-          <div className="w-full mt-6 space-y-2">
-            {todayStudyData.map((entry: any, index: number) => (
-              <div key={entry.name} className="flex items-center justify-between p-2.5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all group">
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full shadow-[0_0_8px_currentColor]" style={{ backgroundColor: getSubjectColor(entry.name, index), color: getSubjectColor(entry.name, index) }} />
-                  <span className="text-[10px] font-black text-white/60 uppercase tracking-widest group-hover:text-white transition-colors">{entry.name}</span>
-                </div>
-                <span className="text-[10px] font-mono font-black text-white">{formatTimeHM(entry.value)}</span>
+
+          <div className="w-full mt-10 space-y-2.5 max-h-[240px] overflow-y-auto pr-2 custom-scrollbar">
+            {studyData.length === 0 ? (
+              <div className="text-center py-8 text-[10px] font-bold text-white/20 uppercase tracking-widest border border-dashed border-white/5 rounded-2xl">
+                No session data yet
               </div>
-            ))}
+            ) : (
+              studyData.map((entry: any, index: number) => (
+                <div key={entry.name} className={itemRowClass}>
+                  <div className="flex items-center gap-3">
+                    <div 
+                      className="w-2.5 h-2.5 rounded-full shadow-[0_0_12px_currentColor]" 
+                      style={{ backgroundColor: getSubjectColor(entry.name, index), color: getSubjectColor(entry.name, index) }} 
+                    />
+                    <span className="text-[11px] font-black text-white/60 uppercase tracking-widest group-hover:text-white transition-colors">
+                      {entry.name}
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="text-[11px] font-mono font-black text-white">{formatTimeHM(entry.value)}</span>
+                    <span className="text-[8px] font-bold text-white/20 uppercase">
+                      {totalStudySeconds > 0 ? Math.round((entry.value / totalStudySeconds) * 100) : 0}%
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </motion.div>
 
+      {/* Question Distribution */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="p-8 rounded-[40px] glass border border-white/20 relative overflow-hidden will-change-transform"
+        transition={{ delay: 0.1 }}
+        className={chartCardClass}
       >
-        <div className="flex items-center gap-2 mb-8">
-          <div className="w-1.5 h-1.5 bg-rose-500 rounded-full" />
-          <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Subject Question Distribution</span>
+        <div className="flex items-center gap-2 mb-10">
+          <div className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />
+          <span className={sectionTitleClass}>Subject Question Distribution</span>
         </div>
+        
         <div className="flex flex-col items-center">
-          <div className="h-64 w-full relative">
+          <div className="h-72 w-full relative">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={todayQuestionData.length > 0 ? todayQuestionData : [{ name: 'No Data', value: 1 }]}
-                  cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value"
+                  data={questionData.length > 0 ? questionData : [{ name: 'Empty', value: 1 }]}
+                  cx="50%" cy="50%" innerRadius={70} outerRadius={95} paddingAngle={4} dataKey="value"
+                  animationDuration={1000}
                 >
-                  {todayQuestionData.length === 0 ? <Cell fill="rgba(255,255,255,0.05)" stroke="none" /> : 
-                    todayQuestionData.map((entry, index) => <Cell key={`cell-q-${index}`} fill={getSubjectColor(entry.name, index)} stroke="none" />)}
+                  {questionData.length === 0 ? (
+                    <Cell fill="rgba(255,255,255,0.03)" stroke="none" />
+                  ) : (
+                    questionData.map((entry, index) => (
+                      <Cell key={`cell-q-${index}`} fill={getSubjectColor(entry.name, index)} stroke="none" />
+                    ))
+                  )}
                 </Pie>
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
-                  itemStyle={{ color: '#fff', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
-                  formatter={(value: number) => [value, 'Questions']}
+                  contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', backdropFilter: 'blur(20px)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}
+                  itemStyle={{ color: '#fff', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                  formatter={(value: number) => [value, 'Solved']}
                 />
               </PieChart>
             </ResponsiveContainer>
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Total</span>
-              <span className="text-2xl font-mono font-black text-white">
-                {dailyQuestionCounts[today] || 0}
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none translate-y-2">
+              <span className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em] mb-1">Total Solved</span>
+              <span className="text-4xl font-mono font-black text-white tabular-nums">
+                {totalQuestions}
               </span>
             </div>
           </div>
-          <div className="w-full mt-6 space-y-2">
-            {todayQuestionData.map((entry: any, index: number) => (
-              <div key={entry.name} className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/10">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getSubjectColor(entry.name, index) }} />
-                  <span className="text-[10px] font-bold text-white/80 uppercase tracking-wider">{entry.name}</span>
-                </div>
-                <span className="text-[10px] font-mono font-bold text-white">{entry.value} Qs</span>
+
+          <div className="w-full mt-10 space-y-2.5 max-h-[240px] overflow-y-auto pr-2 custom-scrollbar">
+            {questionData.length === 0 ? (
+              <div className="text-center py-8 text-[10px] font-bold text-white/20 uppercase tracking-widest border border-dashed border-white/5 rounded-2xl">
+                No questions yet
               </div>
-            ))}
+            ) : (
+              questionData.map((entry: any, index: number) => (
+                <div key={entry.name} className={itemRowClass}>
+                  <div className="flex items-center gap-3">
+                    <div 
+                      className="w-2.5 h-2.5 rounded-full shadow-[0_0_12px_currentColor]" 
+                      style={{ backgroundColor: getSubjectColor(entry.name, index), color: getSubjectColor(entry.name, index) }} 
+                    />
+                    <span className="text-[11px] font-black text-white/60 uppercase tracking-widest group-hover:text-white transition-colors">
+                      {entry.name}
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="text-[11px] font-mono font-black text-white">{entry.value} Qs</span>
+                    <span className="text-[8px] font-bold text-white/20 uppercase">
+                      {totalQuestions > 0 ? Math.round((entry.value / totalQuestions) * 100) : 0}%
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </motion.div>
     </div>
   );
 });
+
 
 const BarGraphs = React.memo(({ barChartData, targetHours, questionTarget, revisionSlots }: any) => {
   const today = new Date();
