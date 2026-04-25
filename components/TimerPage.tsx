@@ -944,48 +944,65 @@ const DistributionCharts = React.memo(({ subjectStudySeconds, subjectQuestionCou
   const totalQuestions = dailyQuestionCounts[today] || 0;
 
   // Transform into chart data - ensure core subjects + Unsorted are always present for legend consistency
-  const coreSubjects = ['Physics', 'Chemistry', 'Maths', 'Other / Unsorted'];
-  const dataMap: Record<string, number> = {};
+  const ALL_FIXED_SUBJECTS = ['Physics', 'Chemistry', 'Maths', 'Other / Unsorted'];
+  const studyDataMap: Record<string, number> = {};
+  const questionDataMap: Record<string, number> = {};
   
-  // Initialize with core subjects
-  coreSubjects.forEach(s => dataMap[s] = 0);
-  
-  // Populate with actual data - map legacy 'Other' to 'Other / Unsorted'
-  Object.entries(todayStudyRaw).forEach(([name, value]: any) => {
-    const key = (name === 'Other') ? 'Other / Unsorted' : name;
-    dataMap[key] = (dataMap[key] || 0) + value;
+  ALL_FIXED_SUBJECTS.forEach(s => {
+    studyDataMap[s] = 0;
+    questionDataMap[s] = 0;
   });
 
-  // Calculate missing unattributed time
+  // Populate from local data (today's totals before current session segments)
+  Object.entries(todayStudyRaw).forEach(([name, value]: any) => {
+    const key = (name === 'Other' || name === 'Unsorted' || !name) ? 'Other / Unsorted' : name;
+    if (ALL_FIXED_SUBJECTS.includes(key)) {
+      studyDataMap[key] = (studyDataMap[key] || 0) + value;
+    } else {
+      // If it's a valid subject not in core, keep it or merge to Unsorted? 
+      // Requirement says "see all 4 options", implying these 4 are primary.
+      studyDataMap[key] = (studyDataMap[key] || 0) + value;
+    }
+  });
+
+  Object.entries(todayQuestionRaw).forEach(([name, value]: any) => {
+    const key = (name === 'Other' || name === 'Unsorted' || !name) ? 'Other / Unsorted' : name;
+    questionDataMap[key] = (questionDataMap[key] || 0) + value;
+  });
+
+  // Consistency Shield: Account for any "lost" time by comparing sum to total day seconds
   const studySum = Object.values(todayStudyRaw).reduce((acc: number, curr: any) => acc + (curr || 0), 0);
   if (studySum < totalStudySeconds) {
     const diff = totalStudySeconds - studySum;
-    if (diff > 5) {
-      dataMap['Other / Unsorted'] = (dataMap['Other / Unsorted'] || 0) + diff;
-    }
+    if (diff > 2) studyDataMap['Other / Unsorted'] += diff;
+  }
+  const qSum = Object.values(todayQuestionRaw).reduce((acc: number, curr: any) => acc + (curr || 0), 0);
+  if (qSum < totalQuestions) {
+    const diff = totalQuestions - qSum;
+    if (diff > 0) questionDataMap['Other / Unsorted'] += diff;
   }
 
-  let studyData = Object.entries(dataMap)
-    .map(([name, value]) => ({ name, value }));
+  const studyData = Object.entries(studyDataMap)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a,b) => {
+      const idxA = ALL_FIXED_SUBJECTS.indexOf(a.name);
+      const idxB = ALL_FIXED_SUBJECTS.indexOf(b.name);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.name.localeCompare(b.name);
+    });
 
-  // Same for questions
-  const qDataMap: Record<string, number> = {};
-  coreSubjects.forEach(s => qDataMap[s] = 0);
-  Object.entries(todayQuestionRaw).forEach(([name, value]: any) => {
-    const key = (name === 'Other') ? 'Other / Unsorted' : name;
-    qDataMap[key] = (qDataMap[key] || 0) + value;
-  });
-
-  const questionSum = Object.values(todayQuestionRaw).reduce((acc: number, curr: any) => acc + (curr || 0), 0);
-  if (questionSum < totalQuestions) {
-    const diff = totalQuestions - questionSum;
-    if (diff > 0) {
-      qDataMap['Other / Unsorted'] = (qDataMap['Other / Unsorted'] || 0) + diff;
-    }
-  }
-
-  let questionData = Object.entries(qDataMap)
-    .map(([name, value]) => ({ name, value }));
+  const questionData = Object.entries(questionDataMap)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a,b) => {
+      const idxA = ALL_FIXED_SUBJECTS.indexOf(a.name);
+      const idxB = ALL_FIXED_SUBJECTS.indexOf(b.name);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.name.localeCompare(b.name);
+    });
 
   const chartCardClass = "p-8 rounded-[40px] glass border border-white/20 relative overflow-hidden shadow-2xl transition-all duration-500 hover:border-white/30";
   const sectionTitleClass = "text-[10px] font-black text-white/40 uppercase tracking-widest";
@@ -1601,44 +1618,40 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   const activeSubjectSeconds = useMemo(() => {
     const data = { ...(subjectStudySeconds[todayKey] || {}) };
     
-    // 1. Add all completed segments from chapter switches in this tab's active session
-    Object.entries(sessionChapterStatsRef.current).forEach(([sub, chapters]) => {
-      let subTotal = 0;
-      Object.values(chapters).forEach(stats => subTotal += stats.seconds);
-      if (subTotal > 0) {
-        data[sub] = (data[sub] || 0) + subTotal;
-      }
+    // 1. Add finalized segments from current session (segments closed via switch)
+    Object.entries(sessionChapterStatsRef.current).forEach(([sub, chapters]: any) => {
+      Object.values(chapters).forEach((chap: any) => {
+        data[sub] = (data[sub] || 0) + chap.seconds;
+      });
     });
 
-    // 2. Add current pending segment for the selected subject
-    const currentSub = selectedSubject;
-    if (isTimerRunning && currentSub) {
+    // 2. Add THE ACTIVE SEGMENT using REFs to prevent state "shifting" drift
+    const currentSub = selectedSubjectRef.current || 'Other / Unsorted';
+    if (isTimerRunning) {
       const activeSegmentSeconds = Math.max(0, elapsedSeconds - lastChapterSwitchSecondsRef.current);
       data[currentSub] = (data[currentSub] || 0) + activeSegmentSeconds;
     }
     return data;
-  }, [subjectStudySeconds, todayKey, isTimerRunning, selectedSubject, elapsedSeconds, sessionVersion]);
+  }, [subjectStudySeconds, todayKey, isTimerRunning, elapsedSeconds, sessionVersion]);
 
   const activeSubjectQuestions = useMemo(() => {
     const data = { ...(subjectQuestionCounts[todayKey] || {}) };
     
-    // 1. Add all completed segments from chapter switches in this tab's active session
-    Object.entries(sessionChapterStatsRef.current).forEach(([sub, chapters]) => {
-      let subTotal = 0;
-      Object.values(chapters).forEach(stats => subTotal += stats.questions);
-      if (subTotal > 0) {
-        data[sub] = (data[sub] || 0) + subTotal;
-      }
+    // 1. Finalized session segments
+    Object.entries(sessionChapterStatsRef.current).forEach(([sub, chapters]: any) => {
+      Object.values(chapters).forEach((chap: any) => {
+        data[sub] = (data[sub] || 0) + chap.questions;
+      });
     });
 
-    // 2. Add current pending segment for the selected subject
-    const currentSub = selectedSubject;
-    if (isTimerRunning && currentSub) {
-      const activeSegmentQuestions = Math.max(0, currentQuestions - lastChapterSwitchQuestionsRef.current);
+    // 2. Current active segment using REFs to prevent state "shifting" drift
+    const currentSub = selectedSubjectRef.current || 'Other / Unsorted';
+    if (isTimerRunning) {
+      const activeSegmentQuestions = Math.max(0, currentQuestionsRef.current - lastChapterSwitchQuestionsRef.current);
       data[currentSub] = (data[currentSub] || 0) + activeSegmentQuestions;
     }
     return data;
-  }, [subjectQuestionCounts, todayKey, isTimerRunning, selectedSubject, currentQuestions, sessionVersion]);
+  }, [subjectQuestionCounts, todayKey, isTimerRunning, sessionVersion]);
 
   // Sync refs safely: ONLY update selectedSubjectRef/selectedChapterRef when NOT running 
   // or via handleChapterSwitch to avoid race conditions during session segmentation.
@@ -2454,7 +2467,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       const currentSub = selectedSubjectRef.current || 'Other / Unsorted';
       const currentChap = selectedChapterRef.current || 'Unsorted';
       const finalTimeDeltaForChapter = finalElapsed - lastChapterSwitchSecondsRef.current;
-      const finalQuestionDeltaForChapter = currentQuestions - lastChapterSwitchQuestionsRef.current;
+      const finalQuestionDeltaForChapter = currentQuestionsRef.current - lastChapterSwitchQuestionsRef.current;
 
       // 1. Accumulate session segments locally per chapter to avoid multiple increment objects for the same field
       const localChapterDelta: Record<string, Record<string, { seconds: number, questions: number }>> = {};
