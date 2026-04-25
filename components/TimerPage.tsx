@@ -788,17 +788,19 @@ const QuestionLab = React.memo(({ currentQuestions, currentQuestionsRef, updateQ
 
           <div className="grid grid-cols-2 gap-4 w-full px-4">
             <button
+               disabled={!isTimerRunning}
                onClick={() => { updateQuestions(Math.max(0, (currentQuestionsRef?.current || currentQuestions) - 1)); }}
                className={`p-6 rounded-2xl bg-white/[0.02] border border-white/10 text-white/20 transition-all flex flex-col items-center justify-center gap-1
-                 hover:bg-white/5 hover:text-white/60 active:scale-95`}
+                 ${!isTimerRunning ? 'opacity-10 cursor-not-allowed' : 'hover:bg-white/5 hover:text-white/60 active:scale-95'}`}
             >
               <div className="w-4 h-[1.5px] bg-current opacity-40" />
               <span className="text-[7px] font-black uppercase tracking-widest mt-1">SUBTRACT</span>
             </button>
             <button
+               disabled={!isTimerRunning}
                onClick={() => { playTickSound(); updateQuestions((currentQuestionsRef?.current || currentQuestions) + 1); }}
                className={`p-6 rounded-2xl bg-pink-500 text-black transition-all flex flex-col items-center justify-center gap-1 shadow-[0_15px_30px_rgba(236,72,153,0.2)]
-                 hover:bg-pink-400 active:scale-95`}
+                 ${!isTimerRunning ? 'opacity-20 cursor-not-allowed' : 'hover:bg-pink-400 active:scale-95'}`}
             >
               <div className="relative">
                 <div className="w-4 h-[1.5px] bg-black" />
@@ -941,38 +943,49 @@ const DistributionCharts = React.memo(({ subjectStudySeconds, subjectQuestionCou
   const totalStudySeconds = dailyStudySeconds[today] || 0;
   const totalQuestions = dailyQuestionCounts[today] || 0;
 
-  // Transform into chart data - filter out subjects with 0 values to keep charts clean
-  let studyData = Object.entries(todayStudyRaw)
-    .map(([name, value]: any) => ({ name, value }))
-    .filter(item => item.value > 0);
+  // Transform into chart data - ensure core subjects + Unsorted are always present for legend consistency
+  const coreSubjects = ['Physics', 'Chemistry', 'Maths', 'Other / Unsorted'];
+  const dataMap: Record<string, number> = {};
+  
+  // Initialize with core subjects
+  coreSubjects.forEach(s => dataMap[s] = 0);
+  
+  // Populate with actual data - map legacy 'Other' to 'Other / Unsorted'
+  Object.entries(todayStudyRaw).forEach(([name, value]: any) => {
+    const key = (name === 'Other') ? 'Other / Unsorted' : name;
+    dataMap[key] = (dataMap[key] || 0) + value;
+  });
 
-  let questionData = Object.entries(todayQuestionRaw)
-    .map(([name, value]: any) => ({ name, value }))
-    .filter(item => item.value > 0);
-
-  // Consistency Shield: Show unattributed time as 'Other' to avoid misleading 'merged' data
-  const studySum = studyData.reduce((acc, curr) => acc + curr.value, 0);
+  // Calculate missing unattributed time
+  const studySum = Object.values(todayStudyRaw).reduce((acc: number, curr: any) => acc + (curr || 0), 0);
   if (studySum < totalStudySeconds) {
     const diff = totalStudySeconds - studySum;
-    if (diff > 5) { // Show if more than 5 seconds to avoid noise
-      studyData.push({ name: 'Other / Unsorted', value: diff });
+    if (diff > 5) {
+      dataMap['Other / Unsorted'] = (dataMap['Other / Unsorted'] || 0) + diff;
     }
-  } else if (studySum > totalStudySeconds + 60) {
-    // If subjects somehow sum to MORE than total, scale them down to match total
-    const ratio = totalStudySeconds / studySum;
-    studyData = studyData.map(d => ({ ...d, value: Math.round(d.value * ratio) }));
   }
 
-  const questionSum = questionData.reduce((acc, curr) => acc + curr.value, 0);
+  let studyData = Object.entries(dataMap)
+    .map(([name, value]) => ({ name, value }));
+
+  // Same for questions
+  const qDataMap: Record<string, number> = {};
+  coreSubjects.forEach(s => qDataMap[s] = 0);
+  Object.entries(todayQuestionRaw).forEach(([name, value]: any) => {
+    const key = (name === 'Other') ? 'Other / Unsorted' : name;
+    qDataMap[key] = (qDataMap[key] || 0) + value;
+  });
+
+  const questionSum = Object.values(todayQuestionRaw).reduce((acc: number, curr: any) => acc + (curr || 0), 0);
   if (questionSum < totalQuestions) {
     const diff = totalQuestions - questionSum;
     if (diff > 0) {
-      questionData.push({ name: 'Other', value: diff });
+      qDataMap['Other / Unsorted'] = (qDataMap['Other / Unsorted'] || 0) + diff;
     }
-  } else if (questionSum > totalQuestions) {
-    const ratio = totalQuestions / questionSum;
-    questionData = questionData.map(d => ({ ...d, value: Math.round(d.value * ratio) }));
   }
+
+  let questionData = Object.entries(qDataMap)
+    .map(([name, value]) => ({ name, value }));
 
   const chartCardClass = "p-8 rounded-[40px] glass border border-white/20 relative overflow-hidden shadow-2xl transition-all duration-500 hover:border-white/30";
   const sectionTitleClass = "text-[10px] font-black text-white/40 uppercase tracking-widest";
@@ -1297,6 +1310,8 @@ const SUBJECT_COLORS: Record<string, string> = {
   'Social Science': '#f59e0b',
   'English': '#ec4899',
   'Hindi': '#f97316',
+  'Other / Unsorted': '#64748b',
+  'Other': '#64748b',
   'No Data': 'rgba(255,255,255,0.05)'
 };
 
@@ -2436,8 +2451,8 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       const examId = `${examBase}_${year}`;
       const progressRef = doc(db, 'users', user.uid, 'data', `progress-${examId}`);
 
-      const currentSub = selectedSubjectRef.current;
-      const currentChap = selectedChapterRef.current;
+      const currentSub = selectedSubjectRef.current || 'Other / Unsorted';
+      const currentChap = selectedChapterRef.current || 'Unsorted';
       const finalTimeDeltaForChapter = finalElapsed - lastChapterSwitchSecondsRef.current;
       const finalQuestionDeltaForChapter = currentQuestions - lastChapterSwitchQuestionsRef.current;
 
@@ -3350,13 +3365,12 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                                     <button
                                       key={sub}
                                       onClick={() => {
-                                        if (isTimerRunning) {
-                                          handleChapterSwitch(sub, "");
-                                        } else {
+                                        if (!isTimerRunning) {
                                           setSelectedSubject(sub);
                                           localStorage.setItem('pulse_selected_subject', sub);
                                         }
                                       }}
+                                      disabled={isTimerRunning}
                                       style={isActive ? { 
                                         backgroundColor: `${subColor}20`,
                                         borderColor: `${subColor}40`,
@@ -3364,7 +3378,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                                       } : {}}
                                       className={`px-3 py-3 rounded-lg text-[8px] font-black uppercase tracking-[0.2em] transition-all border
                                         ${isActive ? '' : `bg-white/[0.01] border-white/5 text-white/40 hover:bg-white/5 hover:border-white/10`}
-                                        cursor-pointer active:scale-95`}
+                                        ${isTimerRunning ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer active:scale-95'}`}
                                     >
                                       {sub}
                                     </button>
