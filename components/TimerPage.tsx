@@ -788,19 +788,17 @@ const QuestionLab = React.memo(({ currentQuestions, currentQuestionsRef, updateQ
 
           <div className="grid grid-cols-2 gap-4 w-full px-4">
             <button
-               disabled={!isTimerRunning}
-               onClick={() => { if(isTimerRunning) { updateQuestions(Math.max(0, (currentQuestionsRef?.current || currentQuestions) - 1)); }}}
+               onClick={() => { updateQuestions(Math.max(0, (currentQuestionsRef?.current || currentQuestions) - 1)); }}
                className={`p-6 rounded-2xl bg-white/[0.02] border border-white/10 text-white/20 transition-all flex flex-col items-center justify-center gap-1
-                 ${!isTimerRunning ? 'opacity-10 cursor-not-allowed' : 'hover:bg-white/5 hover:text-white/60 active:scale-95'}`}
+                 hover:bg-white/5 hover:text-white/60 active:scale-95`}
             >
               <div className="w-4 h-[1.5px] bg-current opacity-40" />
               <span className="text-[7px] font-black uppercase tracking-widest mt-1">SUBTRACT</span>
             </button>
             <button
-               disabled={!isTimerRunning}
-               onClick={() => { if(isTimerRunning) { playTickSound(); updateQuestions((currentQuestionsRef?.current || currentQuestions) + 1); }}}
+               onClick={() => { playTickSound(); updateQuestions((currentQuestionsRef?.current || currentQuestions) + 1); }}
                className={`p-6 rounded-2xl bg-pink-500 text-black transition-all flex flex-col items-center justify-center gap-1 shadow-[0_15px_30px_rgba(236,72,153,0.2)]
-                 ${!isTimerRunning ? 'opacity-20 cursor-not-allowed' : 'hover:bg-pink-400 active:scale-95'}`}
+                 hover:bg-pink-400 active:scale-95`}
             >
               <div className="relative">
                 <div className="w-4 h-[1.5px] bg-black" />
@@ -939,18 +937,42 @@ const DistributionCharts = React.memo(({ subjectStudySeconds, subjectQuestionCou
   const todayStudyRaw = subjectStudySeconds[today] || {};
   const todayQuestionRaw = subjectQuestionCounts[today] || {};
 
-  // Transform into chart data - filter out subjects with 0 values to keep charts clean
-  const studyData = Object.entries(todayStudyRaw)
-    .map(([name, value]: any) => ({ name, value }))
-    .filter(item => item.value > 0);
-
-  const questionData = Object.entries(todayQuestionRaw)
-    .map(([name, value]: any) => ({ name, value }))
-    .filter(item => item.value > 0);
-
   // Totals for display
   const totalStudySeconds = dailyStudySeconds[today] || 0;
   const totalQuestions = dailyQuestionCounts[today] || 0;
+
+  // Transform into chart data - filter out subjects with 0 values to keep charts clean
+  let studyData = Object.entries(todayStudyRaw)
+    .map(([name, value]: any) => ({ name, value }))
+    .filter(item => item.value > 0);
+
+  let questionData = Object.entries(todayQuestionRaw)
+    .map(([name, value]: any) => ({ name, value }))
+    .filter(item => item.value > 0);
+
+  // Consistency Shield: Show unattributed time as 'Other' to avoid misleading 'merged' data
+  const studySum = studyData.reduce((acc, curr) => acc + curr.value, 0);
+  if (studySum < totalStudySeconds) {
+    const diff = totalStudySeconds - studySum;
+    if (diff > 5) { // Show if more than 5 seconds to avoid noise
+      studyData.push({ name: 'Other / Unsorted', value: diff });
+    }
+  } else if (studySum > totalStudySeconds + 60) {
+    // If subjects somehow sum to MORE than total, scale them down to match total
+    const ratio = totalStudySeconds / studySum;
+    studyData = studyData.map(d => ({ ...d, value: Math.round(d.value * ratio) }));
+  }
+
+  const questionSum = questionData.reduce((acc, curr) => acc + curr.value, 0);
+  if (questionSum < totalQuestions) {
+    const diff = totalQuestions - questionSum;
+    if (diff > 0) {
+      questionData.push({ name: 'Other', value: diff });
+    }
+  } else if (questionSum > totalQuestions) {
+    const ratio = totalQuestions / questionSum;
+    questionData = questionData.map(d => ({ ...d, value: Math.round(d.value * ratio) }));
+  }
 
   const chartCardClass = "p-8 rounded-[40px] glass border border-white/20 relative overflow-hidden shadow-2xl transition-all duration-500 hover:border-white/30";
   const sectionTitleClass = "text-[10px] font-black text-white/40 uppercase tracking-widest";
@@ -1464,6 +1486,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   const [availableChapters, setAvailableChapters] = useState<{id: string, name: string}[]>([]);
   
   const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [sessionVersion, setSessionVersion] = useState(0); // Trigger for derived memos on ref updates
   const isSyncingRef = useRef(false);
   
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -1557,8 +1580,8 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   // Derived state for display to eliminate doubling (Pure Firestore + Current Live Delta)
   const todayKey = new Date().toDateString();
   
-  const activeStudySecondsForToday = (dailyStudySeconds[todayKey] || 0) + sessionTabSeconds;
-  const activeQuestionsForToday = (dailyQuestionCounts[todayKey] || 0) + sessionTabQuestions;
+  const activeStudySecondsForToday = isTimerRunning ? elapsedSeconds : (dailyStudySeconds[todayKey] || 0);
+  const activeQuestionsForToday = isTimerRunning ? currentQuestions : (dailyQuestionCounts[todayKey] || 0);
   
   const activeSubjectSeconds = useMemo(() => {
     const data = { ...(subjectStudySeconds[todayKey] || {}) };
@@ -1579,7 +1602,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       data[currentSub] = (data[currentSub] || 0) + activeSegmentSeconds;
     }
     return data;
-  }, [subjectStudySeconds, todayKey, isTimerRunning, selectedSubject, elapsedSeconds, sessionTabSeconds]);
+  }, [subjectStudySeconds, todayKey, isTimerRunning, selectedSubject, elapsedSeconds, sessionVersion]);
 
   const activeSubjectQuestions = useMemo(() => {
     const data = { ...(subjectQuestionCounts[todayKey] || {}) };
@@ -1600,7 +1623,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       data[currentSub] = (data[currentSub] || 0) + activeSegmentQuestions;
     }
     return data;
-  }, [subjectQuestionCounts, todayKey, isTimerRunning, selectedSubject, currentQuestions, sessionTabQuestions]);
+  }, [subjectQuestionCounts, todayKey, isTimerRunning, selectedSubject, currentQuestions, sessionVersion]);
 
   // Sync refs safely: ONLY update selectedSubjectRef/selectedChapterRef when NOT running 
   // or via handleChapterSwitch to avoid race conditions during session segmentation.
@@ -1670,8 +1693,8 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     };
   }, []);
 
-  // Handle Chapter/Subject Switching during Active Session
-  const handleChapterSwitch = useCallback((newSubject: string, newChapter: string) => {
+  const handleChapterSwitch = useCallback((newSubRaw: string, newChapter: string) => {
+    const newSubject = newSubRaw ? newSubRaw.charAt(0).toUpperCase() + newSubRaw.slice(1).toLowerCase() : "";
     if (isTimerRunning) {
       const currentSub = selectedSubjectRef.current;
       const currentChap = selectedChapterRef.current;
@@ -1686,13 +1709,15 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         }
         sessionChapterStatsRef.current[currentSub][currentChap].seconds += Math.max(0, timeDelta);
         sessionChapterStatsRef.current[currentSub][currentChap].questions += Math.max(0, questionDelta);
+        console.log(`[Timer] Segment recorded for ${currentSub}: ${timeDelta}s, ${questionDelta}q`);
       }
 
-      // Transition trackers and refs to the NEW subject/chapter AFTER recording the OLD segment
+      // Update trackers for the NEW subject
       lastChapterSwitchSecondsRef.current = elapsedSecondsRef.current;
       lastChapterSwitchQuestionsRef.current = currentQuestionsRef.current;
       selectedSubjectRef.current = newSubject;
       selectedChapterRef.current = newChapter;
+      setSessionVersion(v => v + 1);
     }
     
     if (newSubject !== selectedSubject) {
@@ -1865,42 +1890,8 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         return { ...prev, [dateStr]: firestoreSeconds };
       });
       
-      // FIX: Don't overwrite current day's subject stats from Firestore if the timer is running locally
-      // because Firestore only has the STOPPED total, not the live session segments.
-    if (isTimerRunning) {
-      // If timer is running, we MUST keep the current day's data but can MERGE in updates for 
-      // OTHER subjects that might have happened on other devices/sessions.
-      // This prevents the "vanished subject" bug when resuming after a switch.
-      const firestoreSubSeconds = data.subjectSeconds || {};
-      const currentSub = selectedSubjectRef.current;
-      
-      setSubjectStudySeconds(prev => {
-        const newDayData = { ...(prev[today] || {}) };
-        Object.entries(firestoreSubSeconds).forEach(([sub, sec]) => {
-          // Only update subjects that are NOT the one currently being studied
-          // to avoid doubling the active subject's time.
-          if (sub !== currentSub) {
-            newDayData[sub] = sec as number;
-          }
-        });
-        return { ...prev, [today]: newDayData };
-      });
-    } else {
       setSubjectStudySeconds(prev => ({ ...prev, [today]: data.subjectSeconds || {} }));
-    }
-
-      setSubjectQuestionCounts(prev => {
-        if (isTimerRunning && dateStr === today) {
-          const firestoreSubQs = data.subjectQuestions || {};
-          const currentSub = selectedSubjectRef.current;
-          const newDayData = { ...(prev[dateStr] || {}) };
-          Object.entries(firestoreSubQs).forEach(([sub, q]) => {
-            if (sub !== currentSub) newDayData[sub] = q as number;
-          });
-          return { ...prev, [dateStr]: newDayData };
-        }
-        return { ...prev, [dateStr]: data.subjectQuestions || {} };
-      });
+      setSubjectQuestionCounts(prev => ({ ...prev, [today]: data.subjectQuestions || {} }));
       
       setCurrentQuestions(prev => {
         if (isTimerRunning) return prev;
@@ -1930,6 +1921,14 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         setIsTimerRunning(data.isRunning || false);
         setStartTime(data.startTime || null);
         setAccumulatedSeconds(data.accumulatedSeconds || 0);
+
+        // Resume trackers
+        if (data.isRunning && data.startTime) {
+          if (lastChapterSwitchSecondsRef.current === 0) {
+            lastChapterSwitchSecondsRef.current = data.accumulatedSeconds || 0;
+            lastChapterSwitchQuestionsRef.current = currentQuestionsRef.current;
+          }
+        }
       }
       setIsTimerLoading(false);
       return;
@@ -1942,6 +1941,14 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         setIsTimerRunning(data.isRunning || false);
         setStartTime(data.startTime || null);
         setAccumulatedSeconds(data.accumulatedSeconds || 0);
+
+        // Resume trackers from Firestore state
+        if (data.isRunning && data.startTime) {
+          if (lastChapterSwitchSecondsRef.current === 0) {
+            lastChapterSwitchSecondsRef.current = data.accumulatedSeconds || 0;
+            lastChapterSwitchQuestionsRef.current = currentQuestionsRef.current;
+          }
+        }
       }
       setIsTimerLoading(false);
     }, (error) => {
@@ -2410,6 +2417,11 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       const finalElapsed = accumulatedSeconds + sessionSeconds;
       const sessionQuestions = sessionTabQuestions;
       
+      // Definitions moved UP to prevent ReferenceError
+      const sessionTotalStudySeconds = sessionSeconds;
+      const sessionTotalQuestions = sessionQuestions;
+      const today = new Date().toDateString();
+
       setElapsedSeconds(finalElapsed);
       setAccumulatedSeconds(finalElapsed);
       setStartTime(null);
@@ -2515,10 +2527,6 @@ const TimerPage = ({ settings }: TimerPageProps) => {
 
       const batch = writeBatch(db);
       const statsRef = doc(db, 'users', user.uid, 'dailyStats', today);
-
-      // Total session study time delta to write
-      const sessionTotalStudySeconds = sessionSeconds;
-      const sessionTotalQuestions = sessionQuestions;
 
       // Update Daily Stats using increment to ensure accuracy amidst multi-device sync
       const dailyStatsData: any = {
@@ -3342,12 +3350,13 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                                     <button
                                       key={sub}
                                       onClick={() => {
-                                        if (!isTimerRunning) {
+                                        if (isTimerRunning) {
+                                          handleChapterSwitch(sub, "");
+                                        } else {
                                           setSelectedSubject(sub);
                                           localStorage.setItem('pulse_selected_subject', sub);
                                         }
                                       }}
-                                      disabled={isTimerRunning}
                                       style={isActive ? { 
                                         backgroundColor: `${subColor}20`,
                                         borderColor: `${subColor}40`,
@@ -3355,7 +3364,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                                       } : {}}
                                       className={`px-3 py-3 rounded-lg text-[8px] font-black uppercase tracking-[0.2em] transition-all border
                                         ${isActive ? '' : `bg-white/[0.01] border-white/5 text-white/40 hover:bg-white/5 hover:border-white/10`}
-                                        ${isTimerRunning ? 'opacity-10' : 'cursor-pointer active:scale-95'}`}
+                                        cursor-pointer active:scale-95`}
                                     >
                                       {sub}
                                     </button>
