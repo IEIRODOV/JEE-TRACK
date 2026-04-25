@@ -38,15 +38,15 @@ import {
 const SpringLeverNav = ({ activeTab, setActiveTab, setShowDeleteConfirm }: { activeTab: any, setActiveTab: (t: any) => void, setShowDeleteConfirm: (v: boolean) => void }) => {
   const tabs = [
     { id: 'timer', label: 'TIMER', icon: Clock, color: 'text-violet-400' },
-    { id: 'test', label: 'TEST', icon: Target, color: 'text-pink-400' },
+    { id: 'test', label: 'TESTS', icon: Target, color: 'text-pink-400' },
     { id: 'revision', label: 'REVISION', icon: Zap, color: 'text-amber-400' },
-    { id: 'calendar', label: 'CALENDAR', icon: CalendarIcon, color: 'text-emerald-400' }
+    { id: 'calendar', label: 'HISTORY', icon: CalendarIcon, color: 'text-emerald-400' }
   ];
 
   const currentIndex = tabs.findIndex(t => t.id === activeTab);
 
   const handlePullEnd = (event: any, info: any) => {
-    if (info.offset.y > 80) { // Increased threshold for "stiffness"
+    if (info.offset.y > 80) {
       playMechanicalSound();
       const nextIndex = (currentIndex + 1) % tabs.length;
       setActiveTab(tabs[nextIndex].id);
@@ -54,69 +54,48 @@ const SpringLeverNav = ({ activeTab, setActiveTab, setShowDeleteConfirm }: { act
   };
 
   return (
-    <div className="flex flex-col items-center gap-6 mb-12">
-      <div className="flex items-center gap-4 bg-black/40 p-2 rounded-[32px] border border-white/10 backdrop-blur-2xl shadow-2xl">
+    <div className="flex flex-col items-center gap-8 mb-16 pt-8">
+      <div className="flex items-center gap-2 p-1.5 rounded-[18px] bg-[#080808] border border-white/5 shadow-2xl backdrop-blur-3xl">
         {tabs.map((tab, idx) => (
           <button
             key={tab.id}
             onClick={() => { playTickSound(); setActiveTab(tab.id); }}
-            className={`relative px-6 py-3 rounded-2xl transition-all duration-500 flex items-center gap-2 group
-              ${activeTab === tab.id ? 'bg-white/10 shadow-[inset_0_0_20px_rgba(255,255,255,0.05)]' : 'hover:bg-white/5 opacity-40 hover:opacity-100'}`}
+            className={`relative px-8 py-4 rounded-[12px] transition-all duration-300 flex items-center gap-3 overflow-hidden
+              ${activeTab === tab.id ? 'bg-white/[0.03]' : 'hover:bg-white/[0.02] opacity-30 hover:opacity-100'}`}
           >
             {activeTab === tab.id && (
               <motion.div 
                 layoutId="nav-active"
-                className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent rounded-2xl border border-white/20"
+                className="absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-r from-transparent via-white/40 to-transparent"
                 transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
               />
             )}
             <tab.icon className={`w-4 h-4 relative z-10 ${activeTab === tab.id ? tab.color : 'text-white'}`} />
-            <span className={`text-[10px] font-black uppercase tracking-[0.3em] relative z-10 transition-colors
-              ${activeTab === tab.id ? 'text-white' : 'text-white'}`}>
+            <span className={`text-xs font-bold uppercase tracking-[0.1em] relative z-10
+              ${activeTab === tab.id ? 'text-white' : 'text-white/40'}`}>
               {tab.label}
             </span>
           </button>
         ))}
 
-        {/* The Train-Style Drag Lever */}
-        <div className="h-10 w-px bg-white/10 mx-2" />
+        <div className="h-8 w-px bg-white/5 mx-3" />
         
-        <div className="flex items-center gap-4 px-4 h-24 flex-col justify-center">
-          <div className="relative group">
-            {/* Lever Rail */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-4 h-24 bg-zinc-900 rounded-full border border-white/5 shadow-inner" />
-            
-            <motion.div
-              drag="y"
-              dragConstraints={{ top: 0, bottom: 80 }}
-              dragElastic={0.1}
-              dragSnapToOrigin={true}
-              dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
-              onDragEnd={handlePullEnd}
-              whileTap={{ cursor: "grabbing" }}
-              className="relative z-10 cursor-grab"
-            >
-              <motion.div
-                className="w-14 h-16 bg-gradient-to-b from-zinc-800 to-black rounded-xl border-x-2 border-t-2 border-white/20 flex flex-col items-center justify-start pt-1 gap-1 shadow-2xl"
-              >
-                {/* Friction Ribs */}
-                <div className="w-8 h-12 flex flex-col gap-1.5 opacity-40 mt-1">
-                  {[...Array(5)].map((_, i) => (
-                    <div key={i} className="w-full h-1 bg-zinc-600 rounded-full" />
-                  ))}
-                </div>
-
-                {/* The Red Ball Handle */}
-                <div className="absolute -top-4 w-10 h-10 rounded-full bg-gradient-to-br from-red-500 via-red-600 to-red-950 border-2 border-white/30 shadow-2xl flex items-center justify-center">
-                  <div className="w-5 h-5 rounded-full bg-white/10 blur-[2px] -translate-x-1.5 -translate-y-1.5" />
-                </div>
-              </motion.div>
-            </motion.div>
-            
-            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap">
-              <span className="text-[7px] font-black text-red-500 uppercase tracking-widest">Pull to Shift</span>
+        <div className="relative group px-4">
+          <motion.div
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 60 }}
+            dragElastic={0.05}
+            dragSnapToOrigin={true}
+            onDragEnd={handlePullEnd}
+            className="cursor-ns-resize"
+          >
+            <div className="w-10 h-12 bg-gradient-to-b from-zinc-800 to-black rounded-lg border border-white/10 flex flex-col items-center justify-center gap-1 shadow-xl">
+               {[...Array(3)].map((_, i) => (
+                 <div key={i} className="w-5 h-[1px] bg-white/20" />
+               ))}
+               <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-6 h-[1px] bg-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.5)]" />
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
     </div>
@@ -262,13 +241,13 @@ const RevisionPage = ({ subjectStudySeconds, subjectQuestionCounts, getSubjectCo
               </div>
               <div>
                 <h2 className="text-3xl font-black text-white uppercase tracking-tighter leading-none">1-4-12 Method</h2>
-                <p className="text-[10px] font-bold text-amber-500/40 uppercase tracking-[0.4em] mt-1">Cognitive Retention Protocol</p>
+                <p className="text-xs font-bold text-amber-500/60 uppercase tracking-widest mt-1">Smart Revision Schedule</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="flex border border-white/5 rounded-2xl p-1 bg-black/40 backdrop-blur-xl">
-                <div className="px-4 py-2 text-[8px] font-black text-white/40 uppercase tracking-widest border-r border-white/5">Optimized for Rank 1</div>
-                <div className="px-4 py-2 text-[8px] font-black text-amber-500 uppercase tracking-widest animate-pulse">System Active</div>
+                <div className="px-4 py-2 text-[11px] font-bold text-white/40 uppercase tracking-wide border-r border-white/5">Science-backed learning</div>
+                <div className="px-4 py-2 text-[11px] font-bold text-amber-500 uppercase tracking-wide animate-pulse">Running</div>
               </div>
               <button 
                 onClick={() => setIsAdding(true)}
@@ -395,8 +374,8 @@ const RevisionPage = ({ subjectStudySeconds, subjectQuestionCounts, getSubjectCo
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-8 rounded-full" style={{ backgroundColor: getSubjectColor(slot.subject) }} />
                   <div>
-                    <div className="text-[8px] font-black text-white/20 uppercase tracking-widest">Protocol Active</div>
-                    <div className="text-sm font-black uppercase tracking-[0.2em] text-white/90 truncate max-w-[150px]">
+                    <div className="text-xs font-bold text-white/30 uppercase tracking-wide">Tracking Revision</div>
+                    <div className="text-sm font-black uppercase tracking-wide text-white/90 truncate max-w-[150px]">
                       {slot.subject}
                     </div>
                   </div>
@@ -410,14 +389,14 @@ const RevisionPage = ({ subjectStudySeconds, subjectQuestionCounts, getSubjectCo
               </div>
 
               <div className="mb-8">
-                <div className="text-[9px] text-white/20 uppercase font-black tracking-widest mb-2">Active Chapter</div>
-                <div className="text-lg font-black text-white leading-tight uppercase">{slot.chapter}</div>
+                <div className="text-[11px] text-white/30 uppercase font-bold tracking-wide mb-2">Subject Chapter</div>
+                <div className="text-xl font-black text-white leading-tight uppercase">{slot.chapter}</div>
               </div>
 
               <div className="space-y-6 relative z-10">
                 {/* Spaced Repetition Nodes */}
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center text-[8px] font-black text-white/40 uppercase tracking-widest">
+                  <div className="flex justify-between items-center text-xs font-bold text-white/40 uppercase tracking-wide">
                      <span>Revision Milestones</span>
                      <span>Status</span>
                   </div>
@@ -445,19 +424,19 @@ const RevisionPage = ({ subjectStudySeconds, subjectQuestionCounts, getSubjectCo
                           <div className="flex-1 space-y-2">
                              <div className="flex justify-between items-center">
                                <div className="flex flex-col">
-                                 <div className={`text-[9px] font-black ${isLocked ? 'text-white/10' : (isCompleted ? 'text-emerald-500/50' : 'text-white/40 uppercase')}`}>
+                                 <div className={`text-xs font-bold ${isLocked ? 'text-white/10' : (isCompleted ? 'text-emerald-500/60' : 'text-white/60 uppercase')}`}>
                                    Day {day} — {instructions[idx]}
                                  </div>
-                                 <div className={`text-[7px] font-bold ${isLocked ? 'text-pink-500/40' : 'text-amber-500/40'} uppercase tracking-widest`}>
-                                   {isLocked ? `Unlocks: ${getDueDate(slot.startDate, day)}` : `Due: ${getDueDate(slot.startDate, day)}`}
+                                 <div className={`text-[9px] font-bold ${isLocked ? 'text-pink-500/40' : 'text-amber-500/60'} uppercase tracking-widest`}>
+                                   {isLocked ? `Unlocks: ${getDueDate(slot.startDate, day)}` : `Available on: ${getDueDate(slot.startDate, day)}`}
                                  </div>
                                </div>
                                {isCompleted ? (
-                                 <Check className="w-3 h-3 text-emerald-500" />
+                                 <Check className="w-4 h-4 text-emerald-500" />
                                ) : isLocked ? (
-                                   <Shield className="w-3 h-3 text-white/5" />
+                                   <Shield className="w-4 h-4 text-white/5" />
                                ) : (
-                                 <div className={`w-2 h-2 rounded-full ${isCurrent ? 'bg-amber-500 animate-pulse' : 'bg-white/10'}`} />
+                                 <div className={`w-2.5 h-2.5 rounded-full ${isCurrent ? 'bg-amber-500 animate-pulse' : 'bg-white/10'}`} />
                                )}
                              </div>
                              <div className="h-1.5 rounded-full bg-black/40 border border-white/5 overflow-hidden">
@@ -478,17 +457,17 @@ const RevisionPage = ({ subjectStudySeconds, subjectQuestionCounts, getSubjectCo
                   <button 
                     disabled={slot.completed || ((slot.currentStage === 1 && daysSinceStart < 4) || (slot.currentStage === 2 && daysSinceStart < 12))}
                     onClick={() => markStageComplete(slot)}
-                    className={`flex-1 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95
+                    className={`flex-1 py-4 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all active:scale-95
                       ${slot.completed 
                         ? 'bg-emerald-500/20 text-emerald-400 cursor-default border border-emerald-500/20' 
                         : (slot.currentStage === 1 && daysSinceStart < 4) || (slot.currentStage === 2 && daysSinceStart < 12)
                           ? 'bg-white/5 text-white/10 cursor-not-allowed border border-white/5'
-                          : 'bg-amber-500 text-black hover:bg-amber-400 shadow-[0_10px_20px_rgba(245,158,11,0.2)]'}`}
+                          : 'bg-amber-500 text-black hover:bg-amber-400'}`}
                   >
-                    {slot.completed ? 'Mastered • 1-4-12 Win' : 
+                    {slot.completed ? 'Mastered' : 
                      (slot.currentStage === 1 && daysSinceStart < 4) || (slot.currentStage === 2 && daysSinceStart < 12) 
-                      ? `Locked until Day ${[1, 4, 12][slot.currentStage]}`
-                      : `Mark Day ${[1, 4, 12][slot.currentStage]} Complete`}
+                      ? `Unlocked Day ${[1, 4, 12][slot.currentStage]}`
+                      : `Complete Day ${[1, 4, 12][slot.currentStage]}`}
                   </button>
                 </div>
               </div>
@@ -523,24 +502,30 @@ const PerformanceNode = React.memo(({ elapsedSeconds, targetHours, currentQuesti
   <motion.div 
     initial={{ opacity: 0, x: -20 }}
     animate={{ opacity: 1, x: 0 }}
-    className="p-6 rounded-[32px] glass border border-white/5 bg-white/[0.01] will-change-transform"
+    className="p-6 rounded-[24px] bg-[#0c0c0c] border border-white/5 relative overflow-hidden group shadow-xl"
   >
-    <div className="flex items-center gap-2 mb-8">
-      <TrendingUp className="w-3 h-3 text-green-400" />
-      <span className="text-[9px] font-black text-green-400/30 uppercase tracking-[0.4em] font-mono">Performance Node</span>
+    <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center gap-2">
+        <Activity className="w-3.5 h-3.5 text-emerald-500" />
+        <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Productivity Index</span>
+      </div>
     </div>
+    
     <div className="space-y-6">
-      <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5">
-        <div className="flex justify-between items-end mb-3">
-          <div className="text-[8px] font-black text-white/20 uppercase tracking-widest font-mono">Focus Index</div>
-          <div className="text-lg font-mono font-bold text-pink-400">
+      <div className="p-4 rounded-xl bg-white/[0.01] border border-white/5 relative group/item overflow-hidden">
+        <div className="flex justify-between items-end mb-4 relative z-10">
+          <div className="flex flex-col">
+            <div className="text-[8px] font-black text-white/20 uppercase tracking-[0.3em] mb-1">Efficiency</div>
+            <div className="text-[9px] font-bold text-white/40 uppercase">Current Rate</div>
+          </div>
+          <div className="text-2xl font-mono font-bold text-emerald-400 tabular-nums">
             {(Math.min(10, (currentQuestions / Math.max(1, elapsedSeconds / 3600)) / 2)).toFixed(1)}
           </div>
         </div>
-        <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+        <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden relative z-10">
           <motion.div 
             animate={{ width: `${Math.min(100, ((currentQuestions / Math.max(1, elapsedSeconds / 3600)) / 2) * 10)}%` }}
-            className="h-full bg-pink-500 shadow-[0_0_10px_rgba(236,72,153,0.3)]"
+            className="h-full bg-emerald-500"
           />
         </div>
       </div>
@@ -554,14 +539,13 @@ const SubjectMasteryTracker = ({ subjects, studySeconds, questionCounts, revisio
   const TARGET_QUESTIONS = 120;
 
   return (
-    <div className="mt-12 space-y-8">
-      <div className="flex items-center gap-4">
-        <div className="h-px flex-1 bg-white/10" />
-        <h2 className="text-xs font-black text-white/40 uppercase tracking-[0.4em]">JEE Subject Progress Section</h2>
-        <div className="h-px flex-1 bg-white/10" />
+    <div className="mt-16 space-y-12">
+      <div className="flex items-center gap-6">
+        <h2 className="text-xs font-bold text-white/40 uppercase tracking-[0.3em] whitespace-nowrap pl-4 border-l-2 border-emerald-500/50">Subject Progress</h2>
+        <div className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent" />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {subjects.map((sub: string) => {
           // Calculate historical totals for this subject
           let totalStudyTime = 0;
@@ -605,84 +589,87 @@ const SubjectMasteryTracker = ({ subjects, studySeconds, questionCounts, revisio
             <motion.div
               key={sub}
               whileHover={{ y: -5 }}
-              className="p-6 rounded-[32px] glass bg-white/[0.01] border border-white/5 relative overflow-hidden group"
+              className="p-8 rounded-[32px] bg-[#0c0c0c] border border-white/5 relative overflow-hidden group shadow-2xl"
             >
               <div 
-                className="absolute top-0 right-0 w-32 h-32 blur-[60px] opacity-10 group-hover:opacity-20 transition-opacity"
+                className="absolute top-0 right-0 w-32 h-32 blur-[80px] opacity-10 group-hover:opacity-20 transition-opacity"
                 style={{ backgroundColor: getSubjectColor(sub) }}
               />
               
-              <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center justify-between mb-10">
                 <div className="flex items-center gap-3">
                   <div className="w-1.5 h-6 rounded-full" style={{ backgroundColor: getSubjectColor(sub) }} />
-                  <span className="text-lg font-black text-white uppercase tracking-tight">{sub}</span>
+                  <div className="flex flex-col">
+                    <span className="text-[14px] font-black text-white uppercase tracking-wider">{sub}</span>
+                    <span className="text-xs font-bold text-white/20 uppercase tracking-wide mt-1">Status: {compositeScore >= 80 ? 'Mastery' : 'Improving'}</span>
+                  </div>
                 </div>
-                <div className="text-2xl font-mono font-black text-white/90">{compositeScore}%</div>
+                <div className="text-3xl font-mono font-black text-white tabular-nums tracking-tighter">{compositeScore}%</div>
               </div>
 
-              <div className="space-y-4 relative z-10">
+              <div className="space-y-6 relative z-10">
                 {/* Weightage Breakdown (20% each) */}
-                <div className="space-y-4">
-                   <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-6">
+                   <div className="grid grid-cols-2 gap-6">
                       {/* Time */}
-                      <div className="space-y-1.5">
-                        <div className="flex justify-between text-[7px] font-black text-white/30 uppercase">
-                          <span>Hours ({Math.round(timeProgress * 0.2)}%)</span>
-                          <span>{formatTimeHM(totalStudyTime)}/10h</span>
+                      <div className="space-y-2">
+                         <div className="flex justify-between text-xs font-bold text-white/30 uppercase tracking-wide">
+                          <span>Study Time</span>
+                          <span className="text-white/60">{formatTimeHM(totalStudyTime)}</span>
                         </div>
-                        <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                          <motion.div animate={{ width: `${timeProgress}%` }} className="h-full bg-blue-500" />
+                        <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                          <motion.div animate={{ width: `${timeProgress}%` }} className="h-full bg-blue-500/80 shadow-[0_0_10px_rgba(59,130,246,0.3)]" />
                         </div>
                       </div>
                       {/* Questions */}
-                      <div className="space-y-1.5">
-                        <div className="flex justify-between text-[7px] font-black text-white/30 uppercase">
-                          <span>Questions ({Math.round(quesProgress * 0.2)}%)</span>
-                          <span>{totalQuestions}/120</span>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs font-bold text-white/30 uppercase tracking-wide">
+                          <span>Questions</span>
+                          <span className="text-white/60">{totalQuestions} Q</span>
                         </div>
-                        <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                          <motion.div animate={{ width: `${quesProgress}%` }} className="h-full bg-rose-500" />
+                        <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                          <motion.div animate={{ width: `${quesProgress}%` }} className="h-full bg-rose-500/80 shadow-[0_0_10px_rgba(244,63,94,0.3)]" />
                         </div>
                       </div>
                    </div>
 
                    <div className="h-px bg-white/5" />
 
-                   <div className="grid grid-cols-3 gap-3">
+                   <div className="grid grid-cols-3 gap-4">
                       {/* D1 */}
-                      <div className="space-y-1.5">
-                        <div className="text-[7px] font-black text-white/30 uppercase text-center">Day 1 Rev</div>
+                      <div className="space-y-2">
+                        <div className="text-[10px] font-bold text-white/20 uppercase text-center tracking-wide">RECALLED</div>
                         <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                          <motion.div animate={{ width: `${d1Progress}%` }} className="h-full bg-violet-500" />
+                          <motion.div animate={{ width: `${d1Progress}%` }} className="h-full bg-violet-500/60" />
                         </div>
-                        <div className="text-[6px] text-center text-white/20 font-bold">{d1Count}/{totalChaptersCount}</div>
+                        <div className="text-[9px] text-center text-white/40 font-bold">{d1Count}/{totalChaptersCount}</div>
                       </div>
                       {/* D4 */}
-                      <div className="space-y-1.5">
-                        <div className="text-[7px] font-black text-white/30 uppercase text-center">Day 4 Rev</div>
+                      <div className="space-y-2">
+                        <div className="text-[10px] font-bold text-white/20 uppercase text-center tracking-wide">REVISED</div>
                         <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                          <motion.div animate={{ width: `${d4Progress}%` }} className="h-full bg-amber-500" />
+                          <motion.div animate={{ width: `${d4Progress}%` }} className="h-full bg-amber-500/60" />
                         </div>
-                        <div className="text-[6px] text-center text-white/20 font-bold">{d4Count}/{totalChaptersCount}</div>
+                        <div className="text-[9px] text-center text-white/40 font-bold">{d4Count}/{totalChaptersCount}</div>
                       </div>
                       {/* D12 */}
-                      <div className="space-y-1.5">
-                        <div className="text-[7px] font-black text-white/30 uppercase text-center">Day 12 Rev</div>
+                      <div className="space-y-2">
+                        <div className="text-[10px] font-bold text-white/20 uppercase text-center tracking-wide">MASTERED</div>
                         <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                          <motion.div animate={{ width: `${d12Progress}%` }} className="h-full bg-emerald-500" />
+                          <motion.div animate={{ width: `${d12Progress}%` }} className="h-full bg-emerald-500/60" />
                         </div>
-                        <div className="text-[6px] text-center text-white/20 font-bold">{d12Count}/{totalChaptersCount}</div>
+                        <div className="text-[9px] text-center text-white/40 font-bold">{d12Count}/{totalChaptersCount}</div>
                       </div>
                    </div>
                 </div>
 
-                <div className="pt-4 border-t border-white/5 flex items-center justify-between">
-                   <div className="flex items-center gap-1.5">
-                      <Activity className="w-3 h-3 text-white/10" />
-                      <span className="text-[6px] font-black text-white/10 uppercase tracking-widest">Protocol Stats Sync</span>
+                <div className="pt-6 border-t border-white/5 flex items-center justify-between">
+                   <div className="flex items-center gap-2">
+                      <div className="w-1 h-1 rounded-full bg-white/20" />
+                      <span className="text-[10px] font-bold text-white/20 uppercase tracking-wide">Study Volume: {(totalStudyTime / 3600).toFixed(0)}H</span>
                    </div>
-                   <div className="px-2 py-0.5 rounded-md bg-white/5 text-[6px] font-black text-white/30 uppercase tracking-tighter">
-                     Earned Mastery
+                   <div className="px-2.5 py-1 rounded-full bg-white/5 border border-white/5 text-[10px] font-bold text-white/40 uppercase tracking-wide">
+                     Authenticated Data
                    </div>
                 </div>
               </div>
@@ -699,26 +686,27 @@ const StreakBox = React.memo(({ streak, dailyStudySeconds }: { streak: number, d
     initial={{ opacity: 0, x: -20 }}
     animate={{ opacity: 1, x: 0 }}
     transition={{ delay: 0.2 }}
-    className="p-8 rounded-[48px] bg-white/[0.02] border border-white/10 relative overflow-hidden group will-change-transform"
+    className="p-8 rounded-[24px] bg-[#0c0c0c] border border-white/5 relative overflow-hidden group shadow-xl"
   >
-    <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-    <div className="flex items-center gap-3 mb-10">
-      <div className="w-8 h-8 rounded-full bg-yellow-500/10 flex items-center justify-center">
-        <Zap className="w-4 h-4 text-yellow-500" />
+    <div className="flex items-center justify-between mb-10">
+      <div className="flex items-center gap-2">
+        <Zap className="w-3.5 h-3.5 text-amber-500" />
+        <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Consistency</span>
       </div>
-      <span className="text-[10px] font-black text-yellow-500 uppercase tracking-[0.4em] font-mono">Persistence Engine</span>
     </div>
+    
     <div className="flex flex-col gap-8 relative z-10">
-      <div className="flex items-end gap-4">
-        <div className="text-7xl font-mono font-black text-white tracking-tighter drop-shadow-[0_0_20px_rgba(234,179,8,0.3)]">
+      <div className="flex items-end gap-3">
+        <div className="text-[80px] font-mono font-black text-white tracking-[-0.1em] leading-[0.8] tabular-nums">
           {streak}
         </div>
-        <div className="flex flex-col mb-2">
-          <div className="text-[10px] font-black text-white/40 uppercase tracking-widest font-mono">DAY</div>
-          <div className="text-[12px] font-black text-yellow-500 uppercase tracking-[0.2em] font-mono">STREAK</div>
+        <div className="flex flex-col mb-1">
+          <div className="text-[10px] font-black text-white/40 uppercase tracking-widest">DAY</div>
+          <div className="text-[12px] font-black text-amber-500 uppercase tracking-widest">STREAK</div>
         </div>
       </div>
-      <div className="grid grid-cols-7 gap-2">
+
+      <div className="grid grid-cols-7 gap-1.5 p-1 rounded-2xl bg-black/40 border border-white/5">
         {[...Array(7)].map((_, i) => {
           const date = new Date();
           date.setDate(date.getDate() - (6 - i));
@@ -726,25 +714,17 @@ const StreakBox = React.memo(({ streak, dailyStudySeconds }: { streak: number, d
           const isDone = (dailyStudySeconds[dateStr] || 0) >= 1800;
           const dayName = date.toLocaleDateString('en-US', { weekday: 'narrow' });
           return (
-            <div key={i} className="flex flex-col items-center gap-2">
+            <div key={i} className="flex flex-col items-center gap-2 flex-1">
               <div 
-                className={`w-full h-8 rounded-xl transition-all duration-700 flex items-center justify-center
-                  ${isDone ? 'bg-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.4)]' : 'bg-white/5 border border-white/5'}`}
+                className={`w-full aspect-square rounded-lg transition-all duration-700 flex items-center justify-center border
+                  ${isDone ? 'bg-amber-500/80 border-amber-400/50' : 'bg-white/2 border-white/5'}`}
               >
                 {isDone && <Check className="w-3 h-3 text-black font-black" />}
               </div>
-              <span className={`text-[8px] font-black font-mono transition-colors ${isDone ? 'text-yellow-500' : 'text-white/20'}`}>{dayName}</span>
+              <span className={`text-[7px] font-black transition-colors ${isDone ? 'text-amber-500' : 'text-white/20'}`}>{dayName}</span>
             </div>
           );
         })}
-      </div>
-      <div className="p-5 rounded-3xl bg-white/[0.03] border border-white/5 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse" />
-          <p className="text-[9px] font-mono font-bold text-white/40 uppercase tracking-[0.1em] leading-relaxed">
-            Maintain 30m daily study depth.
-          </p>
-        </div>
       </div>
     </div>
   </motion.div>
@@ -786,78 +766,53 @@ const QuestionLab = React.memo(({ currentQuestions, currentQuestionsRef, updateQ
       <motion.div 
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
-        whileHover={{ scale: 1.01 }}
-        className="p-12 rounded-[50px] bg-zinc-950/80 border-2 border-pink-500/20 flex flex-col items-center justify-center text-center group relative overflow-hidden min-h-[400px] will-change-transform"
+        whileHover={{ scale: 1.005 }}
+        className="p-10 rounded-[28px] bg-[#0d0d0d] border border-white/5 flex flex-col items-center justify-center text-center group relative overflow-hidden min-h-[420px] shadow-2xl"
       >
-        <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-gradient-to-b from-pink-500/10 via-transparent to-transparent opacity-40" />
-          <motion.div 
-            animate={{ 
-              opacity: [0.1, 0.3, 0.1],
-              scale: [1, 1.2, 1]
-            }}
-            transition={{ duration: 4, repeat: Infinity }}
-            className="absolute -top-20 -right-20 w-64 h-64 bg-pink-500/20 rounded-full blur-[100px]"
-          />
+        <div className="absolute inset-0 z-0 px-1.5 pointer-events-none">
+          <div className="absolute inset-0 bg-gradient-to-b from-pink-500/5 via-transparent to-transparent opacity-20" />
         </div>
 
-        <div className="relative z-10 flex flex-col items-center w-full">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="p-2 rounded-xl bg-pink-500/10 border border-pink-500/20">
-              <Target className="w-5 h-5 text-pink-500" />
+        <div className="relative z-10 w-full flex flex-col items-center">
+          <div className="flex items-center gap-2 mb-10 bg-white/5 p-1 px-3 rounded-full border border-white/5">
+            <Target className="w-3 h-3 text-pink-400" />
+            <span className="text-[8px] font-black text-white/40 uppercase tracking-[0.4em]">Questions Tracked</span>
+          </div>
+
+          <div className="flex flex-col items-center gap-1 mb-12">
+            <div className="text-[110px] md:text-[140px] font-mono font-black text-white tracking-[-0.05em] leading-[0.8] tabular-nums drop-shadow-[0_0_30px_rgba(236,72,153,0.15)] bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">
+              {currentQuestions}
             </div>
-            <span className="text-[12px] font-black text-pink-400 uppercase tracking-[0.5em] font-mono">Question Lab</span>
-          </div>
-          
-          <div className="text-9xl font-mono font-black text-white tracking-tighter mb-12 tabular-nums drop-shadow-[0_0_40px_rgba(236,72,153,0.5)]">
-            {currentQuestions}
+            <div className="text-[10px] font-black text-pink-500/60 uppercase tracking-[0.6em] mt-6 border-t border-pink-500/10 pt-4 w-full text-center">Solved Today</div>
           </div>
 
-          <div className="flex items-center gap-6 w-full">
-            <button 
-              disabled={!isTimerRunning}
-              onClick={() => {
-                if (!isTimerRunning) return;
-                playTickSound();
-                updateQuestions(Math.max(0, (currentQuestionsRef?.current || currentQuestions) - 1));
-              }}
-              className={`flex-1 py-6 rounded-3xl bg-white/5 border border-white/10 text-white font-black text-xl transition-all shadow-xl
-                ${!isTimerRunning ? 'opacity-20 translate-y-1 grayscale cursor-not-allowed border-white/5' : 'hover:bg-red-500/20 hover:border-red-500/40 active:scale-90'}`}
+          <div className="grid grid-cols-2 gap-4 w-full px-4">
+            <button
+               disabled={!isTimerRunning}
+               onClick={() => { if(isTimerRunning) { updateQuestions(Math.max(0, (currentQuestionsRef?.current || currentQuestions) - 1)); }}}
+               className={`p-6 rounded-2xl bg-white/[0.02] border border-white/5 text-white/20 transition-all flex flex-col items-center justify-center gap-1
+                 ${!isTimerRunning ? 'opacity-10 cursor-not-allowed' : 'hover:bg-white/5 hover:text-white/60 active:scale-95'}`}
             >
-              -
+              <div className="w-4 h-[1.5px] bg-current opacity-40" />
+              <span className="text-[7px] font-black uppercase tracking-widest mt-1">SUBTRACT</span>
             </button>
-            <button 
-              disabled={!isTimerRunning}
-              onClick={() => {
-                if (!isTimerRunning) return;
-                playTickSound();
-                updateQuestions((currentQuestionsRef?.current || currentQuestions) + 1);
-              }}
-              className={`flex-1 py-6 rounded-3xl text-white font-black text-xl transition-all shadow-[0_15px_30px_rgba(236,72,153,0.4)]
-                ${!isTimerRunning 
-                  ? 'bg-zinc-800 border-zinc-700 opacity-20 translate-y-1 grayscale cursor-not-allowed' 
-                  : 'bg-pink-600 border border-pink-400 hover:bg-pink-500 hover:scale-105 active:scale-95'}`}
+            <button
+               disabled={!isTimerRunning}
+               onClick={() => { if(isTimerRunning) { playTickSound(); updateQuestions((currentQuestionsRef?.current || currentQuestions) + 1); }}}
+               className={`p-6 rounded-2xl bg-pink-500 text-black transition-all flex flex-col items-center justify-center gap-1 shadow-[0_15px_30px_rgba(236,72,153,0.2)]
+                 ${!isTimerRunning ? 'opacity-20 cursor-not-allowed' : 'hover:bg-pink-400 active:scale-95'}`}
             >
-              +
-            </button>
-          </div>
-
-          <div className="mt-8 flex flex-col items-center gap-2">
-            {!isTimerRunning ? (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/5 border border-red-500/10"
-              >
-                <div className="w-1.5 h-1.5 bg-red-500 rounded-full" />
-                <span className="text-[8px] font-black text-red-500/60 uppercase tracking-widest">Protocol Inactive • Timer Off</span>
-              </motion.div>
-            ) : (
-              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-pink-500/5 border border-pink-500/10">
-                <div className="w-2 h-2 bg-pink-500 rounded-full animate-ping" />
-                <span className="text-[10px] font-mono font-black text-white/30 uppercase tracking-widest">Live Tracking Active</span>
+              <div className="relative">
+                <div className="w-4 h-[1.5px] bg-black" />
+                <div className="w-[1.5px] h-4 bg-black absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
               </div>
-            )}
+              <span className="text-[7px] font-black uppercase tracking-widest mt-1">ADD</span>
+            </button>
+          </div>
+
+          <div className="mt-8 flex items-center gap-2 opacity-20">
+             <div className="w-1 h-1 rounded-full bg-white animate-pulse" />
+             <span className="text-[6px] font-black text-white uppercase tracking-[0.4em]">Real-time Updates</span>
           </div>
         </div>
       </motion.div>
@@ -1144,7 +1099,7 @@ const BarGraphs = React.memo(({ barChartData, targetHours, questionTarget, revis
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <div className="w-1.5 h-1.5 bg-blue-400 rounded-full" />
-              <span className="text-[10px] font-black text-white/20 uppercase tracking-widest font-mono">Study Hours (Last 7 Days)</span>
+              <span className="text-xs font-bold text-white/30 uppercase tracking-wide">Study Hours (Last 7 Days)</span>
             </div>
           </div>
           <div className="h-48 w-full">
@@ -1185,7 +1140,7 @@ const BarGraphs = React.memo(({ barChartData, targetHours, questionTarget, revis
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <div className="w-1.5 h-1.5 bg-rose-500 rounded-full" />
-              <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Questions Solved (Last 7 Days)</span>
+              <span className="text-xs font-bold text-white/40 uppercase tracking-wide">Questions Solved (Last 7 Days)</span>
             </div>
           </div>
           <div className="h-48 w-full">
@@ -1230,7 +1185,7 @@ const BarGraphs = React.memo(({ barChartData, targetHours, questionTarget, revis
           </div>
           <div className="flex items-center gap-3 mb-6 relative z-10">
             <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
-            <h3 className="text-xs font-black text-amber-500 uppercase tracking-[0.3em]">Revision Protocol Forecast</h3>
+            <h3 className="text-xs font-bold text-amber-500 uppercase tracking-widest">Weekly Revision Overview</h3>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4 relative z-10">
             {Array.from({ length: 7 }, (_, i) => {
@@ -1248,11 +1203,11 @@ const BarGraphs = React.memo(({ barChartData, targetHours, questionTarget, revis
 
               return (
                 <div key={i} className={`p-4 rounded-2xl transition-all border ${dayRevisions.length > 0 ? 'bg-amber-500/10 border-amber-500/30' : 'bg-white/2 border-white/5 opacity-40'}`}>
-                  <div className="text-[8px] font-black text-white/30 uppercase mb-2">{d.toLocaleDateString('default', { weekday: 'short' })}</div>
+                  <div className="text-[10px] font-bold text-white/30 uppercase mb-2">{d.toLocaleDateString('default', { weekday: 'short' })}</div>
                   <div className="text-sm font-black text-white mb-3">{d.getDate()}</div>
                   <div className="space-y-1.5">
                     {dayRevisions.map((rev: any, idx: number) => (
-                      <div key={idx} className="text-[6px] font-black text-amber-400 uppercase leading-tight truncate bg-amber-500/10 px-1 py-0.5 rounded border border-amber-500/10">
+                      <div key={idx} className="text-[8px] font-bold text-amber-400 uppercase leading-tight truncate bg-amber-500/10 px-1 py-0.5 rounded border border-amber-500/10">
                         {rev.chapter}
                       </div>
                     ))}
@@ -3197,9 +3152,9 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                     className="p-8 rounded-[40px] glass bg-white/[0.02] border border-white/5 flex items-center justify-between group hover:bg-white/[0.04] transition-all"
                   >
                     <div>
-                      <div className="text-[9px] font-black text-amber-500/40 uppercase tracking-widest mb-2 font-mono">Monthly Volume</div>
-                      <div className="text-4xl font-mono font-bold text-amber-400 tracking-tight">{monthStudyHours}H</div>
-                      <div className="mt-2 text-[8px] text-white/10 uppercase font-black tracking-widest">Time Logs Verified</div>
+                       <div className="text-xs font-bold text-amber-500/60 uppercase tracking-wider mb-2">Monthly Time</div>
+                       <div className="text-4xl font-mono font-bold text-amber-400 tracking-tight">{monthStudyHours}H</div>
+                       <div className="mt-2 text-xs text-white/20 uppercase font-bold tracking-wide">Logged Focus</div>
                     </div>
                     <div className="w-12 h-12 rounded-2xl bg-amber-500/5 border border-amber-500/20 flex items-center justify-center text-amber-400">
                       <Clock className="w-6 h-6" />
@@ -3212,9 +3167,9 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                     className="p-6 rounded-[32px] glass border border-white/10 flex items-center justify-between group hover:bg-white/5 transition-all"
                   >
                     <div>
-                      <div className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Questions</div>
-                      <div className="text-3xl font-mono font-bold text-blue-400">{monthQuestionCount}</div>
-                      <div className="mt-1 text-[9px] text-white/20 uppercase font-bold tracking-wider">This Month</div>
+                       <div className="text-xs font-bold text-white/40 uppercase tracking-wide mb-1">Questions</div>
+                       <div className="text-3xl font-mono font-bold text-blue-400">{monthQuestionCount}</div>
+                       <div className="mt-1 text-xs text-white/30 uppercase font-bold tracking-wide">This Month</div>
                     </div>
                     <div className="p-4 rounded-2xl bg-blue-500/10 text-blue-400">
                       <Target className="w-6 h-6" />
@@ -3224,7 +3179,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
               </div>
 
               {/* Trackers Section */}
-              <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr_320px] gap-6 mb-12 items-start w-full max-w-7xl mx-auto">
+              <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr_280px] gap-6 mb-12 items-start w-full max-w-7xl mx-auto">
                   {/* Left Column: Stats & Metrics */}
                   <div className="space-y-6 order-2 lg:order-1">
                     <PerformanceNode 
@@ -3242,106 +3197,76 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                   {/* Center Column: Futuristic Stopwatch */}
                   <div className="order-1 lg:order-2 flex justify-center">
                     <motion.div 
-                      whileHover={{ scale: 1.01 }}
-                      className="p-14 rounded-[72px] bg-neutral-950 border border-white/10 flex flex-col items-center justify-center text-center group relative overflow-hidden w-full max-w-[850px] shadow-[0_40px_100px_rgba(0,0,0,0.7)] border-glow-violet transition-all duration-500"
+                      whileHover={{ scale: 1.002 }}
+                      className="p-10 rounded-[32px] bg-[#050505] border border-white/5 flex flex-col items-center justify-center text-center group relative overflow-hidden w-full max-w-[850px] shadow-2xl transition-all duration-500"
                     >
-                      {/* Animated Background Rings */}
+                      {/* Subtler Background Elements */}
                       <div className="absolute inset-0 z-0">
-                        <motion.div 
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] border border-white/5 rounded-full border-dashed"
-                        />
-                        <motion.div 
-                          animate={{ rotate: -360 }}
-                          transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-                          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] h-[90%] border border-white/5 rounded-full border-dashed"
-                        />
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.02)_0%,transparent_70%)]" />
                       </div>
 
-                      {/* RGB Border Animation */}
-                      <div className="absolute inset-0 p-[2px] overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-purple-500/10 opacity-50" />
-                      </div>
-
-                      {/* Fast Moving White Light Border */}
                       {isTimerRunning && (
-                        <div className="absolute inset-0 p-[2px] overflow-hidden">
+                        <div className="absolute inset-0 z-0 overflow-hidden">
                           <motion.div
-                            animate={{ rotate: [0, 360] }}
-                            transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] bg-[conic-gradient(from_0deg,transparent_0deg,transparent_160deg,#ffffff_180deg,transparent_200deg,transparent_360deg)] opacity-60"
+                            animate={{ opacity: [0.3, 0.5, 0.3] }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                            className="absolute inset-0 bg-white/[0.01]"
                           />
                         </div>
                       )}
                       
-                      <div className="absolute inset-[2px] bg-black rounded-[58px] z-0" />
-
                       <div className="relative z-10 flex flex-col items-center w-full">
-                        <div className="flex flex-col w-full mb-12">
-                          <div className="flex items-center justify-between gap-4 mb-8 bg-white/5 p-6 rounded-[32px] border border-white/10">
-                            <div className="flex items-center gap-3">
-                              <div className="p-3 rounded-2xl bg-purple-500/10">
-                                <Rocket className="w-5 h-5 text-purple-400" />
+                        <div className="flex flex-col w-full mb-10">
+                          <div className="flex items-center justify-between gap-6 mb-10 bg-white/[0.02] p-6 rounded-2xl border border-white/5">
+                            <div className="flex items-center gap-4">
+                              <div className="p-3 rounded-xl bg-white/5 border border-white/5">
+                                <Rocket className={`w-5 h-5 ${isTimerRunning ? 'text-white' : 'text-white/20'}`} />
                               </div>
                               <div className="flex flex-col">
-                                <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1">
-                                  {isTimerRunning ? 'Active Mission' : 'Mission Protocol'}
+                                <span className="text-xs font-bold text-white/30 uppercase tracking-widest mb-1">
+                                  {isTimerRunning ? 'Focusing' : 'Ready'}
                                 </span>
-                                <span className="text-sm font-black text-white uppercase tracking-wider truncate max-w-[150px]">
-                                  {selectedSubject || 'None'}
+                                <span className="text-[14px] font-black text-white uppercase tracking-wider truncate max-w-[120px]">
+                                  {selectedSubject || 'Choose Subject'}
                                 </span>
                               </div>
                             </div>
 
-                            <div className="h-10 w-px bg-white/10" />
+                            <div className="h-10 w-px bg-white/5" />
 
-                            <div className="flex-1">
+                            <div className="flex-1 min-w-0">
                               {selectedSubject && availableChapters.length > 0 && (
-                                <motion.div 
-                                  initial={{ opacity: 0, x: 10 }}
-                                  animate={{ opacity: 1, x: 0 }}
-                                  className="w-full"
-                                >
-                                  <div className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1.5 ml-1">Active Chapter</div>
-                                  <select
-                                    value={selectedChapter}
-                                    onChange={(e) => {
-                                      setSelectedChapter(e.target.value);
-                                      localStorage.setItem('pulse_selected_chapter', e.target.value);
-                                    }}
-                                    disabled={isTimerRunning}
-                                    className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-2 text-[10px] font-black text-white/80 uppercase tracking-widest focus:outline-none focus:border-purple-500/50 transition-all appearance-none cursor-pointer disabled:opacity-50 hover:bg-white/10"
-                                  >
-                                    {availableChapters.map(chapter => (
-                                      <option key={chapter.id} value={chapter.id} className="bg-zinc-900 text-white">
-                                        {chapter.name}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </motion.div>
+                                <div className="w-full">
+                                  <div className="text-[11px] font-bold text-white/30 uppercase tracking-widest mb-1.5 ml-1 text-left">Current Chapter</div>
+                                  <div className="relative group/sel">
+                                    <select
+                                      value={selectedChapter}
+                                      onChange={(e) => {
+                                        setSelectedChapter(e.target.value);
+                                        localStorage.setItem('pulse_selected_chapter', e.target.value);
+                                      }}
+                                      disabled={isTimerRunning}
+                                      className="w-full bg-white/2 border border-white/5 rounded-lg px-4 py-2.5 text-xs font-bold text-white/60 uppercase tracking-wide focus:outline-none focus:border-white/20 transition-all appearance-none cursor-pointer disabled:opacity-20 hover:bg-white/5"
+                                    >
+                                      {availableChapters.map(chapter => (
+                                        <option key={chapter.id} value={chapter.id} className="bg-zinc-950 text-white">
+                                          {chapter.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-20">
+                                      <ChevronRight className="w-3 h-3 rotate-90" />
+                                    </div>
+                                  </div>
+                                </div>
                               )}
                             </div>
                           </div>
                           
-                          {/* Subject Selection - Horizontal Scrollable or Grid */}
-                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+                          {/* Subject Toggles */}
+                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                             {availableSubjects.map((sub, idx) => {
-                              const colors = [
-                                'border-yellow-500/20 text-yellow-400 hover:border-yellow-500/50 hover:bg-yellow-500/5',
-                                'border-red-500/20 text-red-400 hover:border-red-500/50 hover:bg-red-500/5',
-                                'border-green-500/20 text-green-400 hover:border-green-500/50 hover:bg-green-500/5',
-                                'border-pink-500/20 text-pink-400 hover:border-pink-500/50 hover:bg-pink-500/5',
-                                'border-violet-500/20 text-violet-400 hover:border-violet-500/50 hover:bg-violet-500/5'
-                              ];
-                              const activeColors = [
-                                'bg-yellow-500 border-yellow-400 text-black shadow-[0_10px_30px_rgba(234,179,8,0.3)]',
-                                'bg-red-500 border-red-400 text-white shadow-[0_10px_30px_rgba(239,68,68,0.3)]',
-                                'bg-green-500 border-green-400 text-black shadow-[0_10px_30px_rgba(34,197,94,0.3)]',
-                                'bg-pink-500 border-pink-400 text-white shadow-[0_10px_30px_rgba(236,72,153,0.3)]',
-                                'bg-violet-500 border-violet-400 text-white shadow-[0_10px_30px_rgba(139,92,246,0.3)]'
-                              ];
-                              const colorIndex = idx % colors.length;
+                              const isActive = selectedSubject === sub;
                               
                               return (
                                 <button
@@ -3353,11 +3278,9 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                                     }
                                   }}
                                   disabled={isTimerRunning}
-                                  className={`px-4 py-3 rounded-2xl text-[9px] font-black uppercase tracking-[0.1em] transition-all border text-center
-                                    ${selectedSubject === sub 
-                                      ? activeColors[colorIndex]
-                                      : `bg-white/2 ${colors[colorIndex]} hover:scale-[1.02]`}
-                                    ${isTimerRunning ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer active:scale-95'}`}
+                                  className={`px-3 py-3 rounded-lg text-[8px] font-black uppercase tracking-[0.2em] transition-all border
+                                    ${isActive ? 'bg-white/10 border-white/30 text-white' : `bg-white/[0.01] border-white/5 text-white/40 hover:bg-white/5 hover:border-white/10`}
+                                    ${isTimerRunning ? 'opacity-10' : 'cursor-pointer active:scale-95'}`}
                                 >
                                   {sub}
                                 </button>
@@ -3366,65 +3289,64 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                           </div>
                         </div>
                         
-                        <div className="relative mb-12 w-full max-w-2xl mx-auto">
+                        <div className="relative mb-14 w-full">
                           {isTimerLoading ? (
-                            <div className="flex justify-center py-12">
-                              <PulseLoader size={64} />
+                            <div className="flex justify-center py-16">
+                              <PulseLoader size={48} />
                             </div>
                           ) : (
                             <div className="relative flex flex-col items-center">
                               {isTimerRunning && (
-                                <>
-                                  <motion.div
-                                    animate={{ 
-                                      scale: [1, 1.4, 1],
-                                      opacity: [0.1, 0.3, 0.1]
-                                    }}
-                                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                                    className="absolute inset-0 bg-violet-500/20 rounded-full blur-[100px]"
-                                  />
-                                </>
+                                <motion.div
+                                  animate={{ opacity: [0.02, 0.05, 0.02] }}
+                                  transition={{ duration: 4, repeat: Infinity }}
+                                  className="absolute inset-0 bg-white/5 rounded-full blur-[100px]"
+                                />
                               )}
                               
-                              <div className="flex items-center justify-center gap-6 md:gap-10 w-full">
+                              <div className="flex items-center justify-center gap-4 md:gap-8 w-full">
                                 {[
                                   { val: Math.floor(elapsedSeconds / 3600), label: 'HOURS' },
                                   { val: Math.floor((elapsedSeconds % 3600) / 60), label: 'MINUTES' },
                                   { val: elapsedSeconds % 60, label: 'SECONDS' }
                                 ].map((unit, i) => (
-                                  <div key={unit.label} className="flex flex-col items-center">
-                                    <div className="text-7xl md:text-8xl lg:text-9xl font-mono font-black text-white tabular-nums tracking-tighter leading-none bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]">
-                                      {unit.val.toString().padStart(2, '0')}
+                                  <React.Fragment key={unit.label}>
+                                    <div className="flex flex-col items-center">
+                                      <div className="text-[80px] md:text-[140px] lg:text-[180px] font-mono font-black text-white tabular-nums tracking-[-0.1em] leading-none">
+                                        {unit.val.toString().padStart(2, '0')}
+                                      </div>
+                                      <div className="mt-4 text-xs font-bold text-white/40 uppercase tracking-widest">
+                                        {unit.label}
+                                      </div>
                                     </div>
-                                    <div className="mt-4 text-[10px] md:text-[11px] font-black text-white/20 uppercase tracking-[0.3em] font-mono">
-                                      {unit.label}
-                                    </div>
-                                  </div>
+                                    {i < 2 && (
+                                      <div className="text-6xl md:text-8xl lg:text-9xl font-mono font-black text-white/5 -mt-10">:</div>
+                                    )}
+                                  </React.Fragment>
                                 ))}
                               </div>
 
-                              <div className="mt-10 flex items-center gap-3">
-                                <Activity className={`w-4 h-4 ${isTimerRunning ? 'text-red-500 animate-pulse' : 'text-white/10'}`} />
-                                <div className="text-[10px] font-black text-white/30 uppercase tracking-[0.5em]">
-                                  {isTimerRunning ? 'Neural Track Active' : 'System Standby'}
+                              <div className="mt-12 flex items-center gap-3 bg-white/5 px-4 py-2 rounded-full border border-white/5">
+                                <div className={`w-1 h-1 rounded-full ${isTimerRunning ? 'bg-emerald-500 animate-pulse' : 'bg-white/20'}`} />
+                                <div className="text-[8px] font-black text-white/30 uppercase tracking-[0.5em]">
+                                  {isTimerRunning ? 'TIMER RUNNING' : 'STANDING BY'}
                                 </div>
                               </div>
                             </div>
                           )}
                         </div>
 
-                        <div className="flex items-center gap-4 w-full">
+                        <div className="flex items-center gap-4 w-full max-w-md">
                           <button 
                             onClick={toggleTimer}
                             disabled={isTimerLoading}
-                            className={`flex-1 py-6 rounded-[28px] font-black uppercase tracking-[0.25em] text-[10px] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-4 group relative overflow-hidden
+                            className={`flex-1 py-7 rounded-2xl font-black uppercase tracking-[0.4em] text-[11px] transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-4 group relative overflow-hidden border
                               ${isTimerRunning 
-                                ? 'bg-red-600/90 text-white shadow-[0_20px_40px_rgba(220,38,38,0.3)]' 
-                                : 'bg-violet-600 text-white shadow-[0_20px_40px_rgba(139,92,246,0.3)] hover:scale-[1.02]'}`}
+                                ? 'bg-black text-rose-500 border-rose-500/30' 
+                                : 'bg-white text-black border-transparent shadow-[0_20px_60px_rgba(255,255,255,0.15)]'}`}
                           >
-                            <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                            {isTimerRunning ? <Activity className="w-4 h-4 animate-pulse text-white" /> : <ZapIcon className="w-4 h-4 text-yellow-400 fill-yellow-400" />}
-                            {isTimerLoading || !isStatsLoaded ? 'Process Sync...' : (isTimerRunning ? 'Terminate Sequence' : 'Initialize Protocol')}
+                            {isTimerRunning ? <CloudOff className="w-4 h-4" /> : <Rocket className="w-4 h-4" />}
+                            {isTimerLoading || !isStatsLoaded ? 'SYNCING...' : (isTimerRunning ? 'STOP SESSION' : 'START FOCUS')}
                           </button>
                         </div>
                       </div>
@@ -3720,7 +3642,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                 <div className="glass rounded-[48px] overflow-hidden shadow-2xl p-8 bg-black/40 border border-white/5">
                   <div className="grid grid-cols-7 mb-6">
                     {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                      <div key={day} className="text-center text-[10px] font-black text-white/30 uppercase tracking-[0.3em] py-2">
+                      <div key={day} className="text-center text-xs font-bold text-white/30 uppercase tracking-wide py-2">
                         {day}
                       </div>
                     ))}
@@ -3732,14 +3654,14 @@ const TimerPage = ({ settings }: TimerPageProps) => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div className="p-8 rounded-[40px] bg-emerald-500/5 border border-emerald-500/10">
-                     <div className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-4">Perfect Cycles</div>
+                     <div className="text-xs font-bold text-emerald-500 uppercase tracking-wide mb-4">Completed Days</div>
                      <div className="text-4xl font-mono font-black text-white mb-2">12 Days</div>
-                     <p className="text-[10px] text-white/30 uppercase font-bold tracking-wider">Met target study + questions</p>
+                     <p className="text-xs text-white/30 uppercase font-bold tracking-wide">Met target study + questions</p>
                    </div>
                    <div className="p-8 rounded-[40px] bg-violet-500/5 border border-white/5">
-                     <div className="text-[10px] font-black text-violet-400 uppercase tracking-widest mb-4">Forecast Protocol</div>
-                     <p className="text-[10px] text-white/40 leading-relaxed uppercase tracking-wider">
-                       Current velocity suggests JEE curriculum completion by <span className="text-violet-400">Oct 2026</span>. maintain 4.2h/day average.
+                     <div className="text-xs font-bold text-violet-400 uppercase tracking-wide mb-4">Future Projection</div>
+                     <p className="text-xs text-white/40 leading-relaxed uppercase tracking-wide">
+                        Your current pace suggests exam preparation completion by <span className="text-violet-400 font-bold">Oct 2026</span> based on 4.2h/day average.
                      </p>
                    </div>
                 </div>
