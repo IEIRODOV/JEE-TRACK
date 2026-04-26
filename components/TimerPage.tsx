@@ -107,6 +107,7 @@ const RevisionPage = ({ subjectStudySeconds, subjectQuestionCounts, getSubjectCo
   const [isAdding, setIsAdding] = useState(false);
   const [selectedSub, setSelectedSub] = useState('');
   const [selectedChap, setSelectedChap] = useState('');
+  const [deletionTarget, setDeletionTarget] = useState<number | null>(null);
   const configRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -153,12 +154,13 @@ const RevisionPage = ({ subjectStudySeconds, subjectQuestionCounts, getSubjectCo
   };
 
   const removeSlot = (id: number) => {
-    setRevisionSlots(revisionSlots.filter((s: any) => s.id !== id));
+    setRevisionSlots(prev => prev.filter((s: any) => s.id !== id));
+    setDeletionTarget(null);
   };
 
   const markStageComplete = async (slot: any) => {
     const daysSinceStart = Math.floor((Date.now() - new Date(slot.startDate).getTime()) / (1000 * 60 * 60 * 24));
-    const isStageLocked = (slot.currentStage === 1 && daysSinceStart < 4) || (slot.currentStage === 2 && daysSinceStart < 12);
+    const isStageLocked = (slot.currentStage === 1 && daysSinceStart < 3) || (slot.currentStage === 2 && daysSinceStart < 11);
     
     if (isStageLocked) {
       alert(`This revision stage is locked. Please return on Day ${[1, 4, 12][slot.currentStage]}.`);
@@ -168,12 +170,12 @@ const RevisionPage = ({ subjectStudySeconds, subjectQuestionCounts, getSubjectCo
     const nextStage = slot.currentStage + 1;
     
     // Gating Logic
-    if (nextStage === 2 && daysSinceStart < 4) {
-      alert(`Protocol Locked: Day 4 revision available in ${4 - daysSinceStart} days.`);
+    if (nextStage === 2 && daysSinceStart < 3) {
+      alert(`Protocol Locked: Day 4 revision available in ${3 - daysSinceStart} days.`);
       return;
     }
-    if (nextStage === 3 && daysSinceStart < 12) {
-      alert(`Protocol Locked: Day 12 revision available in ${12 - daysSinceStart} days.`);
+    if (nextStage === 3 && daysSinceStart < 11) {
+      alert(`Protocol Locked: Day 12 revision available in ${11 - daysSinceStart} days.`);
       return;
     }
 
@@ -228,6 +230,41 @@ const RevisionPage = ({ subjectStudySeconds, subjectQuestionCounts, getSubjectCo
       animate={{ opacity: 1, y: 0 }}
       className="space-y-12"
     >
+      <AnimatePresence>
+        {deletionTarget && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          >
+            <motion.div 
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              className="bg-zinc-900 border border-white/10 p-8 rounded-[32px] max-w-sm w-full shadow-2xl"
+            >
+              <h3 className="text-lg font-black text-white uppercase tracking-widest mb-4">Confirm Deletion</h3>
+              <p className="text-sm text-white/60 mb-8">Are you sure you want to delete this revision slot? This action cannot be undone.</p>
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setDeletionTarget(null)}
+                  className="flex-1 py-4 rounded-2xl bg-white/5 text-white text-xs font-bold uppercase tracking-widest"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => removeSlot(deletionTarget)}
+                  className="flex-1 py-4 rounded-2xl bg-rose-500 text-white text-xs font-bold uppercase tracking-widest"
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* 1-4-12 Technique Overview */}
       <div className="p-10 rounded-[56px] bg-gradient-to-br from-zinc-900 via-black to-zinc-900 border border-white/20 relative overflow-hidden shadow-2xl">
         <div className="absolute top-0 right-0 p-8 opacity-[0.03]">
@@ -366,7 +403,7 @@ const RevisionPage = ({ subjectStudySeconds, subjectQuestionCounts, getSubjectCo
                 whileHover={{ y: -8, scale: 1.02 }}
                 className="p-8 rounded-[48px] bg-zinc-900/40 border border-white/10 backdrop-blur-3xl relative overflow-hidden group shadow-xl h-full flex flex-col"
               >
-              <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-20 transition-all duration-500 transform group-hover:rotate-12">
+              <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-20 transition-all duration-500 transform group-hover:rotate-12 pointer-events-none">
                 <Zap className="w-20 h-20" style={{ color: getSubjectColor(slot.subject) }} />
               </div>
               
@@ -381,8 +418,8 @@ const RevisionPage = ({ subjectStudySeconds, subjectQuestionCounts, getSubjectCo
                   </div>
                 </div>
                 <button 
-                  onClick={() => removeSlot(slot.id)}
-                  className="p-2 rounded-xl border border-white/5 bg-white/5 text-white/20 hover:text-rose-500 hover:bg-rose-500/10 transition-all opacity-0 group-hover:opacity-100"
+                  onClick={(e) => { e.stopPropagation(); setDeletionTarget(slot.id); }}
+                  className="p-2 rounded-xl border border-white/5 bg-white/5 text-white/20 hover:text-rose-500 hover:bg-rose-500/10 transition-all opacity-100 relative z-50 pointer-events-auto"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
