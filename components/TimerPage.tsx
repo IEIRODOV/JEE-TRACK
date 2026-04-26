@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, TrendingUp, Zap, Trash2, Cloud, CloudOff, Loader2, Activity, Clock, Target, Shield, Rocket, ZapIcon, History, Check, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, TrendingUp, Zap, Trash2, Cloud, CloudOff, Loader2, Activity, Clock, Target, Shield, Rocket, ZapIcon, History, Check, AlertTriangle, Hexagon } from 'lucide-react';
 import { 
   playTickSound, 
   playF1Sound, 
@@ -932,231 +932,6 @@ const QuestionLab = React.memo(({ currentQuestions, currentQuestionsRef, updateQ
   );
 });
 
-const DistributionCharts = React.memo(({ subjectStudySeconds, subjectQuestionCounts, dailyStudySeconds, dailyQuestionCounts, getSubjectColor }: any) => {
-  const today = new Date().toDateString();
-  
-  // Get raw data for today
-  const todayStudyRaw = subjectStudySeconds[today] || {};
-  const todayQuestionRaw = subjectQuestionCounts[today] || {};
-
-  // Totals for display
-  const totalStudySeconds = dailyStudySeconds[today] || 0;
-  const totalQuestions = dailyQuestionCounts[today] || 0;
-
-  // Transform into chart data - ensure core subjects + Unsorted are always present for legend consistency
-  const ALL_FIXED_SUBJECTS = ['Physics', 'Chemistry', 'Maths', 'Other / Unsorted'];
-  const studyDataMap: Record<string, number> = {};
-  const questionDataMap: Record<string, number> = {};
-  
-  ALL_FIXED_SUBJECTS.forEach(s => {
-    studyDataMap[s] = 0;
-    questionDataMap[s] = 0;
-  });
-
-  // Populate from local data (activeSubjectSeconds has the day totals)
-  Object.entries(todayStudyRaw).forEach(([name, value]: any) => {
-    // Normalize names to match core subjects
-    let key = name;
-    if (!name || name === 'Other' || name === 'Unsorted' || name === 'Other / Unsorted') {
-      key = 'Other / Unsorted';
-    } else {
-      // Find matching core subject ignoring case
-      const matched = ALL_FIXED_SUBJECTS.find(s => s.toLowerCase() === name.toLowerCase());
-      if (matched) key = matched;
-    }
-    studyDataMap[key] = (studyDataMap[key] || 0) + value;
-  });
-
-  Object.entries(todayQuestionRaw).forEach(([name, value]: any) => {
-    let key = name;
-    if (!name || name === 'Other' || name === 'Unsorted' || name === 'Other / Unsorted') {
-      key = 'Other / Unsorted';
-    } else {
-      const matched = ALL_FIXED_SUBJECTS.find(s => s.toLowerCase() === name.toLowerCase());
-      if (matched) key = matched;
-    }
-    questionDataMap[key] = (questionDataMap[key] || 0) + value;
-  });
-
-  const studyData = Object.entries(studyDataMap)
-    .map(([name, value]) => ({ name, value }))
-    .sort((a,b) => {
-      const idxA = ALL_FIXED_SUBJECTS.indexOf(a.name);
-      const idxB = ALL_FIXED_SUBJECTS.indexOf(b.name);
-      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-      if (idxA !== -1) return -1;
-      if (idxB !== -1) return 1;
-      return a.name.localeCompare(b.name);
-    });
-
-  const questionData = Object.entries(questionDataMap)
-    .map(([name, value]) => ({ name, value }))
-    .sort((a,b) => {
-      const idxA = ALL_FIXED_SUBJECTS.indexOf(a.name);
-      const idxB = ALL_FIXED_SUBJECTS.indexOf(b.name);
-      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-      if (idxA !== -1) return -1;
-      if (idxB !== -1) return 1;
-      return a.name.localeCompare(b.name);
-    });
-
-  const chartCardClass = "p-8 rounded-[40px] glass border border-white/20 relative overflow-hidden shadow-2xl transition-all duration-500 hover:border-white/30";
-  const sectionTitleClass = "text-[10px] font-black text-white/40 uppercase tracking-widest";
-  const itemRowClass = "flex items-center justify-between p-3 rounded-2xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] transition-all group";
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
-      {/* Time Distribution */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className={chartCardClass}
-      >
-        <div className="flex items-center gap-2 mb-10">
-          <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
-          <span className={sectionTitleClass}>Subject Time Distribution</span>
-        </div>
-        
-        <div className="flex flex-col items-center">
-          <div className="h-72 w-full relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={studyData.length > 0 ? studyData : [{ name: 'Empty', value: 1 }]}
-                  cx="50%" cy="50%" innerRadius={70} outerRadius={95} paddingAngle={4} dataKey="value"
-                  animationDuration={1000}
-                >
-                  {studyData.length === 0 ? (
-                    <Cell fill="rgba(255,255,255,0.03)" stroke="none" />
-                  ) : (
-                    studyData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={getSubjectColor(entry.name, index)} stroke="none" />
-                    ))
-                  )}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', backdropFilter: 'blur(20px)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}
-                  itemStyle={{ color: '#fff', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em' }}
-                  formatter={(value: number) => [formatTimeHM(value), 'Time']}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none translate-y-2">
-              <span className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em] mb-1">Total Time</span>
-              <span className="text-3xl font-mono font-black text-white tabular-nums">
-                {formatTimeHM(totalStudySeconds)}
-              </span>
-            </div>
-          </div>
-
-          <div className="w-full mt-10 space-y-2.5 max-h-[240px] overflow-y-auto pr-2 custom-scrollbar">
-            {studyData.length === 0 ? (
-              <div className="text-center py-8 text-[10px] font-bold text-white/20 uppercase tracking-widest border border-dashed border-white/5 rounded-2xl">
-                No session data yet
-              </div>
-            ) : (
-              studyData.map((entry: any, index: number) => (
-                <div key={entry.name} className={itemRowClass}>
-                  <div className="flex items-center gap-3">
-                    <div 
-                      className="w-2.5 h-2.5 rounded-full shadow-[0_0_12px_currentColor]" 
-                      style={{ backgroundColor: getSubjectColor(entry.name, index), color: getSubjectColor(entry.name, index) }} 
-                    />
-                    <span className="text-[11px] font-black text-white/60 uppercase tracking-widest group-hover:text-white transition-colors">
-                      {entry.name}
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <span className="text-[11px] font-mono font-black text-white">{formatTimeHM(entry.value)}</span>
-                    <span className="text-[8px] font-bold text-white/20 uppercase">
-                      {totalStudySeconds > 0 ? Math.round((entry.value / totalStudySeconds) * 100) : 0}%
-                    </span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Question Distribution */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className={chartCardClass}
-      >
-        <div className="flex items-center gap-2 mb-10">
-          <div className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />
-          <span className={sectionTitleClass}>Subject Question Distribution</span>
-        </div>
-        
-        <div className="flex flex-col items-center">
-          <div className="h-72 w-full relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={questionData.length > 0 ? questionData : [{ name: 'Empty', value: 1 }]}
-                  cx="50%" cy="50%" innerRadius={70} outerRadius={95} paddingAngle={4} dataKey="value"
-                  animationDuration={1000}
-                >
-                  {questionData.length === 0 ? (
-                    <Cell fill="rgba(255,255,255,0.03)" stroke="none" />
-                  ) : (
-                    questionData.map((entry, index) => (
-                      <Cell key={`cell-q-${index}`} fill={getSubjectColor(entry.name, index)} stroke="none" />
-                    ))
-                  )}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', backdropFilter: 'blur(20px)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}
-                  itemStyle={{ color: '#fff', fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em' }}
-                  formatter={(value: number) => [value, 'Solved']}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none translate-y-2">
-              <span className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em] mb-1">Total Solved</span>
-              <span className="text-4xl font-mono font-black text-white tabular-nums">
-                {totalQuestions}
-              </span>
-            </div>
-          </div>
-
-          <div className="w-full mt-10 space-y-2.5 max-h-[240px] overflow-y-auto pr-2 custom-scrollbar">
-            {questionData.length === 0 ? (
-              <div className="text-center py-8 text-[10px] font-bold text-white/20 uppercase tracking-widest border border-dashed border-white/5 rounded-2xl">
-                No questions yet
-              </div>
-            ) : (
-              questionData.map((entry: any, index: number) => (
-                <div key={entry.name} className={itemRowClass}>
-                  <div className="flex items-center gap-3">
-                    <div 
-                      className="w-2.5 h-2.5 rounded-full shadow-[0_0_12px_currentColor]" 
-                      style={{ backgroundColor: getSubjectColor(entry.name, index), color: getSubjectColor(entry.name, index) }} 
-                    />
-                    <span className="text-[11px] font-black text-white/60 uppercase tracking-widest group-hover:text-white transition-colors">
-                      {entry.name}
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <span className="text-[11px] font-mono font-black text-white">{entry.value} Qs</span>
-                    <span className="text-[8px] font-bold text-white/20 uppercase">
-                      {totalQuestions > 0 ? Math.round((entry.value / totalQuestions) * 100) : 0}%
-                    </span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </motion.div>
-    </div>
-  );
-});
-
-
 const BarGraphs = React.memo(({ barChartData, targetHours, questionTarget, revisionSlots }: any) => {
   const today = new Date();
   today.setHours(0,0,0,0);
@@ -1313,17 +1088,19 @@ const BarGraphs = React.memo(({ barChartData, targetHours, questionTarget, revis
 });
 
 const SUBJECT_COLORS: Record<string, string> = {
-  'Maths': '#a855f7',
-  'Math': '#a855f7',
-  'Physics': '#3b82f6',
-  'Chemistry': '#10b981',
+  'Maths': '#3b82f6',
+  'Physics': '#ef4444',
+  'Chemistry': '#facc15',
   'Biology': '#f43f5e',
-  'Bio': '#f43f5e',
   'Science': '#06b6d4',
-  'Social Science': '#f59e0b',
   'English': '#ec4899',
+  'History': '#f97316',
+  'Geography': '#8b5cf6',
+  'Civics': '#0ea5e9',
+  'Economics': '#06b6d4',
+  'Social Science': '#f59e0b',
   'Hindi': '#f97316',
-  'Other / Unsorted': '#64748b',
+  'Other / Unsorted': '#4b5563',
   'Other': '#64748b',
   'No Data': 'rgba(255,255,255,0.05)'
 };
@@ -1611,77 +1388,70 @@ const TimerPage = ({ settings }: TimerPageProps) => {
   const activeStudySecondsForToday = isTimerRunning ? elapsedSeconds : (dailyStudySeconds[todayKey] || 0);
   const activeQuestionsForToday = isTimerRunning ? currentQuestions : (dailyQuestionCounts[todayKey] || 0);
   
-  const activeSubjectSeconds = useMemo(() => {
-    // 0. Base data from Firestore (normalized)
-    const rawData = subjectStudySeconds[todayKey] || {};
-    const data: Record<string, number> = {};
+  const normalizeSubject = (sub: string | null | undefined): string => {
+    if (!sub) return 'Other / Unsorted';
+    const s = sub.trim();
     const CORE_KEYS = ['Physics', 'Chemistry', 'Maths'];
+    const matched = CORE_KEYS.find(k => k.toLowerCase() === s.toLowerCase());
+    if (matched) return matched;
+    if (['Other', 'Unsorted', 'Other / Unsorted'].includes(s)) return 'Other / Unsorted';
+    return s;
+  };
 
+  const activeSubjectSeconds = useMemo(() => {
+    const today = todayKey;
+    const rawData = subjectStudySeconds[today] || {};
+    const data: Record<string, number> = {};
+
+    // 0. Base data from state
     Object.entries(rawData).forEach(([sub, val]: any) => {
-      let key = sub;
-      const matched = CORE_KEYS.find(k => k.toLowerCase() === sub.toLowerCase());
-      if (matched) key = matched;
+      const key = normalizeSubject(sub);
       data[key] = (data[key] || 0) + val;
     });
     
-    // 1. Add finalized segments from current session (segments closed via switch)
+    // 1. Add finalized segments from active session
     Object.entries(sessionChapterStatsRef.current).forEach(([sub, chapters]: any) => {
-      let key = sub;
-      const matched = CORE_KEYS.find(k => k.toLowerCase() === sub.toLowerCase());
-      if (matched) key = matched;
-
+      const key = normalizeSubject(sub);
       Object.values(chapters).forEach((chap: any) => {
         data[key] = (data[key] || 0) + chap.seconds;
       });
     });
 
-    // 2. Add THE ACTIVE SEGMENT using REFs to prevent state "shifting" drift
-    let currentSub = selectedSubjectRef.current || 'Other / Unsorted';
-    const matched = CORE_KEYS.find(k => k.toLowerCase() === currentSub.toLowerCase());
-    if (matched) currentSub = matched;
-
-    if (isTimerRunning) {
-      const activeSegmentSeconds = Math.max(0, elapsedSeconds - lastChapterSwitchSecondsRef.current);
+    // 2. Add the currently active segment (the one ticking)
+    const currentSub = normalizeSubject(selectedSubjectRef.current);
+    const activeSegmentSeconds = Math.max(0, elapsedSeconds - lastChapterSwitchSecondsRef.current);
+    if (activeSegmentSeconds > 0) {
       data[currentSub] = (data[currentSub] || 0) + activeSegmentSeconds;
     }
+
     return data;
-  }, [subjectStudySeconds, todayKey, isTimerRunning, elapsedSeconds, sessionVersion]);
+  }, [subjectStudySeconds, todayKey, elapsedSeconds, sessionVersion, selectedSubject, isTimerRunning]);
 
   const activeSubjectQuestions = useMemo(() => {
-    // 0. Base data from Firestore (normalized)
-    const rawData = subjectQuestionCounts[todayKey] || {};
+    const today = todayKey;
+    const rawData = subjectQuestionCounts[today] || {};
     const data: Record<string, number> = {};
-    const CORE_KEYS = ['Physics', 'Chemistry', 'Maths'];
 
     Object.entries(rawData).forEach(([sub, val]: any) => {
-      let key = sub;
-      const matched = CORE_KEYS.find(k => k.toLowerCase() === sub.toLowerCase());
-      if (matched) key = matched;
+      const key = normalizeSubject(sub);
       data[key] = (data[key] || 0) + val;
     });
     
-    // 1. Finalized session segments
     Object.entries(sessionChapterStatsRef.current).forEach(([sub, chapters]: any) => {
-      let key = sub;
-      const matched = CORE_KEYS.find(k => k.toLowerCase() === sub.toLowerCase());
-      if (matched) key = matched;
-
+      const key = normalizeSubject(sub);
       Object.values(chapters).forEach((chap: any) => {
         data[key] = (data[key] || 0) + chap.questions;
       });
     });
 
-    // 2. Current active segment using REFs to prevent state "shifting" drift
-    let currentSub = selectedSubjectRef.current || 'Other / Unsorted';
-    const matched = CORE_KEYS.find(k => k.toLowerCase() === currentSub.toLowerCase());
-    if (matched) currentSub = matched;
-
-    if (isTimerRunning) {
-      const activeSegmentQuestions = Math.max(0, currentQuestions - lastChapterSwitchQuestionsRef.current);
+    const currentSub = normalizeSubject(selectedSubjectRef.current);
+    const activeSegmentQuestions = Math.max(0, currentQuestions - lastChapterSwitchQuestionsRef.current);
+    if (activeSegmentQuestions > 0) {
       data[currentSub] = (data[currentSub] || 0) + activeSegmentQuestions;
     }
+
     return data;
-  }, [subjectQuestionCounts, todayKey, isTimerRunning, currentQuestions, sessionVersion]);
+  }, [subjectQuestionCounts, todayKey, currentQuestions, sessionVersion, selectedSubject, isTimerRunning]);
 
   // Sync refs safely: ONLY update selectedSubjectRef/selectedChapterRef when NOT running 
   // or via handleChapterSwitch to avoid race conditions during session segmentation.
@@ -1949,18 +1719,25 @@ const TimerPage = ({ settings }: TimerPageProps) => {
 
       setDailyQuestionCounts(prev => {
         const firestoreCount = data.questionsSolved || 0;
-        if (isTimerRunning && dateStr === today && (prev[dateStr] || 0) > firestoreCount) return prev;
+        if (dateStr === today && (prev[dateStr] || 0) > firestoreCount) return prev;
         return { ...prev, [dateStr]: firestoreCount };
       });
 
       setDailyStudySeconds(prev => {
         const firestoreSeconds = data.studySeconds || 0;
-        if (isTimerRunning && dateStr === today && (prev[dateStr] || 0) > firestoreSeconds) return prev;
+        if (dateStr === today && (prev[dateStr] || 0) > firestoreSeconds) return prev;
         return { ...prev, [dateStr]: firestoreSeconds };
       });
       
-      setSubjectStudySeconds(prev => ({ ...prev, [today]: data.subjectSeconds || {} }));
-      setSubjectQuestionCounts(prev => ({ ...prev, [today]: data.subjectQuestions || {} }));
+      setSubjectStudySeconds(prev => {
+        if (isTimerRunning) return prev;
+        return { ...prev, [today]: data.subjectSeconds || {} };
+      });
+
+      setSubjectQuestionCounts(prev => {
+        if (isTimerRunning) return prev;
+        return { ...prev, [today]: data.subjectQuestions || {} };
+      });
       
       setCurrentQuestions(prev => {
         if (isTimerRunning) return prev;
@@ -2509,7 +2286,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       const examId = `${examBase}_${year}`;
       const progressRef = doc(db, 'users', user.uid, 'data', `progress-${examId}`);
 
-      const currentSub = selectedSubjectRef.current || 'Other / Unsorted';
+      const currentSub = normalizeSubject(selectedSubjectRef.current);
       const currentChap = selectedChapterRef.current || 'Unsorted';
       const finalTimeDeltaForChapter = finalElapsed - lastChapterSwitchSecondsRef.current;
       const finalQuestionDeltaForChapter = currentQuestionsRef.current - lastChapterSwitchQuestionsRef.current;
@@ -2518,10 +2295,11 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       const localChapterDelta: Record<string, Record<string, { seconds: number, questions: number }>> = {};
       
       const rollup = (sub: string, chap: string, s: number, q: number) => {
-        if (!localChapterDelta[sub]) localChapterDelta[sub] = {};
-        if (!localChapterDelta[sub][chap]) localChapterDelta[sub][chap] = { seconds: 0, questions: 0 };
-        localChapterDelta[sub][chap].seconds += s;
-        localChapterDelta[sub][chap].questions += q;
+        const key = normalizeSubject(sub);
+        if (!localChapterDelta[key]) localChapterDelta[key] = {};
+        if (!localChapterDelta[key][chap]) localChapterDelta[key][chap] = { seconds: 0, questions: 0 };
+        localChapterDelta[key][chap].seconds += s;
+        localChapterDelta[key][chap].questions += q;
       };
 
       // Add historical segments from switches
@@ -2534,47 +2312,22 @@ const TimerPage = ({ settings }: TimerPageProps) => {
       });
 
       // Add final segment since last switch/tick
-      if (currentSub && currentChap && (finalTimeDeltaForChapter > 0 || finalQuestionDeltaForChapter > 0)) {
+      if (finalTimeDeltaForChapter > 0 || finalQuestionDeltaForChapter > 0) {
         rollup(currentSub, currentChap, Math.max(0, finalTimeDeltaForChapter), Math.max(0, finalQuestionDeltaForChapter));
       }
       
-      // 2. Convert local delta to Firestore increment updates
-      const chapterUpdates: Record<string, any> = {};
-      Object.entries(localChapterDelta).forEach(([sub, chapters]) => {
-        Object.entries(chapters).forEach(([chap, stats]) => {
-          if (!chapterUpdates[sub]) chapterUpdates[sub] = {};
-          chapterUpdates[sub][chap] = {
-            studyTime: increment(stats.seconds),
-            questions: increment(stats.questions)
-          };
-        });
-      });
-
-      // 3. Construct updates for dailyStats subject-wise tracking
       const sessionSubTotals: Record<string, { seconds: number, questions: number }> = {};
-      const CORE_KEYS = ['Physics', 'Chemistry', 'Maths'];
-
       Object.entries(localChapterDelta).forEach(([sub, chapters]) => {
-        let key = sub;
-        const matched = CORE_KEYS.find(k => k.toLowerCase() === sub.toLowerCase());
-        if (matched) key = matched;
-
-        if (!sessionSubTotals[key]) sessionSubTotals[key] = { seconds: 0, questions: 0 };
+        if (!sessionSubTotals[sub]) sessionSubTotals[sub] = { seconds: 0, questions: 0 };
         Object.values(chapters).forEach(stats => {
-          sessionSubTotals[key].seconds += stats.seconds;
-          sessionSubTotals[key].questions += stats.questions;
+          sessionSubTotals[sub].seconds += stats.seconds;
+          sessionSubTotals[sub].questions += stats.questions;
         });
       });
 
-      // Optimistic Local State Update to prevent "vanished subjects" during sync delays
-      setDailyStudySeconds(prev => ({
-        ...prev,
-        [today]: (prev[today] || 0) + sessionTotalStudySeconds
-      }));
-      setDailyQuestionCounts(prev => ({
-        ...prev,
-        [today]: (prev[today] || 0) + sessionTotalQuestions
-      }));
+      // Optimistic Local State Update
+      setDailyStudySeconds(prev => ({ ...prev, [today]: (prev[today] || 0) + sessionTotalStudySeconds }));
+      setDailyQuestionCounts(prev => ({ ...prev, [today]: (prev[today] || 0) + sessionTotalQuestions }));
       setSubjectStudySeconds(prev => {
         const newDayData = { ...(prev[today] || {}) };
         Object.entries(sessionSubTotals).forEach(([sub, stats]) => {
@@ -2589,20 +2342,50 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         });
         return { ...prev, [today]: newDayData };
       });
-
-      // Reset session accumulators
+      setElapsedSeconds(finalElapsed);
+      setAccumulatedSeconds(finalElapsed);
+      setIsTimerRunning(false);
+      setStartTime(null);
+      setSessionTabSeconds(0);
+      setSessionTabQuestions(0);
+      
+      // CRITICAL: Reset session trackers for BOTH guest and auth users to prevent carry-over
       sessionChapterStatsRef.current = {};
       lastChapterSwitchSecondsRef.current = finalElapsed;
       lastChapterSwitchQuestionsRef.current = currentQuestions;
+      setSessionVersion(v => v + 1); // Trigger memo recalculation with empty refs
 
       if (!user) {
-        setDailyStudySeconds(prev => ({ ...prev, [today]: finalElapsed }));
         const localData = JSON.parse(localStorage.getItem('pulse_calendar_data') || '{}');
         if (!localData[today]) localData[today] = {};
         localData[today].studySeconds = finalElapsed;
+        localData[today].questionsSolved = (localData[today].questionsSolved || 0) + sessionTotalQuestions;
+        
+        // Save subject data for guests too
+        const subSec = localData[today].subjectSeconds || {};
+        const subQue = localData[today].subjectQuestions || {};
+        Object.entries(sessionSubTotals).forEach(([sub, stats]) => {
+          subSec[sub] = (subSec[sub] || 0) + stats.seconds;
+          subQue[sub] = (subQue[sub] || 0) + stats.questions;
+        });
+        localData[today].subjectSeconds = subSec;
+        localData[today].subjectQuestions = subQue;
+
         localStorage.setItem('pulse_calendar_data', JSON.stringify(localData));
         return;
       }
+
+      // Convert local delta to Firestore increment updates
+      const chapterUpdates: Record<string, any> = {};
+      Object.entries(localChapterDelta).forEach(([sub, chapters]) => {
+        Object.entries(chapters).forEach(([chap, stats]) => {
+          if (!chapterUpdates[sub]) chapterUpdates[sub] = {};
+          chapterUpdates[sub][chap] = {
+            studyTime: increment(stats.seconds),
+            questions: increment(stats.questions)
+          };
+        });
+      });
 
       // Progress updates (Chapter level)
       const progressUpdates: any = {
@@ -2756,10 +2539,24 @@ const TimerPage = ({ settings }: TimerPageProps) => {
     setAccumulatedSeconds(prev => Math.max(0, prev - 3600));
     setDailyStudySeconds(prev => ({ ...prev, [today]: newSeconds }));
     
+    const CORE_KEYS = ['Physics', 'Chemistry', 'Maths'];
     let updatedSubjectSeconds = { ...(subjectStudySecondsRef.current[today] || {}) };
-    const currentSub = selectedSubjectRef.current;
+    let currentSub = selectedSubjectRef.current || "";
+    const matched = CORE_KEYS.find(k => k.toLowerCase() === currentSub.toLowerCase());
+    if (matched) currentSub = matched;
+    else if (!currentSub) currentSub = 'Other / Unsorted';
+
     if (currentSub) {
-      updatedSubjectSeconds[currentSub] = Math.max(0, (updatedSubjectSeconds[currentSub] || 0) - 3600);
+      // Normalize existing keys in the map to prevent mixing
+      const normalizedMap: Record<string, number> = {};
+      Object.entries(updatedSubjectSeconds).forEach(([k, v]) => {
+        const mk = CORE_KEYS.find(core => core.toLowerCase() === k.toLowerCase()) || k;
+        normalizedMap[mk] = (normalizedMap[mk] || 0) + (v as number);
+      });
+      
+      normalizedMap[currentSub] = Math.max(0, (normalizedMap[currentSub] || 0) - 3600);
+      updatedSubjectSeconds = normalizedMap;
+      
       setSubjectStudySeconds(prev => ({
         ...prev,
         [today]: updatedSubjectSeconds
@@ -3571,15 +3368,6 @@ const TimerPage = ({ settings }: TimerPageProps) => {
               </div>
 
           <div className="max-w-5xl mx-auto w-full">
-            {/* Distribution Charts */}
-            <DistributionCharts 
-              subjectStudySeconds={{ ...subjectStudySeconds, [todayKey]: activeSubjectSeconds }}
-              subjectQuestionCounts={{ ...subjectQuestionCounts, [todayKey]: activeSubjectQuestions }}
-              dailyStudySeconds={{ ...dailyStudySeconds, [todayKey]: activeStudySecondsForToday }}
-              dailyQuestionCounts={{ ...dailyQuestionCounts, [todayKey]: activeQuestionsForToday }}
-              getSubjectColor={getSubjectColor}
-            />
-
             {/* Bar Graphs Section */}
             <BarGraphs 
               barChartData={barChartData}

@@ -10,11 +10,16 @@ const loadSound = async () => {
   
   if (!tickBuffer) {
     try {
-      const response = await fetch('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3');
-      const arrayBuffer = await response.arrayBuffer();
-      tickBuffer = await audioContext.decodeAudioData(arrayBuffer);
+      const response = await fetch('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3', { cache: 'force-cache' });
+      if (response.ok) {
+        const arrayBuffer = await response.arrayBuffer();
+        tickBuffer = await audioContext.decodeAudioData(arrayBuffer);
+      } else {
+        throw new Error(`Sound fetch failed with status ${response.status}`);
+      }
     } catch (e) {
-      console.error('Failed to load tick sound from URL, using synthesis fallback:', e);
+      // Silently fail as we have a synthesized fallback
+      console.warn('Using synthesized tick fallback (URL may be blocked or down)');
     }
   }
 };
