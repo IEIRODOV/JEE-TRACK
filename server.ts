@@ -38,7 +38,7 @@ async function startServer() {
       };
 
       const order = await razorpay.orders.create(options);
-      res.json(order);
+      res.json({ ...order, key_id: process.env.RAZORPAY_KEY_ID });
     } catch (error: any) {
       console.error("Razorpay order creation error FULL:", error);
       const errorMessage = error.description || error.message || "Unknown Razorpay Error";
