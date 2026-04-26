@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { auth, db, signOut, onAuthStateChanged } from '@/src/firebase';
 import { doc, setDoc, getDoc, updateDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
-import { User, Target, BookOpen, Activity, Loader2, LogOut, Save, User as UserIcon, ChevronLeft, Sparkles, Trophy, Medal, Info, X, Check, RefreshCw } from 'lucide-react';
+import { User, Target, BookOpen, Activity, Loader2, LogOut, Save, User as UserIcon, ChevronLeft, Sparkles, Trophy, Medal, Info, X, Check, RefreshCw, CreditCard } from 'lucide-react';
 import { playTickSound } from '@/src/lib/sounds';
 import AnoAI from "@/components/ui/animated-shader-background";
 import { getRankInfo } from '@/src/lib/ranks';
@@ -29,6 +29,35 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState('');
+  const [isPremium, setIsPremium] = useState(false);
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [paymentStep, setPaymentStep] = useState<'details' | 'gateway' | 'success'>('details');
+  const [processingPayment, setProcessingPayment] = useState(false);
+
+  const PREMIUM_AVATAR = "https://api.dicebear.com/9.x/bottts-neutral/svg?seed=Omnipotent&eyes=glow&mouth=bite&backgroundColor=000000";
+
+  const handleResetPremium = async () => {
+    try {
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        await setDoc(doc(db, 'users', currentUser.uid), {
+          isPremium: false
+        }, { merge: true });
+        
+        await setDoc(doc(db, 'leaderboard', currentUser.uid), {
+          isPremium: false
+        }, { merge: true });
+        
+        setIsPremium(false);
+        if (selectedAvatar === PREMIUM_AVATAR) {
+          setSelectedAvatar(AVATARS[0]);
+        }
+        setSuccess('Premium package reset (Dev only).');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const AVATARS = [
     // Avataaars (Clean/Human)
@@ -71,6 +100,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
         const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
         if (userDoc.exists()) {
           const data = userDoc.data();
+          setIsPremium(data.isPremium || false);
           if (data.photoURL && !selectedAvatar) setSelectedAvatar(data.photoURL);
           const isCustom = !['jee', 'neet', 'boards'].includes(data.exam?.toLowerCase());
           setSelectedExam(isCustom ? 'more' : (data.exam || ''));
@@ -142,7 +172,8 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
         // 3. Update Leaderboard display name and photo
         await setDoc(doc(db, 'leaderboard', currentUser.uid), {
           displayName: displayName,
-          photoURL: selectedAvatar
+          photoURL: selectedAvatar,
+          isPremium: isPremium
         }, { merge: true });
 
         // 4. Update Activity Feed (optional but good for consistency)
@@ -198,6 +229,103 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
     { id: 'boards', label: 'Boards', icon: <BookOpen className="w-4 h-4" /> },
     { id: 'more', label: 'More', icon: <Sparkles className="w-4 h-4" /> },
   ];
+
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if ((window as any).Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handlePurchasePremium = async () => {
+    setPaymentStep('gateway');
+    setProcessingPayment(true);
+
+    const res = await loadRazorpayScript();
+
+    if (!res) {
+      setError('Razorpay SDK failed to load. Are you online?');
+      setPaymentStep('details');
+      setProcessingPayment(false);
+      return;
+    }
+
+    const key = import.meta.env.VITE_RAZORPAY_KEY || import.meta.env.VITE_RAZORPAY_API_KEY || import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_rOMv0P3R0wFj24';
+
+    const options = {
+      key: key,
+      amount: "1500", // 15 INR in paise
+      currency: "INR",
+      name: "Mission Control",
+      description: "God Level Premium Unlock",
+      image: PREMIUM_AVATAR,
+      handler: async function (response: any) {
+        try {
+          const currentUser = auth.currentUser;
+          if (currentUser) {
+            await setDoc(doc(db, 'users', currentUser.uid), {
+              isPremium: true
+            }, { merge: true });
+            
+            await setDoc(doc(db, 'leaderboard', currentUser.uid), {
+              isPremium: true
+            }, { merge: true });
+            
+            setIsPremium(true);
+            setSuccess('God Level package unlocked successfully!');
+            setPaymentStep('success');
+            setSelectedAvatar(PREMIUM_AVATAR);
+            setTimeout(() => {
+              setShowPremiumModal(false);
+              setPaymentStep('details');
+              setProcessingPayment(false);
+            }, 3000);
+          }
+        } catch (err: any) {
+          setError('Failed to update premium status');
+          setPaymentStep('details');
+          setProcessingPayment(false);
+        }
+      },
+      prefill: {
+        name: auth.currentUser?.displayName || "User",
+        email: auth.currentUser?.email || "",
+      },
+      theme: {
+        color: "#f59e0b",
+      },
+      modal: {
+        ondismiss: function() {
+          setPaymentStep('details');
+          setProcessingPayment(false);
+        }
+      }
+    };
+
+    try {
+      const paymentObject = new (window as any).Razorpay(options);
+      
+      paymentObject.on('payment.failed', function (response: any) {
+        setError('Payment Failed: ' + (response.error.description || 'Unknown error'));
+        setPaymentStep('details');
+        setProcessingPayment(false);
+      });
+
+      paymentObject.open();
+    } catch (err: any) {
+      console.error("Razorpay Error:", err);
+      setError("Could not open payment gateway. " + err.message);
+      setPaymentStep('details');
+      setProcessingPayment(false);
+    }
+  };
 
   const YEARS = ['2026', '2027', '2028'];
   const CLASSES = ['9th', '10th', '11th', '12th'];
@@ -284,6 +412,34 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
                 </div>
                )}
                <div className="absolute bottom-0 left-0 right-0 bg-black/60 py-0.5 text-[6px] font-black uppercase text-white/80">Account</div>
+            </button>
+
+            {/* Premium Avatar Option */}
+            <button
+              onClick={() => { 
+                playTickSound(); 
+                if (!isPremium) {
+                  setShowPremiumModal(true);
+                } else {
+                  setSelectedAvatar(PREMIUM_AVATAR);
+                }
+              }}
+              className={`relative w-full aspect-square rounded-xl overflow-hidden border-2 transition-all ${
+                selectedAvatar === PREMIUM_AVATAR ? 'border-amber-400 scale-110 z-10 shadow-[0_0_20px_rgba(245,158,11,0.6)]' : 'border-amber-400/50 opacity-100 hover:opacity-100 hover:scale-105 shadow-[0_0_10px_rgba(245,158,11,0.3)] animate-pulse hover:animate-none'
+              }`}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/40 to-orange-500/40 mix-blend-overlay z-0" />
+              <img src={PREMIUM_AVATAR} alt="Premium Avatar" className="w-full h-full object-cover relative z-10 drop-shadow-[0_0_10px_rgba(245,158,11,1)]" />
+              {selectedAvatar === PREMIUM_AVATAR ? (
+                <div className="absolute inset-0 bg-amber-500/20 flex items-center justify-center z-20">
+                  <Check className="w-4 h-4 text-white" />
+                </div>
+              ) : !isPremium ? (
+                <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-20 transition-opacity backdrop-blur-[2px]">
+                  <Sparkles className="w-5 h-5 text-amber-400 mb-1 drop-shadow-[0_0_5px_rgba(245,158,11,0.8)]" />
+                  <span className="text-[7px] font-black uppercase text-amber-400 bg-amber-400/20 px-1.5 py-0.5 rounded border border-amber-400/30">Unlock</span>
+                </div>
+              ) : null}
             </button>
 
             {AVATARS.map((url, i) => (
@@ -549,6 +705,16 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
               Terminate Session
             </button>
 
+            {isPremium && (
+              <button
+                onClick={handleResetPremium}
+                className="mt-4 w-full py-4 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-amber-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Reset Premium (Dev Only)
+              </button>
+            )}
+
             {isAdmin && (
               <div className="mt-12 p-6 rounded-3xl bg-rose-500/5 border border-rose-500/20">
                 <h3 className="text-xs font-black text-rose-400 uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -566,6 +732,108 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
             )}
           </div>
         </div>
+
+        {/* Premium Purchase Modal */}
+        <AnimatePresence>
+          {showPremiumModal && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4"
+            >
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className="w-full max-w-sm bg-[#0a0a0b] border border-amber-500/20 rounded-[32px] p-8 shadow-2xl relative overflow-hidden"
+              >
+                <div className="absolute -top-32 -right-32 w-64 h-64 bg-amber-500/10 blur-[80px] rounded-full pointer-events-none" />
+                <div className="absolute -bottom-32 -left-32 w-64 h-64 bg-orange-500/10 blur-[80px] rounded-full pointer-events-none" />
+
+                <button 
+                  onClick={() => {
+                    setShowPremiumModal(false);
+                    setPaymentStep('details');
+                  }}
+                  className="absolute top-6 right-6 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors z-10"
+                >
+                  <X className="w-4 h-4 text-white/40" />
+                </button>
+
+                {paymentStep === 'details' && (
+                  <>
+                    <div className="relative z-10 text-center mb-8">
+                      <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-[0_0_40px_rgba(245,158,11,0.3)] mb-6 border border-white/20 overflow-hidden">
+                        <img src={PREMIUM_AVATAR} className="w-full h-full object-cover" />
+                      </div>
+                      <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 uppercase tracking-tight mb-2">God Level</h2>
+                      <p className="text-xs text-white/60">Unlock the God Level Avatar and Premium Glow.</p>
+                    </div>
+
+                    <div className="space-y-3 mb-8 relative z-10">
+                      <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/5">
+                        <div className="w-8 h-8 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
+                          <UserIcon className="w-4 h-4 text-amber-400" />
+                        </div>
+                        <span className="text-sm font-bold text-white/80">God Level Premium Avatar</span>
+                      </div>
+                      <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/5">
+                        <div className="w-8 h-8 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
+                          <Trophy className="w-4 h-4 text-amber-400" />
+                        </div>
+                        <span className="text-sm font-bold text-white/80">God Level Glow in Leaderboard</span>
+                      </div>
+                      <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/5">
+                        <div className="w-8 h-8 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
+                          <Sparkles className="w-4 h-4 text-amber-400" />
+                        </div>
+                        <span className="text-sm font-bold text-white/80">Golden Glow on Comments & Replies</span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handlePurchasePremium}
+                      disabled={processingPayment}
+                      className="relative z-10 w-full py-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white rounded-2xl text-sm font-black uppercase tracking-widest transition-all shadow-[0_0_40px_rgba(245,158,11,0.2)] hover:shadow-[0_0_60px_rgba(245,158,11,0.4)] hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
+                    >
+                      Pay ₹15
+                    </button>
+                  </>
+                )}
+
+                {paymentStep === 'gateway' && (
+                  <div className="relative z-10 flex flex-col items-center justify-center py-8">
+                    <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-6">
+                      <CreditCard className="w-8 h-8 text-amber-400 animate-pulse" />
+                    </div>
+                    <h3 className="text-lg font-bold text-white mb-2">Secure Payment Gateway</h3>
+                    <p className="text-xs text-white/40 mb-8 text-center max-w-[200px]">
+                      Processing your payment of ₹15... Please do not close this window.
+                    </p>
+                    <div className="flex items-center gap-2 text-amber-400 text-sm font-bold">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Assuring Payment...
+                    </div>
+                  </div>
+                )}
+
+                {paymentStep === 'success' && (
+                  <div className="relative z-10 flex flex-col items-center justify-center py-8 animate-in zoom-in duration-300">
+                    <div className="w-20 h-20 rounded-full bg-green-500/20 border border-green-500/50 flex items-center justify-center mb-6">
+                      <Check className="w-10 h-10 text-green-400" />
+                    </div>
+                    <h3 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-500 uppercase tracking-tight mb-2">Payment Successful!</h3>
+                    <p className="text-sm text-white/60 mb-8 max-w-[200px] text-center">
+                      God Level Premium Unlocked!
+                    </p>
+                  </div>
+                )}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
       </div>
     </div>
   );

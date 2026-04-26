@@ -656,7 +656,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
           try {
             const lbDoc = await getDoc(doc(db, 'leaderboard', uid));
             newRanks[uid] = lbDoc.exists() 
-              ? getRankInfo(lbDoc.data().totalQuestions || 0)
+              ? { ...getRankInfo(lbDoc.data().totalQuestions || 0), isPremium: lbDoc.data().isPremium }
               : getRankInfo(0);
             changed = true;
           } catch (e) {
@@ -1474,7 +1474,12 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                             />
                             <div className="flex flex-col">
                               <div className="flex items-center gap-2">
-                                <span className="text-sm font-black text-white">u/{post.displayName}</span>
+                                <span className={`text-sm font-black ${userRanks[post.uid]?.isPremium ? 'text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'text-white'}`}>
+                                  u/{post.displayName}
+                                </span>
+                                {userRanks[post.uid]?.isPremium && (
+                                  <Sparkles className="w-3 h-3 text-amber-400 shrink-0" />
+                                )}
                                 {userRanks[post.uid] && (
                                   <span className={`text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded bg-white/5 border border-white/10 flex items-center gap-1 ${userRanks[post.uid].color}`}>
                                     {userRanks[post.uid].icon} {userRanks[post.uid].title}
@@ -1736,9 +1741,14 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                                               )}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                              <div className="bg-white/5 rounded-2xl p-3 border border-white/10 hover:border-purple-500/30 transition-all">
+                                              <div className={`rounded-2xl p-3 transition-all ${userRanks[comment.uid]?.isPremium ? 'bg-amber-500/10 border border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.15)]' : 'bg-white/5 border border-white/10 hover:border-purple-500/30'}`}>
                                                 <div className="flex items-center flex-wrap gap-2 mb-1.5">
-                                                  <span className="text-xs font-black text-white">{comment.displayName}</span>
+                                                  <span className={`text-xs font-black ${userRanks[comment.uid]?.isPremium ? 'text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'text-white'}`}>
+                                                    {comment.displayName}
+                                                  </span>
+                                                  {userRanks[comment.uid]?.isPremium && (
+                                                    <Sparkles className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+                                                  )}
                                                   {userRanks[comment.uid] && (
                                                     <span className={`text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-1 ${userRanks[comment.uid].color}`}>
                                                       {userRanks[comment.uid].icon} {userRanks[comment.uid].title}
@@ -1826,9 +1836,14 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                                                   <div className="absolute -left-4 top-0 bottom-0 w-0.5 bg-purple-500/10 rounded-full" />
                                                   <img src={reply.photoURL || `https://ui-avatars.com/api/?name=${reply.displayName}&background=random`} className="w-6 h-6 rounded-full border border-white/10 shadow-md" alt={reply.displayName} />
                                                   <div className="flex-1 min-w-0">
-                                                    <div className="bg-white/5 rounded-xl p-2.5 border border-white/5 hover:border-purple-500/20 transition-all">
+                                                    <div className={`rounded-xl p-2.5 transition-all ${userRanks[reply.uid]?.isPremium ? 'bg-amber-500/10 border border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.15)]' : 'bg-white/5 border border-white/5 hover:border-purple-500/20'}`}>
                                                       <div className="flex items-center flex-wrap gap-2 mb-1">
-                                                        <span className="text-[11px] font-black text-white">{reply.displayName}</span>
+                                                        <span className={`text-[11px] font-black ${userRanks[reply.uid]?.isPremium ? 'text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'text-white'}`}>
+                                                          {reply.displayName}
+                                                        </span>
+                                                        {userRanks[reply.uid]?.isPremium && (
+                                                          <Sparkles className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+                                                        )}
                                                         <span className="text-[10px] text-white/30 ml-auto">{formatTime(reply.createdAt)}</span>
                                                       </div>
                                                       

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react';
-import { Trophy, Users, Target, Zap, ChevronRight, Globe, ShieldCheck, TrendingUp, Medal, Plus, Award, Clock, Trash2, X, UserPlus, HelpCircle, Send, MessageSquare, Copy, RefreshCw } from 'lucide-react';
+import { Trophy, Users, Target, Zap, ChevronRight, Globe, ShieldCheck, TrendingUp, Medal, Plus, Award, Clock, Trash2, X, UserPlus, HelpCircle, Send, MessageSquare, Copy, RefreshCw, Sparkles } from 'lucide-react';
 import PulseLoader from "@/components/ui/pulse-loader";
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
@@ -226,8 +226,12 @@ const LeaderboardList = memo(({
                   />
                 </div>
                 <div className="min-w-[80px]">
-                  <span className={`block text-[10px] font-bold transition-colors ${isCurrentUser ? 'text-blue-400' : 'text-white group-hover:text-blue-400'}`}>
+                  <span className={`block text-[10px] font-bold transition-colors ${
+                    player.isPremium ? 'text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]' :
+                    isCurrentUser ? 'text-blue-400' : 'text-white group-hover:text-blue-400'
+                  }`}>
                     {player.displayName}
+                    {player.isPremium && <Sparkles className="inline-block w-2.5 h-2.5 ml-1 text-amber-400 -mt-0.5" />}
                   </span>
                   <div className="flex items-center gap-1.5">
                     <span className="text-[6px] font-bold text-white/40 uppercase tracking-widest">Streak: {player.streak}d</span>
