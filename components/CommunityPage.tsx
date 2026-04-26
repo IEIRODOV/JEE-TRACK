@@ -95,9 +95,10 @@ interface CommunityPageProps {
 }
 
 const COMMUNITIES = [
-  { id: 'jee', label: 'JEE Community', icon: Target },
-  { id: 'neet', label: 'NEET Community', icon: Heart },
-  { id: 'boards', label: 'Boards Community', icon: BookOpen },
+  { id: 'all', label: 'All Communities', icon: Users },
+  { id: 'jee', label: 'JEE', icon: Target },
+  { id: 'neet', label: 'NEET', icon: Heart },
+  { id: 'boards', label: 'Boards', icon: BookOpen },
 ];
 
 const RESOURCES = {
@@ -519,7 +520,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
   const [userExam, setUserExam] = useState<string | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [inputText, setInputText] = useState('');
-  const [selectedCommunity, setSelectedCommunity] = useState<'jee' | 'neet' | 'boards'>('jee');
+  const [selectedCommunity, setSelectedCommunity] = useState<'all' | 'jee' | 'neet' | 'boards'>('all');
   const [activeView, setActiveView] = useState<'feed' | 'resources'>('feed');
   const [sortMode, setSortMode] = useState<'new' | 'top'>('new');
   const [isLoading, setIsLoading] = useState(true);
@@ -553,10 +554,8 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
           if (userDoc.exists()) {
             const exam = (userDoc.data().exam || 'jee').toLowerCase();
             setUserExam(exam);
-            // Set initial community based on user's exam if valid
-            if (['jee', 'neet', 'boards'].includes(exam)) {
-              setSelectedCommunity(exam as 'jee' | 'neet' | 'boards');
-            }
+            // We set default to 'all' so we don't need to change initial selectedCommunity here 
+            // unless we want to default to user exam
           }
         } catch (error) {
           console.error("Error fetching user exam:", error);
@@ -691,7 +690,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
       displayName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
       photoURL: user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=random`,
       category: 'general',
-      community: selectedCommunity,
+      community: selectedCommunity === 'all' ? (userExam as 'jee' | 'neet' | 'boards' || 'jee') : selectedCommunity,
       likes: [],
       reactions: {},
       reports: [],
@@ -709,7 +708,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
         displayName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
         photoURL: user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=random`,
         category: 'general',
-        community: selectedCommunity,
+        community: selectedCommunity === 'all' ? (userExam as 'jee' | 'neet' | 'boards' || 'jee') : selectedCommunity,
         likes: [],
         reactions: {},
         reports: [],
@@ -1092,7 +1091,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
 
   const filteredPosts = React.useMemo(() => {
     return posts.filter(p => {
-      return p.community === selectedCommunity;
+      return selectedCommunity === 'all' || p.community === selectedCommunity;
     }).sort((a, b) => {
       if (sortMode === 'top') {
         const scoreA = (a.reactions?.['👍']?.length || 0) + (a.reactions?.['❤️']?.length || 0);
@@ -1127,21 +1126,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Top Navigation - Community Switcher & View Switcher */}
         <div className="sticky top-0 z-[1000] flex flex-col md:flex-row items-center justify-between gap-6 glass rounded-3xl p-4 border border-white/10 backdrop-blur-3xl mb-12">
-          <div className="flex bg-black/40 p-1.5 rounded-2xl border border-white/5">
-            {COMMUNITIES.filter(comm => !userExam || userExam === comm.id).map((comm) => (
-              <button
-                key={comm.id}
-                onClick={() => setSelectedCommunity(comm.id as 'jee' | 'neet' | 'boards')}
-                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl transition-all text-xs font-black uppercase tracking-widest
-                  ${selectedCommunity === comm.id 
-                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg' 
-                    : 'text-white/40 hover:text-white/60'}`}
-              >
-                <comm.icon className="w-4 h-4" />
-                {comm.label}
-              </button>
-            ))}
-          </div>
+          <div />
 
           <div className="flex items-center gap-4">
             <div className="flex bg-black/40 p-1.5 rounded-2xl border border-white/5">
@@ -1294,7 +1279,9 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                   </motion.div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {RESOURCES[selectedCommunity].map((resource, index) => (
+                    { (selectedCommunity === 'all' 
+                      ? [...RESOURCES.jee, ...RESOURCES.neet, ...RESOURCES.boards]
+                      : RESOURCES[selectedCommunity] || []).map((resource, index) => (
                       <motion.a
                         key={resource.title}
                         href={resource.link}

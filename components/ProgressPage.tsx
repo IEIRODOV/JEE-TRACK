@@ -742,18 +742,22 @@ const ProgressPage = () => {
                                   {progress.pyq && (
                                     <div className="flex items-center gap-1.5 pr-1">
                                       <div className="w-px h-4 bg-white/10 mx-1" />
-                                      <button
-                                        onClick={() => setSubExam('mains')}
-                                        className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-tight transition-all ${subExam === 'mains' ? 'text-emerald-400 bg-emerald-400/10' : 'text-white/20'}`}
-                                      >
-                                        MN
-                                      </button>
-                                      <button
-                                        onClick={() => setSubExam('advanced')}
-                                        className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-tight transition-all ${subExam === 'advanced' ? 'text-rose-400 bg-rose-400/10' : 'text-white/20'}`}
-                                      >
-                                        AV
-                                      </button>
+                                      {examInfo.category === 'jee' && (
+                                        <>
+                                          <button
+                                            onClick={() => setSubExam('mains')}
+                                            className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-tight transition-all ${subExam === 'mains' ? 'text-emerald-400 bg-emerald-400/10' : 'text-white/20'}`}
+                                          >
+                                            MN
+                                          </button>
+                                          <button
+                                            onClick={() => setSubExam('advanced')}
+                                            className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-tight transition-all ${subExam === 'advanced' ? 'text-rose-400 bg-rose-400/10' : 'text-white/20'}`}
+                                          >
+                                            AV
+                                          </button>
+                                        </>
+                                      )}
                                     </div>
                                   )}
                                 </div>
