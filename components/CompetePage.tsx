@@ -240,7 +240,7 @@ const LeaderboardList = memo(({
                 </div>
                 <div className="flex flex-col">
                   <div className="flex items-center gap-2">
-                    <span className={`text-[12px] font-black truncate max-w-[100px] ${
+                    <span className={`text-[12px] font-normal truncate max-w-[100px] ${
                       player.isPremium ? 'text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]' :
                       isCurrentUser ? 'text-blue-400' : 'text-white group-hover:text-blue-400'
                     }`}>
@@ -248,7 +248,7 @@ const LeaderboardList = memo(({
                     </span>
                     <div className="flex items-center gap-1.5 overflow-x-hidden">
                       {player.selectedFlair && (
-                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border border-white/10 ${
+                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-widest border border-white/10 ${
                           FLAIRS.find(f => f.id === player.selectedFlair)?.bg || 'bg-white/5'
                         } ${
                           FLAIRS.find(f => f.id === player.selectedFlair)?.color || 'text-white/40'
@@ -259,7 +259,7 @@ const LeaderboardList = memo(({
                       
                       <div className={`px-2 py-0.5 rounded-md border ${rank.bg} ${rank.border} ${rank.glow} flex items-center gap-1.5`}>
                         <span className="text-[12px] leading-none">{rank.icon}</span>
-                        <span className={`text-[8px] font-black uppercase tracking-widest ${rank.color}`}>
+                        <span className={`text-[8px] font-bold uppercase tracking-widest ${rank.color}`}>
                           {rank.title}
                         </span>
                       </div>
@@ -267,8 +267,8 @@ const LeaderboardList = memo(({
                       {player.isPremium && <Sparkles className="w-3 h-3 text-amber-400 shrink-0" />}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 mt-0.5 opacity-20">
-                    <span className="text-[6px] font-black tracking-[0.2em] uppercase">STREAK: {player.streak}D</span>
+                  <div className="flex items-center gap-3 mt-0.5 opacity-30">
+                    <span className="text-[6px] font-bold tracking-[0.2em] uppercase">STREAK: {player.streak}D</span>
                   </div>
                 </div>
               </div>
@@ -711,11 +711,11 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
 
     const fetchLeaderboardData = useCallback(async (showLoading = false) => {
     if (showLoading) setIsLoading(true);
-    // Fetch top 100 to have room for anti-cheat filtering and ranking by rankScore
+    // Fetch top 60 to have room for anti-cheat filtering
     const q = query(
       collection(db, 'leaderboard'),
       orderBy('totalQuestions', 'desc'),
-      limit(100)
+      limit(60)
     );
 
     try {
@@ -752,7 +752,7 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
         return (b.totalQuestions || 0) - (a.totalQuestions || 0);
       });
 
-      setLeaderboard(players.slice(0, 50));
+      setLeaderboard(players.slice(0, 40));
     } catch (error) {
       console.error('Leaderboard fetch error:', error);
     } finally {
