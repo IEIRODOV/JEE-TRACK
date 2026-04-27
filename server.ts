@@ -19,6 +19,8 @@ async function startServer() {
   app.use(express.json({ limit: '10mb' }));
 
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+  console.log("Environment keys:", Object.keys(process.env));
+  console.log("GEMINI_API_KEY:", process.env.GEMINI_API_KEY);
   
   const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID || "",
@@ -28,42 +30,17 @@ async function startServer() {
   // API Routes
   app.post("/api/solve-doubt", async (req, res) => {
     try {
-      const { userMessage, imageBase64, activeSubject, history } = req.body;
+      const { userMessage } = req.body;
       
-      const systemContext = `You are a professional JEE/NEET senior teacher. Your goal is to solve student doubts with extreme precision, providing step-by-step explanations.
-      Current Subject: ${activeSubject}
-      Rules:
-      1. Use clear, formatted LaTeX for formulas if needed.
-      2. Be encouraging but direct.
-      3. If a question is incomplete or ambiguous, ask for clarification.
-      4. Break down complex steps.
-      5. Provide a 'Key Concept' summary at the end.`;
-
-      const parts: any[] = [
-        { text: `${systemContext}\n\nStudent Question: ${userMessage}` }
-      ];
-
-      if (imageBase64) {
-        parts.push({
-          inlineData: {
-            mimeType: "image/jpeg",
-            data: imageBase64
-          }
-        });
-      }
-
       const response = await ai.models.generateContent({
         model: "gemini-3.1-pro-preview",
-        contents: [
-          ...history,
-          { role: 'user', parts }
-        ]
+        contents: [{ role: 'user', parts: [{ text: userMessage }] }]
       });
 
       res.json({ text: response.text });
     } catch (error: any) {
       console.error("AI Error:", error);
-      res.status(500).json({ error: "Failed to solve doubt" });
+      res.status(500).json({ error: error.message || "Failed to solve doubt" });
     }
   });
 

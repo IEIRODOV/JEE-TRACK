@@ -76,10 +76,7 @@ const DoubtSolver = () => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              userMessage: userMessage || "Analyze this image",
-              imageBase64: userImg ? userImg.split(',')[1] : null,
-              activeSubject,
-              history
+              userMessage: userMessage || "Analyze this image"
             })
           });
     
