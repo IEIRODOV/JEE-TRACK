@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Send, Image as ImageIcon, Loader2, Brain, Info, X, Trash2, Bot, User, Check, Paperclip } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
 import { playTickSound } from '@/src/lib/sounds';
 import { db, auth } from '@/src/firebase';
 import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';

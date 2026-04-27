@@ -18,7 +18,8 @@ async function startServer() {
 
   app.use(express.json({ limit: '10mb' }));
 
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+  const geminiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY_1 || "";
+  const genAI = new GoogleGenerativeAI(geminiKey);
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
   
   const razorpay = new Razorpay({
@@ -30,6 +31,9 @@ async function startServer() {
   app.post("/api/solve-doubt", async (req, res) => {
     try {
       const { userMessage } = req.body;
+      console.log("Received doubt:", userMessage);
+      console.log("GEMINI_API_KEY exists:", !!process.env.GEMINI_API_KEY);
+      console.log("GEMINI_API_KEY_1 exists:", !!process.env.GEMINI_API_KEY_1);
       
       const result = await model.generateContent({
         contents: [{ role: 'user', parts: [{ text: userMessage }] }]
