@@ -50,11 +50,12 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
   const PREMIUM_AVATAR_NAMES = ["IITB", "IITD", "IITR", "IITKGP"];
 
   const FLAIRS = [
-    { id: 'kabutar_science', label: 'kabutar science', color: 'text-cyan-400', bg: 'bg-cyan-500/20', border: 'border-cyan-500/80' },
-    { id: 'alecc_daddy', label: 'Alecc Daddy', color: 'text-yellow-400', bg: 'bg-yellow-500/20', border: 'border-yellow-500/80' },
-    { id: 'dropper_topper', label: 'dropper >>> topper', color: 'text-lime-400', bg: 'bg-lime-500/20', border: 'border-lime-500/80' },
-    { id: 'nta_victim', label: "NTA's VICTIM", color: 'text-rose-400', bg: 'bg-rose-500/20', border: 'border-rose-500/80' },
-    { id: 'retarted', label: 'retarted', color: 'text-fuchsia-400', bg: 'bg-fuchsia-500/20', border: 'border-fuchsia-500/80' },
+    { id: 'kabutar_science', label: 'kabutar science', color: 'text-cyan-300', bg: 'bg-cyan-900/40', border: 'border-cyan-400' },
+    { id: 'alecc_daddy', label: 'Alecc Daddy', color: 'text-yellow-300', bg: 'bg-yellow-900/40', border: 'border-yellow-400' },
+    { id: 'dropper_topper', label: 'dropper >>> topper', color: 'text-lime-300', bg: 'bg-lime-900/40', border: 'border-lime-400' },
+    { id: 'nta_victim', label: "NTA's VICTIM", color: 'text-rose-300', bg: 'bg-rose-900/40', border: 'border-rose-400' },
+    { id: 'air_19', label: 'AIR 19', color: 'text-fuchsia-300', bg: 'bg-fuchsia-900/40', border: 'border-fuchsia-400' },
+    { id: 'air_247', label: 'AIR 247', color: 'text-violet-300', bg: 'bg-violet-900/40', border: 'border-violet-400' },
   ];
 
   const PREMIUM_AVATAR = PREMIUM_AVATARS[0];
@@ -599,7 +600,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
                       ? `${flair.bg} ${flair.border} ${flair.color} scale-105 shadow-[0_0_15px_rgba(255,255,255,0.05)]` 
                       : isPurchased
                         ? `${flair.bg} ${flair.border} ${flair.color} hover:opacity-100 opacity-60`
-                        : `${flair.bg.replace('bg-', 'bg-').replace('/5', '/10')} ${flair.border.replace('border-', 'border-').replace('/10', '/20')} ${flair.color} hover:opacity-100 opacity-40 grayscale`
+                        : `${flair.bg} ${flair.border} ${flair.color} opacity-30 grayscale hover:opacity-70 hover:grayscale-0`
 
                   }`}
                 >
