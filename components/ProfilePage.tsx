@@ -6,6 +6,7 @@ import { updateProfile } from 'firebase/auth';
 import { User, Target, BookOpen, Activity, Loader2, LogOut, Save, User as UserIcon, ChevronLeft, Sparkles, Trophy, Medal, Info, X, Check, RefreshCw, CreditCard, Award } from 'lucide-react';
 import { playTickSound } from '@/src/lib/sounds';
 import { ADMIN_EMAIL } from '@/src/constants/admin';
+import { FLAIRS } from '@/src/constants/flairs';
 import AnoAI from "@/components/ui/animated-shader-background";
 import { getRankInfo } from '@/src/lib/ranks';
 import FlairPurchaseModal from './FlairPurchaseModal';
@@ -49,22 +50,6 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
   ];
 
   const PREMIUM_AVATAR_NAMES = ["IITB", "IITD", "IITR", "IITKGP"];
-
-  const FLAIRS = [
-    { id: 'kabutar_science', label: 'kabutar science', color: 'text-black', bg: 'bg-cyan-400', border: 'border-cyan-400' },
-    { id: 'alecc_daddy', label: 'Alecc Daddy', color: 'text-black', bg: 'bg-yellow-400', border: 'border-yellow-400' },
-    { id: 'dropper_topper', label: 'dropper >>> topper', color: 'text-black', bg: 'bg-lime-400', border: 'border-lime-400' },
-    { id: 'nta_victim', label: "NTA's VICTIM", color: 'text-black', bg: 'bg-rose-400', border: 'border-rose-400' },
-    { id: 'air_19', label: 'AIR 19', color: 'text-white', bg: 'bg-fuchsia-600', border: 'border-fuchsia-600' },
-    { id: 'air_247', label: 'AIR 247', color: 'text-white', bg: 'bg-violet-600', border: 'border-violet-600' },
-    { id: 'eye_eye_tea_bamboo', label: 'eye eye tea bamboo', color: 'text-black', bg: 'bg-emerald-400', border: 'border-emerald-400' },
-    { id: 'all_india_dropper', label: 'ALL INDIA DROPPER', color: 'text-black', bg: 'bg-orange-400', border: 'border-orange-400' },
-    { id: 'peedabloo', label: 'PEEDABLOO', color: 'text-white', bg: 'bg-blue-600', border: 'border-blue-600' },
-    { id: 'alien', label: 'ALIEN', color: 'text-white', bg: 'bg-green-700', border: 'border-green-700' },
-    { id: 'kaddu_gang', label: 'KADDU GANG', color: 'text-black', bg: 'bg-yellow-500', border: 'border-yellow-500' },
-    { id: 'fan_rope_dealer', label: 'FAN AND ROPE DEALER', color: 'text-white', bg: 'bg-gray-800', border: 'border-gray-800' },
-    { id: 'kyu_nhi_ho_rhi_padhaai', label: 'KYU NHI HO RHI PADHAAI', color: 'text-white', bg: 'bg-red-600', border: 'border-red-600' },
-  ];
 
   const PREMIUM_AVATAR = PREMIUM_AVATARS[0];
 
