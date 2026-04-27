@@ -80,7 +80,10 @@ const DoubtSolver = () => {
             })
           });
     
-          if (!response.ok) throw new Error("Failed to get response");
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || "Failed to get response");
+          }
     
           const data = await response.json();
     
