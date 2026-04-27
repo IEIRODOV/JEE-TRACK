@@ -556,18 +556,31 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
           <div className="flex items-center justify-between">
             <label className="text-[10px] font-black text-white/40 uppercase tracking-widest block">Mission Flairs</label>
             {user?.email === ADMIN_EMAIL && (
-              <button
-                onClick={async () => {
-                  playTickSound();
-                  const allFlairIds = FLAIRS.map(f => f.id);
-                  setPurchasedFlairs(allFlairIds);
-                  await setDoc(doc(db, 'users', user.uid), { purchasedFlairs: allFlairIds }, { merge: true });
-                  setSuccess('All flairs unlocked (Admin Mode)');
-                }}
-                className="text-[8px] text-red-500 font-bold uppercase tracking-widest hover:text-red-400"
-              >
-                [Admin: Unlock All Flairs]
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    playTickSound();
+                    const allFlairIds = FLAIRS.map(f => f.id);
+                    setPurchasedFlairs(allFlairIds);
+                    await setDoc(doc(db, 'users', user.uid), { purchasedFlairs: allFlairIds }, { merge: true });
+                    setSuccess('All flairs unlocked (Admin Mode)');
+                  }}
+                  className="text-[8px] text-red-500 font-bold uppercase tracking-widest hover:text-red-400"
+                >
+                  [Unlock]
+                </button>
+                <button
+                  onClick={async () => {
+                    playTickSound();
+                    await setDoc(doc(db, 'users', user.uid), { purchasedFlairs: [] }, { merge: true });
+                    setPurchasedFlairs([]);
+                    setSuccess('Flairs reset (Admin Mode)');
+                  }}
+                  className="text-[8px] text-red-500 font-bold uppercase tracking-widest hover:text-red-400"
+                >
+                  [Reset]
+                </button>
+              </div>
             )}
             <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">₹10 each • Permanent Unlock</span>
           </div>
