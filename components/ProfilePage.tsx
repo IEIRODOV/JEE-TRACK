@@ -5,6 +5,7 @@ import { doc, setDoc, getDoc, updateDoc, collection, getDocs, writeBatch } from 
 import { updateProfile } from 'firebase/auth';
 import { User, Target, BookOpen, Activity, Loader2, LogOut, Save, User as UserIcon, ChevronLeft, Sparkles, Trophy, Medal, Info, X, Check, RefreshCw, CreditCard, Award } from 'lucide-react';
 import { playTickSound } from '@/src/lib/sounds';
+import { ADMIN_EMAIL } from '@/src/constants/admin';
 import AnoAI from "@/components/ui/animated-shader-background";
 import { getRankInfo } from '@/src/lib/ranks';
 import FlairPurchaseModal from './FlairPurchaseModal';
@@ -569,6 +570,20 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
         <div className="mb-12 space-y-6">
           <div className="flex items-center justify-between">
             <label className="text-[10px] font-black text-white/40 uppercase tracking-widest block">Mission Flairs</label>
+            {user?.email === ADMIN_EMAIL && (
+              <button
+                onClick={async () => {
+                  playTickSound();
+                  const allFlairIds = FLAIRS.map(f => f.id);
+                  setPurchasedFlairs(allFlairIds);
+                  await setDoc(doc(db, 'users', user.uid), { purchasedFlairs: allFlairIds }, { merge: true });
+                  setSuccess('All flairs unlocked (Admin Mode)');
+                }}
+                className="text-[8px] text-red-500 font-bold uppercase tracking-widest hover:text-red-400"
+              >
+                [Admin: Unlock All Flairs]
+              </button>
+            )}
             <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">₹10 each • Permanent Unlock</span>
           </div>
           
@@ -635,7 +650,22 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
 
         {/* Avatar Selection */}
         <div className="mb-12 space-y-4">
-          <label className="text-[10px] font-black text-white/40 uppercase tracking-widest block">Choose Avatar</label>
+          <div className="flex items-center justify-between">
+            <label className="text-[10px] font-black text-white/40 uppercase tracking-widest block">Choose Avatar</label>
+            {user?.email === ADMIN_EMAIL && (
+              <button
+                onClick={async () => {
+                  playTickSound();
+                  await setDoc(doc(db, 'users', user.uid), { isPremium: true }, { merge: true });
+                  setIsPremium(true);
+                  setSuccess('All Avatars Unlocked (Admin Mode)');
+                }}
+                className="text-[8px] text-red-500 font-bold uppercase tracking-widest hover:text-red-400"
+              >
+                [Admin: Unlock All Avatars]
+              </button>
+            )}
+          </div>
           <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
             {/* Default Account Profile Option */}
             <button
