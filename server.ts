@@ -32,12 +32,12 @@ async function startServer() {
     try {
       const { userMessage } = req.body;
       
-      const response = await ai.models.generateContent({
+      const result = await ai.models.generateContent({
         model: "gemini-1.5-flash",
         contents: [{ role: 'user', parts: [{ text: userMessage }] }]
       });
 
-      res.json({ text: response.text });
+      res.json({ text: result.text() });
     } catch (error: any) {
       console.error("AI Error:", error);
       res.status(500).json({ error: error.message || "Failed to solve doubt" });
