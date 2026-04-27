@@ -104,11 +104,11 @@ const COMMUNITIES = [
 ];
 
 const FLAIRS = [
-  { id: 'kabutar_science', label: 'kabutar science', color: 'text-cyan-400', bg: 'bg-cyan-400/20', border: 'border-cyan-400/50' },
-  { id: 'alecc_daddy', label: 'Alecc Daddy', color: 'text-yellow-400', bg: 'bg-yellow-400/20', border: 'border-yellow-400/50' },
-  { id: 'dropper_topper', label: 'dropper >>>topper', color: 'text-lime-400', bg: 'bg-lime-400/20', border: 'border-lime-400/50' },
-  { id: 'nta_victim', label: "NTA's VICTIM", color: 'text-rose-400', bg: 'bg-rose-400/20', border: 'border-rose-400/50' },
-  { id: 'retarted', label: 'retarted', color: 'text-fuchsia-400', bg: 'bg-fuchsia-400/20', border: 'border-fuchsia-400/50' },
+  { id: 'kabutar_science', label: 'kabutar science', color: 'text-cyan-400', bg: 'bg-cyan-500/20', border: 'border-cyan-500/80' },
+  { id: 'alecc_daddy', label: 'Alecc Daddy', color: 'text-yellow-400', bg: 'bg-yellow-500/20', border: 'border-yellow-500/80' },
+  { id: 'dropper_topper', label: 'dropper >>> topper', color: 'text-lime-400', bg: 'bg-lime-500/20', border: 'border-lime-500/80' },
+  { id: 'nta_victim', label: "NTA's VICTIM", color: 'text-rose-400', bg: 'bg-rose-500/20', border: 'border-rose-500/80' },
+  { id: 'retarted', label: 'retarted', color: 'text-fuchsia-400', bg: 'bg-fuchsia-500/20', border: 'border-fuchsia-500/80' },
 ];
 
 const RESOURCES = {
@@ -1508,7 +1508,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                                   u/{post.displayName}
                                 </span>
                                 {userRanks[post.uid]?.selectedFlair && (
-                                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border ${
+                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${
                                     FLAIRS.find(f => f.id === userRanks[post.uid].selectedFlair)?.bg || 'bg-white/5'
                                   } ${
                                     FLAIRS.find(f => f.id === userRanks[post.uid].selectedFlair)?.border || 'border-white/10'
@@ -1788,7 +1788,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                                                     {comment.displayName}
                                                   </span>
                                                   {userRanks[comment.uid]?.selectedFlair && (
-                                                    <span className={`px-1 py-0.5 rounded text-[7px] font-black uppercase tracking-widest border ${
+                                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${
                                                       FLAIRS.find(f => f.id === userRanks[comment.uid].selectedFlair)?.bg || 'bg-white/5'
                                                     } ${
                                                       FLAIRS.find(f => f.id === userRanks[comment.uid].selectedFlair)?.border || 'border-white/10'
@@ -1894,7 +1894,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                                                           {reply.displayName}
                                                         </span>
                                                         {userRanks[reply.uid]?.selectedFlair && (
-                                                          <span className={`px-1 py-0.5 rounded text-[6px] font-black uppercase tracking-widest border ${
+                                                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${
                                                             FLAIRS.find(f => f.id === userRanks[reply.uid].selectedFlair)?.bg || 'bg-white/5'
                                                           } ${
                                                             FLAIRS.find(f => f.id === userRanks[reply.uid].selectedFlair)?.border || 'border-white/10'

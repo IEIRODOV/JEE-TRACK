@@ -3,10 +3,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import { auth, db, signOut, onAuthStateChanged } from '@/src/firebase';
 import { doc, setDoc, getDoc, updateDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
-import { User, Target, BookOpen, Activity, Loader2, LogOut, Save, User as UserIcon, ChevronLeft, Sparkles, Trophy, Medal, Info, X, Check, RefreshCw, CreditCard } from 'lucide-react';
+import { User, Target, BookOpen, Activity, Loader2, LogOut, Save, User as UserIcon, ChevronLeft, Sparkles, Trophy, Medal, Info, X, Check, RefreshCw, CreditCard, Award } from 'lucide-react';
 import { playTickSound } from '@/src/lib/sounds';
 import AnoAI from "@/components/ui/animated-shader-background";
 import { getRankInfo } from '@/src/lib/ranks';
+import FlairPurchaseModal from './FlairPurchaseModal';
 
 interface ProfilePageProps {
   onBack: () => void;
@@ -36,6 +37,8 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
   const [previewAvatar, setPreviewAvatar] = useState<string | null>(null);
   const [paymentStep, setPaymentStep] = useState<'details' | 'gateway' | 'success'>('details');
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+  const [flairToPurchase, setFlairToPurchase] = useState<any>(null);
 
   const PREMIUM_AVATARS = [
     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSA8QNq5M6qRgXoh3Ou9tkK8o_i1ZHoqsh04Q&s",
@@ -47,11 +50,11 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
   const PREMIUM_AVATAR_NAMES = ["IITB", "IITD", "IITR", "IITKGP"];
 
   const FLAIRS = [
-    { id: 'kabutar_science', label: 'kabutar science', color: 'text-cyan-400', bg: 'bg-cyan-400/20', border: 'border-cyan-400/50' },
-    { id: 'alecc_daddy', label: 'Alecc Daddy', color: 'text-yellow-400', bg: 'bg-yellow-400/20', border: 'border-yellow-400/50' },
-    { id: 'dropper_topper', label: 'dropper >>>topper', color: 'text-lime-400', bg: 'bg-lime-400/20', border: 'border-lime-400/50' },
-    { id: 'nta_victim', label: "NTA's VICTIM", color: 'text-rose-400', bg: 'bg-rose-400/20', border: 'border-rose-400/50' },
-    { id: 'retarted', label: 'retarted', color: 'text-fuchsia-400', bg: 'bg-fuchsia-400/20', border: 'border-fuchsia-400/50' },
+    { id: 'kabutar_science', label: 'kabutar science', color: 'text-cyan-400', bg: 'bg-cyan-500/20', border: 'border-cyan-500/80' },
+    { id: 'alecc_daddy', label: 'Alecc Daddy', color: 'text-yellow-400', bg: 'bg-yellow-500/20', border: 'border-yellow-500/80' },
+    { id: 'dropper_topper', label: 'dropper >>> topper', color: 'text-lime-400', bg: 'bg-lime-500/20', border: 'border-lime-500/80' },
+    { id: 'nta_victim', label: "NTA's VICTIM", color: 'text-rose-400', bg: 'bg-rose-500/20', border: 'border-rose-500/80' },
+    { id: 'retarted', label: 'retarted', color: 'text-fuchsia-400', bg: 'bg-fuchsia-500/20', border: 'border-fuchsia-500/80' },
   ];
 
   const PREMIUM_AVATAR = PREMIUM_AVATARS[0];
@@ -527,7 +530,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
             <div className="flex items-center gap-3 mb-1">
               <h1 className="text-3xl font-black tracking-tight">Commander Profile</h1>
               {selectedFlair && (
-                <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border transition-all ${
+                <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all ${
                   FLAIRS.find(f => f.id === selectedFlair)?.bg || 'bg-white/5'
                 } ${
                   FLAIRS.find(f => f.id === selectedFlair)?.border || 'border-white/10'
@@ -586,7 +589,8 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
                     if (isPurchased) {
                       setSelectedFlair(isSelected ? null : flair.id);
                     } else {
-                      handlePurchaseFlair(flair.id);
+                      setFlairToPurchase(flair);
+                      setIsPurchaseModalOpen(true);
                     }
                   }}
                   disabled={processingPayment}
@@ -594,8 +598,9 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
                     isSelected 
                       ? `${flair.bg} ${flair.border} ${flair.color} scale-105 shadow-[0_0_15px_rgba(255,255,255,0.05)]` 
                       : isPurchased
-                        ? 'bg-white/5 border-white/10 text-white/40 hover:text-white'
-                        : 'bg-white/2 border-white/5 text-white/10 hover:border-white/10'
+                        ? `${flair.bg} ${flair.border} ${flair.color} hover:opacity-100 opacity-60`
+                        : `${flair.bg.replace('bg-', 'bg-').replace('/5', '/10')} ${flair.border.replace('border-', 'border-').replace('/10', '/20')} ${flair.color} hover:opacity-100 opacity-40 grayscale`
+
                   }`}
                 >
                   {isSelected && (
@@ -1093,6 +1098,14 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
           )}
         </AnimatePresence>
 
+        {flairToPurchase && (
+          <FlairPurchaseModal
+            isOpen={isPurchaseModalOpen}
+            onClose={() => setIsPurchaseModalOpen(false)}
+            flair={flairToPurchase}
+            onConfirm={() => handlePurchaseFlair(flairToPurchase.id)}
+          />
+        )}
       </div>
     </div>
   );

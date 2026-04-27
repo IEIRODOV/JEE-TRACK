@@ -5,7 +5,6 @@ import AnoAI from "@/components/ui/animated-shader-background";
 import CountdownTimer from "@/components/ui/countdown-timer";
 import SubjectChecklist from "@/components/SubjectChecklist";
 import WeeklyTargets from "@/components/WeeklyTargets";
-import DailyTargets from "@/components/DailyTargets";
 import { auth, onAuthStateChanged, db, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, orderBy, limit, User, handleFirestoreError, OperationType, serverTimestamp, increment, addDoc } from '@/src/firebase';
 import { updateProfile } from 'firebase/auth';
 import { playTickSound } from '@/src/lib/sounds';
@@ -59,6 +58,7 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
   const [showExamCounter, setShowExamCounter] = useState(true);
   const [dailyStudySeconds, setDailyStudySeconds] = useState<Record<string, number>>({});
   const [dailyQuestions, setDailyQuestions] = useState<Record<string, number>>({});
+  const [weeklyData, setWeeklyData] = useState<any>({});
   const [isStatsLoaded, setIsStatsLoaded] = useState(false);
   const [stats, setStats] = useState([
     { label: "Daily Goal", value: "--", icon: <Target className="w-3 h-3" />, color: "text-emerald-400" },
@@ -111,6 +111,34 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
     });
     return () => unsubscribe();
   }, []);
+
+  const [currentWeekStart] = useState(() => {
+    const d = new Date();
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    const start = new Date(d.setDate(diff));
+    start.setHours(0, 0, 0, 0);
+    return start;
+  });
+  const weekId = currentWeekStart.toISOString().split('T')[0];
+
+  useEffect(() => {
+    if (!user) {
+      const saved = localStorage.getItem(`weekly-targets-${weekId}`);
+      if (saved) setWeeklyData(JSON.parse(saved));
+      return;
+    }
+
+    const unsubscribe = onSnapshot(doc(db, 'users', user.uid, 'weeklyTargets', weekId), (doc) => {
+      if (doc.exists()) {
+        setWeeklyData(doc.data().days || {});
+      } else {
+        setWeeklyData({});
+      }
+    });
+
+    return () => unsubscribe();
+  }, [user, weekId]);
 
   // Sync Settings from Firestore
   useEffect(() => {
@@ -333,14 +361,12 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
 
       const studyTimeDisplay = formatTimeHM(displayStudySeconds);
 
-      const savedTargets = localStorage.getItem('jee-daily-targets');
-      let dailyGoal = "0%";
-      if (savedTargets) {
-        const targets = JSON.parse(savedTargets);
-        if (targets.length > 0) {
-          const completed = targets.filter((t: any) => t.completed).length;
-          dailyGoal = `${Math.round((completed / targets.length) * 100)}%`;
-        }
+      const todayIdx = (new Date().getDay() === 0 ? 6 : new Date().getDay() - 1);
+      const todaysTargets = weeklyData[todayIdx] || [];
+      let dailyGoalValue = "0%";
+      if (todaysTargets.length > 0) {
+        const completedCount = todaysTargets.filter((t: any) => t.completed).length;
+        dailyGoalValue = `${Math.round((completedCount / todaysTargets.length) * 100)}%`;
       }
 
       const currentSecondsMap = { ...dailyStudySeconds, [today]: displayStudySeconds };
@@ -349,7 +375,7 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
       const isGoalMet = displayStudySeconds >= targetHours * 3600;
 
       setStats([
-        { label: "Daily Goal", value: dailyGoal, icon: <Target className="w-3 h-3" />, color: "text-emerald-400", completed: dailyGoal === "100%" },
+        { label: "Daily Goal", value: dailyGoalValue, icon: <Target className="w-3 h-3" />, color: "text-emerald-400", completed: dailyGoalValue === "100%" },
         { label: "Study Time", value: studyTimeDisplay, icon: <Clock className="w-3 h-3" />, color: "text-blue-400", completed: isGoalMet },
         { label: "Questions Solved", value: displayQuestions.toString(), icon: <Target className="w-3 h-3" />, color: "text-purple-400", completed: displayQuestions >= 50 },
         { label: "Current Streak", value: streak, icon: <Zap className="w-3 h-3" />, color: "text-orange-400", completed: currentStreak > 0 },
@@ -359,7 +385,7 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
     updateStats();
     const interval = setInterval(updateStats, 2000); // Throttled to 2s
     return () => clearInterval(interval);
-  }, [targetHours, globalRank, timerState, dailyStudySeconds]);
+  }, [targetHours, globalRank, timerState, dailyStudySeconds, weeklyData]);
 
   const toggleTimer = async () => {
     if (!isStatsLoaded) {
@@ -774,7 +800,6 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
         </motion.div>
 
           <motion.div variants={itemVariants} className="w-full flex flex-col items-center gap-8">
-            <DailyTargets />
             <WeeklyTargets />
             <SubjectChecklist 
               category={selectedExam.id.split('_')[0]} 
