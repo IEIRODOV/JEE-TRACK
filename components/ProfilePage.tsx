@@ -538,8 +538,14 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
             <div className="flex items-center gap-3">
               <p className="text-white/40 text-[10px] font-black uppercase tracking-widest">ID: {user?.uid?.slice(0, 8)}...</p>
               <div className="w-1 h-1 bg-white/10 rounded-full" />
-              <div className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ${rankInfo.color}`}>
-                {rankInfo.icon} {rankInfo.title} (Lvl {rankInfo.level})
+              <div className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest`}>
+                <div className={`px-1.5 py-0.5 rounded border ${rankInfo.bg} ${rankInfo.border} ${rankInfo.glow} flex items-center gap-1`}>
+                  <span className="text-[7px]">{rankInfo.icon}</span>
+                  <span className={`text-[8px] font-black uppercase tracking-widest ${rankInfo.color}`}>
+                    {rankInfo.title}
+                  </span>
+                </div>
+                <span className="text-white/40">(Lvl {rankInfo.level})</span>
                 <button 
                   onClick={() => { playTickSound(); setShowRankInfo(true); }}
                   className="ml-1 p-1 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
@@ -772,53 +778,33 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
                 </div>
 
                 <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Level 1-3</span>
-                      <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Newbie</span>
+                  {[
+                    { tier: 'Bronze III', range: '50+', color: 'text-orange-400' },
+                    { tier: 'Bronze II', range: '150+', color: 'text-orange-400' },
+                    { tier: 'Bronze I', range: '300+', color: 'text-orange-400' },
+                    { tier: 'Silver III', range: '500+', color: 'text-zinc-400' },
+                    { tier: 'Silver II', range: '800+', color: 'text-zinc-400' },
+                    { tier: 'Silver I', range: '1,200+', color: 'text-zinc-400' },
+                    { tier: 'Gold III', range: '1,700+', color: 'text-amber-400' },
+                    { tier: 'Platinum III', range: '4,200+', color: 'text-cyan-400' },
+                    { tier: 'Emerald III', range: '9,000+', color: 'text-emerald-400' },
+                    { tier: 'Diamond III', range: '16,000+', color: 'text-blue-400' },
+                    { tier: 'Master III', range: '22,500+', color: 'text-purple-400' },
+                    { tier: 'Legend', range: '25,000+', color: 'text-white' }
+                  ].map((r, i) => (
+                    <div key={i} className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Milestone</span>
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${r.color}`}>{r.tier}</span>
+                      </div>
+                      <p className="text-xs text-white/60 font-medium">{r.range} Questions Solved</p>
                     </div>
-                    <p className="text-xs text-white/60 font-medium">0 - 300 Questions</p>
-                  </div>
-                  <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-[10px] font-black text-emerald-400/40 uppercase tracking-widest">Level 4-6</span>
-                      <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Sergeant</span>
-                    </div>
-                    <p className="text-xs text-white/60 font-medium">1000 - 1600 Questions</p>
-                  </div>
-                  <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-[10px] font-black text-blue-400/40 uppercase tracking-widest">Level 7-9</span>
-                      <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Lieutenant</span>
-                    </div>
-                    <p className="text-xs text-white/60 font-medium">1900 - 2500 Questions</p>
-                  </div>
-                  <div className="p-4 rounded-2xl bg-purple-500/5 border border-purple-500/10">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-[10px] font-black text-purple-400/40 uppercase tracking-widest">Level 10-15</span>
-                      <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest">Captain / Major</span>
-                    </div>
-                    <p className="text-xs text-white/60 font-medium">2800 - 4300 Questions</p>
-                  </div>
-                  <div className="p-4 rounded-2xl bg-yellow-500/5 border border-yellow-500/10">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-[10px] font-black text-yellow-400/40 uppercase tracking-widest">Level 30+</span>
-                      <span className="text-[10px] font-black text-yellow-400 uppercase tracking-widest">Commander</span>
-                    </div>
-                    <p className="text-xs text-white/60 font-medium">8800+ Questions</p>
-                  </div>
-                  <div className="p-4 rounded-2xl bg-white/10 border border-white/20">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Level 51</span>
-                      <span className="text-[10px] font-black text-white uppercase tracking-widest">Immortal</span>
-                    </div>
-                    <p className="text-xs text-white/60 font-medium">15000+ Questions</p>
-                  </div>
+                  ))}
                 </div>
 
                 <div className="mt-8 p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20">
                   <p className="text-[10px] text-purple-400 font-bold uppercase tracking-widest leading-relaxed">
-                    Promotion Logic: After Level 3, you gain 1 level for every 300 questions solved.
+                    Promotion Logic: Rankings are calculated based on total questions solved. Reach the Legend tier by solving over 25,000 questions!
                   </p>
                 </div>
               </motion.div>

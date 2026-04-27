@@ -204,12 +204,13 @@ const LeaderboardList = memo(({
       ) : (
         leaderboard.map((player, idx) => {
           const isCurrentUser = player.uid === user?.uid;
+          const rank = getRankInfo(player.totalQuestions);
           return (
             <motion.div 
               key={idx} 
               whileHover={{ backgroundColor: 'rgba(255,255,255,0.03)' }}
               onClick={() => onProfileClick(player)}
-              className={`flex items-center justify-between p-2 transition-all group relative cursor-pointer ${isCurrentUser ? 'bg-blue-500/5 border-l-2 border-blue-500' : ''}`}
+              className={`flex items-center justify-between p-1 py-1 transition-all group relative cursor-pointer ${isCurrentUser ? 'bg-blue-500/5 border-l-2 border-blue-500' : ''}`}
             >
               {isCurrentUser && (
                 <div className="absolute top-1 right-3">
@@ -220,7 +221,7 @@ const LeaderboardList = memo(({
               <div className="flex items-center gap-3">
                 <div className="w-6 flex justify-center">
                   {idx < 3 ? (
-                    <div className={`w-4 h-4 rounded-lg flex items-center justify-center text-[8px] font-black rotate-3 group-hover:rotate-0 transition-transform
+                    <div className={`w-4 h-4 rounded-lg flex items-center justify-center text-[8px] font-black rotate-12 group-hover:rotate-0 transition-transform
                       ${idx === 0 ? 'bg-yellow-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.4)]' : 
                         idx === 1 ? 'bg-slate-300 text-black shadow-[0_0_10px_rgba(203,213,225,0.4)]' : 
                         'bg-amber-700 text-white shadow-[0_0_10px_rgba(180,83,9,0.4)]'}`}>
@@ -233,40 +234,45 @@ const LeaderboardList = memo(({
                 <div className="relative">
                   <img 
                     src={player.photoURL || `https://ui-avatars.com/api/?name=${player.displayName}&background=random`} 
-                    className={`w-7 h-7 rounded-lg border transition-all ${isCurrentUser ? 'border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.3)]' : 'border-white/10 group-hover:border-blue-500/50'}`} 
+                    className={`w-9 h-9 rounded-lg border transition-all ${isCurrentUser ? 'border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.3)]' : 'border-white/10 group-hover:border-blue-500/50'}`} 
                     alt={player.displayName} 
                   />
                 </div>
-                <div className="min-w-[80px]">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className={`text-[10px] font-bold transition-colors flex items-center gap-1.5 ${
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[12px] font-black truncate max-w-[100px] ${
                       player.isPremium ? 'text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]' :
                       isCurrentUser ? 'text-blue-400' : 'text-white group-hover:text-blue-400'
                     }`}>
                       {player.displayName}
                     </span>
-                    {player.selectedFlair && (
-                      <span className={`px-1.5 py-0.5 rounded text-[6px] font-black uppercase tracking-widest border ${
-                        FLAIRS.find(f => f.id === player.selectedFlair)?.bg || 'bg-white/5'
-                      } ${
-                        FLAIRS.find(f => f.id === player.selectedFlair)?.border || 'border-white/10'
-                      } ${
-                        FLAIRS.find(f => f.id === player.selectedFlair)?.color || 'text-white/40'
-                      }`}>
-                        {FLAIRS.find(f => f.id === player.selectedFlair)?.label}
-                      </span>
-                    )}
-                    {player.isPremium && <Sparkles className="inline-block w-2.5 h-2.5 text-amber-400 shrink-0" />}
+                    <div className="flex items-center gap-1.5 overflow-x-hidden">
+                      {player.selectedFlair && (
+                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border border-white/10 ${
+                          FLAIRS.find(f => f.id === player.selectedFlair)?.bg || 'bg-white/5'
+                        } ${
+                          FLAIRS.find(f => f.id === player.selectedFlair)?.color || 'text-white/40'
+                        }`}>
+                          {FLAIRS.find(f => f.id === player.selectedFlair)?.label}
+                        </span>
+                      )}
+                      
+                      <div className={`px-2 py-0.5 rounded-md border ${rank.bg} ${rank.border} ${rank.glow} flex items-center gap-1.5`}>
+                        <span className="text-[12px] leading-none">{rank.icon}</span>
+                        <span className={`text-[8px] font-black uppercase tracking-widest ${rank.color}`}>
+                          {rank.title}
+                        </span>
+                      </div>
+                      
+                      {player.isPremium && <Sparkles className="w-3 h-3 text-amber-400 shrink-0" />}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[6px] font-bold text-white/40 uppercase tracking-widest">Streak: {player.streak}d</span>
-                    <div className="w-0.5 h-0.5 bg-white/20 rounded-full" />
-                    <span className={`text-[6px] font-black uppercase tracking-widest flex items-center gap-1 ${getRankInfo(player.totalQuestions).color}`}>
-                      {getRankInfo(player.totalQuestions).icon} {getRankInfo(player.totalQuestions).title}
-                    </span>
+                  <div className="flex items-center gap-3 mt-0.5 opacity-20">
+                    <span className="text-[6px] font-black tracking-[0.2em] uppercase">STREAK: {player.streak}D</span>
                   </div>
                 </div>
               </div>
+
               
               <div className="flex items-center gap-3">
                 <div className="text-right">
@@ -703,12 +709,13 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
     console.log("Current selectedProfile state:", selectedProfile);
   }, [selectedProfile]);
 
-  const handleArenaRefresh = async () => {
-    setIsRefreshingArena(true);
+    const fetchLeaderboardData = useCallback(async (showLoading = false) => {
+    if (showLoading) setIsLoading(true);
+    // Fetch top 100 to have room for anti-cheat filtering and ranking by rankScore
     const q = query(
       collection(db, 'leaderboard'),
       orderBy('totalQuestions', 'desc'),
-      limit(50)
+      limit(100)
     );
 
     try {
@@ -719,121 +726,85 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
         const questions = data.totalQuestions || 0;
         const hours = data.totalHours || 0;
         
-        // ANTI-CHEAT FILTER: Eliminate users with hyper-fake rates (e.g. >60 questions/hr or 0hr study with many Qs)
-        const questionsPerHour = questions / Math.max(hours, 0.05);
-        const isSuspicious = (questionsPerHour > 60 && questions > 30) || (hours < 0.1 && questions > 25);
+        // Always calculate rankScore locally to prevent DB poisoning/spoofing
+        const rankScore = Math.round(questions * 1.5 + (hours * 3600 / 60)); // Standardized score calc (1.5 per Q + 1 per min)
         
-        if (!isSuspicious) {
-          players.push({
-            uid: doc.id,
-            ...data
-          });
+        // ANTI-CHEAT FILTER (STRICTER): Eliminate users with impossible rates
+        const questionsPerHour = questions / Math.max(hours, 0.05);
+        const isSuspicious = 
+          (questionsPerHour > 80 && questions > 50) || // High speed at volume
+          (hours < 0.1 && questions > 20) ||           // No time spent
+          (questionsPerHour > 300) ||                  // Physical impossibility
+          (questions > 40000) ||                       // User-requested limit cap
+          (hours > 3000);                              // Impossible time
+        
+        if (!isSuspicious && data.displayName && data.displayName !== 'Student') {
+          players.push({ uid: doc.id, ...data, rankScore });
         }
       });
-      setLeaderboard(players);
+
+      // No fallback to mock data - only real users
+      
+      players.sort((a, b) => {
+        const scoreA = a.rankScore || 0;
+        const scoreB = b.rankScore || 0;
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        return (b.totalQuestions || 0) - (a.totalQuestions || 0);
+      });
+
+      setLeaderboard(players.slice(0, 50));
     } catch (error) {
-      console.error("Arena Refresh Error:", error);
+      console.error('Leaderboard fetch error:', error);
     } finally {
-      setIsRefreshingArena(false);
+      if (showLoading) setIsLoading(false);
     }
+  }, []);
+
+  const handleArenaRefresh = async () => {
+    setIsRefreshingArena(true);
+    await fetchLeaderboardData(false);
+    setIsRefreshingArena(false);
   };
 
   // Real-time Leaderboard Listener
   useEffect(() => {
     const interval = setInterval(() => {
-      handleArenaRefresh();
+      fetchLeaderboardData(false);
     }, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchLeaderboardData]);
 
   useEffect(() => {
-    fetchLeaderboard();
-  }, []);
-
-  const fetchLeaderboard = async () => {
-      setIsLoading(true);
-      const q = query(
-        collection(db, 'leaderboard'),
-        orderBy('totalQuestions', 'desc'),
-        limit(50)
-      );
-
-      try {
-        const snapshot = await getDocs(q);
-        let players: any[] = [];
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          const questions = data.totalQuestions || 0;
-          const hours = data.totalHours || 0;
-          const rankScore = Math.round(data.rankScore && data.rankScore > 0 
-            ? data.rankScore 
-            : (questions / 10 + hours)); 
-          
-          // ANTI-CHEAT FILTER: Eliminate users with hyper-fake rates (e.g. >60 questions/hr or 0hr study with many Qs)
-          const questionsPerHour = questions / Math.max(hours, 0.05);
-          const isSuspicious = (questionsPerHour > 60 && questions > 30) || (hours < 0.1 && questions > 25);
-          
-          if (!isSuspicious) {
-            players.push({ uid: doc.id, ...data, rankScore });
-          }
-        });
-
-        // Simple fallback only if completely empty
-        if (players.length === 0) {
-          const usersQuery = query(collection(db, 'users'), limit(50));
-          const usersSnap = await getDocs(usersQuery);
-          usersSnap.forEach(userDoc => {
-            const userData = userDoc.data();
-            const questions = userData.totalQuestions || 0;
-            const hours = userData.totalHours || 0;
-            const qp = questions / Math.max(hours, 0.05);
-            if (!(qp > 80 && questions > 30)) {
-              players.push({
-                uid: userDoc.id,
-                displayName: userData.displayName || 'Student',
-                photoURL: userData.photoURL || `https://ui-avatars.com/api/?name=${userData.displayName}&background=random`,
-                selectedFlair: userData.selectedFlair,
-                isPremium: userData.isPremium,
-                totalQuestions: questions,
-                totalHours: hours,
-                rankScore: userData.rankScore || 0,
-                streak: userData.streak || 0
-              });
-            }
-          });
-        }
-        
-        players.sort((a, b) => {
-          const scoreA = a.rankScore || 0;
-          const scoreB = b.rankScore || 0;
-          if (scoreB !== scoreA) return scoreB - scoreA;
-          return (b.totalQuestions || 0) - (a.totalQuestions || 0);
-        });
-
-        setLeaderboard(players.slice(0, 30));
-        setIsLoading(false);
-      } catch (error) {
-        console.error('Leaderboard fetch error:', error);
-        setIsLoading(false);
-      }
-    };
+    fetchLeaderboardData(true);
+  }, [fetchLeaderboardData]);
 
   // Global Stats - Periodic Fetch (Every 5 minutes)
   useEffect(() => {
     const fetchGlobalStats = async () => {
       try {
         const docSnap = await getDoc(doc(db, 'stats', 'global'));
-        if (docSnap.exists()) {
-          const data = docSnap.data() as any;
-          try {
-            const userCountSnapshot = await getCountFromServer(collection(db, 'users'));
-            const totalStudents = userCountSnapshot.data().count;
-            setGlobalStats({ ...data, totalStudents });
-          } catch (error) {
-            console.error("Error fetching user count:", error);
-            setGlobalStats(data);
-          }
+        const dbData = docSnap.exists() ? docSnap.data() : {};
+        
+        let totalStudents = 0;
+        try {
+          const userCountSnapshot = await getCountFromServer(collection(db, 'users'));
+          totalStudents = userCountSnapshot.data().count || 0;
+        } catch (error) {
+          console.error("Error fetching user count:", error);
         }
+
+        // Calculate totals based on real leaderboard and DB stats
+        const leaderboardTotalQs = leaderboard.reduce((acc, p) => acc + (p.totalQuestions || 0), 0);
+        
+        // Use DB stats if available, otherwise sum filtered leaderboard as a fallback
+        const totalQs = dbData.totalQuestions && dbData.totalQuestions > 500 ? dbData.totalQuestions : leaderboardTotalQs;
+        const totalHrs = dbData.totalHours && dbData.totalHours > 50 ? dbData.totalHours : (totalQs / 15);
+
+        setGlobalStats({ 
+          totalStudents: totalStudents, 
+          totalQuestions: Math.round(totalQs), 
+          totalHours: Math.round(totalHrs)
+        });
       } catch (error) {
         console.error("Global stats fetch error:", error);
       }
@@ -842,7 +813,7 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
     fetchGlobalStats();
     const interval = setInterval(fetchGlobalStats, 300000); // 5 minutes
     return () => clearInterval(interval);
-  }, []);
+  }, [leaderboard.length]); // Re-calculate when leaderboard loads
 
 
   const userStats = leaderboard.find(p => p.uid === user?.uid) || { totalQuestions: 0, totalHours: 0, streak: 0 };
@@ -888,9 +859,12 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
                       <div className="flex-1 min-w-0">
                         <span className="block text-[10px] font-black text-white uppercase tracking-wider truncate">{user.displayName || user.email?.split('@')[0]}</span>
                         <div className="flex items-center gap-1.5">
-                          <span className={`text-[8px] font-black uppercase tracking-widest flex items-center gap-1 ${rankInfo.color}`}>
-                            {rankInfo.icon} {rankInfo.title}
-                          </span>
+                          <div className={`px-1.5 py-0.5 rounded border ${rankInfo.bg} ${rankInfo.border} ${rankInfo.glow} flex items-center gap-1`}>
+                            <span className="text-[7px]">{rankInfo.icon}</span>
+                            <span className={`text-[8px] font-black uppercase tracking-widest ${rankInfo.color}`}>
+                              {rankInfo.title}
+                            </span>
+                          </div>
                           <div className="w-1 h-1 bg-white/20 rounded-full" />
                           <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest">{userStats.totalQuestions} Pts</span>
                         </div>
@@ -899,7 +873,7 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
                     
                     <div className="w-full mt-2">
                       <div className="flex justify-between items-center mb-1">
-                        <span className="text-[6px] font-black text-white/20 uppercase tracking-widest">Next: {getRankInfo(rankInfo.nextThreshold).title}</span>
+                        <span className="text-[6px] font-black text-white/20 uppercase tracking-widest">Next Rank: <span className="text-white/40">{getRankInfo(rankInfo.nextThreshold).title}</span></span>
                         <span className="text-[6px] font-black text-emerald-400">{Math.round(progressToNext)}%</span>
                       </div>
                       <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
@@ -940,7 +914,7 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
               { 
                 icon: TrendingUp, 
                 label: 'Avg. Study Time', 
-                value: `9.2h/day`, 
+                value: `9.3h/day`, 
                 color: 'text-emerald-400', 
                 bg: 'bg-emerald-500/10', 
                 detail: 'Peak focus hours' 
@@ -1392,13 +1366,13 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
                     className="w-24 h-24 rounded-[32px] border-2 border-blue-500 shadow-[0_0_30px_rgba(59,130,246,0.3)] object-cover" 
                     alt="" 
                   />
-                  <div className={`absolute -bottom-2 -right-2 p-2 rounded-xl border-2 border-[#0a0a0b] ${getRankInfo(selectedProfile.totalQuestions).bg} ${getRankInfo(selectedProfile.totalQuestions).color}`}>
-                    {getRankInfo(selectedProfile.totalQuestions).icon}
+                  <div className={`absolute -bottom-2 -right-2 p-2.5 rounded-2xl border-2 border-[#0a0a0b] ${getRankInfo(selectedProfile.totalQuestions).bg} ${getRankInfo(selectedProfile.totalQuestions).border} ${getRankInfo(selectedProfile.totalQuestions).glow}`}>
+                    <span className="text-lg">{getRankInfo(selectedProfile.totalQuestions).icon}</span>
                   </div>
                 </div>
 
                 <h2 className="text-2xl font-black text-white mb-1 uppercase tracking-tight">{selectedProfile.displayName}</h2>
-                <div className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] mb-8 ${getRankInfo(selectedProfile.totalQuestions).color}`}>
+                <div className={`px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-[0.2em] mb-8 ${getRankInfo(selectedProfile.totalQuestions).bg} ${getRankInfo(selectedProfile.totalQuestions).border} ${getRankInfo(selectedProfile.totalQuestions).color}`}>
                   {getRankInfo(selectedProfile.totalQuestions).title} • LEVEL {getRankInfo(selectedProfile.totalQuestions).level}
                 </div>
 
@@ -1417,18 +1391,19 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
                   <div className="flex justify-between items-center px-1">
                     <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Next Rank Progress</span>
                     <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">
-                      {getRankInfo(selectedProfile.totalQuestions).nextThreshold - selectedProfile.totalQuestions} Qs Left
+                      {Math.max(0, getRankInfo(selectedProfile.totalQuestions).nextThreshold - selectedProfile.totalQuestions)} Qs Left
                     </span>
                   </div>
                   <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
                     <motion.div 
                       initial={{ width: 0 }}
-                      animate={{ width: `${Math.min((selectedProfile.totalQuestions / getRankInfo(selectedProfile.totalQuestions).nextThreshold) * 100, 100)}%` }}
-                      className="h-full bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.5)]"
+                      animate={{ width: `${Math.min(( (selectedProfile.totalQuestions - getRankInfo(selectedProfile.totalQuestions).threshold) / (getRankInfo(selectedProfile.totalQuestions).nextThreshold - getRankInfo(selectedProfile.totalQuestions).threshold) ) * 100, 100)}%` }}
+                      className={`h-full ${getRankInfo(selectedProfile.totalQuestions).bg.split(' ')[0]} shadow-[0_0_15px_rgba(59,130,246,0.5)]`}
+                      style={{ backgroundColor: getRankInfo(selectedProfile.totalQuestions).color.includes('text-') ? undefined : 'white' }}
                     />
                   </div>
                   <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">
-                    Next: {getRankInfo(getRankInfo(selectedProfile.totalQuestions).nextThreshold).title}
+                    Next: <span className="text-white/40">{getRankInfo(getRankInfo(selectedProfile.totalQuestions).nextThreshold).title}</span>
                   </p>
                 </div>
 

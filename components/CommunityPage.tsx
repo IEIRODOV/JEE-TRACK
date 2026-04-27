@@ -1530,9 +1530,12 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                                   <Sparkles className="w-3 h-3 text-amber-400 shrink-0" />
                                 )}
                                 {userRanks[post.uid] && (
-                                  <span className={`text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded bg-white/5 border border-white/10 flex items-center gap-1 ${userRanks[post.uid].color}`}>
-                                    {userRanks[post.uid].icon} {userRanks[post.uid].title}
-                                  </span>
+                                  <div className={`px-1.5 py-0.5 rounded border ${userRanks[post.uid].bg} ${userRanks[post.uid].border} ${userRanks[post.uid].glow} flex items-center gap-1`}>
+                                    <span className="text-[7px]">{userRanks[post.uid].icon}</span>
+                                    <span className={`text-[8px] font-black uppercase tracking-widest ${userRanks[post.uid].color}`}>
+                                      {userRanks[post.uid].title}
+                                    </span>
+                                  </div>
                                 )}
                               </div>
                               <div className="flex items-center gap-1.5">

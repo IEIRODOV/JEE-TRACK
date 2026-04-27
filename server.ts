@@ -5,7 +5,6 @@ import { fileURLToPath } from "url";
 import Razorpay from "razorpay";
 import crypto from "crypto";
 import dotenv from "dotenv";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
 dotenv.config();
 
@@ -18,34 +17,12 @@ async function startServer() {
 
   app.use(express.json({ limit: '10mb' }));
 
-  const geminiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY_1 || "";
-  const genAI = new GoogleGenerativeAI(geminiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-  
   const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID || "",
     key_secret: process.env.RAZORPAY_KEY_SECRET || "",
   });
 
   // API Routes
-  app.post("/api/solve-doubt", async (req, res) => {
-    try {
-      const { userMessage } = req.body;
-      console.log("Received doubt:", userMessage);
-      console.log("GEMINI_API_KEY exists:", !!process.env.GEMINI_API_KEY);
-      console.log("GEMINI_API_KEY_1 exists:", !!process.env.GEMINI_API_KEY_1);
-      
-      const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: userMessage }] }]
-      });
-
-      res.json({ text: result.response.text() });
-    } catch (error: any) {
-      console.error("AI Error:", error);
-      res.status(500).json({ error: error.message || "Failed to solve doubt" });
-    }
-  });
-
   app.post("/api/create-order", async (req, res) => {
     try {
       const { amount, currency = "INR" } = req.body;

@@ -309,13 +309,7 @@ const WeeklyTargets = () => {
                 </div>
               </div>
 
-              <div className="p-6 rounded-3xl bg-gradient-to-br from-purple-500/20 to-transparent border border-purple-500/20">
-                <Zap className="w-8 h-8 text-purple-400 mb-4" />
-                <h4 className="text-sm font-black text-white uppercase tracking-tight mb-2">Strategy Tip</h4>
-                <p className="text-white/40 text-[10px] leading-relaxed">
-                  Plan your week ahead on Sunday. Break down complex topics into small, achievable daily targets to maintain consistent momentum.
-                </p>
-              </div>
+
             </div>
           </div>
         </div>

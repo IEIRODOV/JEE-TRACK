@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Send, Image as ImageIcon, Loader2, Brain, Info, X, Trash2, Bot, User, Check, Paperclip } from 'lucide-react';
+import { GoogleGenAI, GenerateContentResponse } from '@google/genai';
 import { playTickSound } from '@/src/lib/sounds';
 import { db, auth } from '@/src/firebase';
 import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
@@ -22,6 +23,10 @@ const DoubtSolver = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const subjects = ['Physics', 'Chemistry', 'Mathematics', 'Biology'];
+
+  const ai = new GoogleGenAI({ 
+    apiKey: process.env.GEMINI_API_KEY || (process.env as any).GEMINI_API_KEY_1 
+  });
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -45,76 +50,81 @@ const DoubtSolver = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-      // Save to history in Firebase if logged in
-      const solveDoubt = async () => {
-        if (!input.trim() && !selectedImage) return;
-        
-        playTickSound();
-        const userMessage = input.trim();
-        const userImg = selectedImage;
-        
-        const newUserMsg: Message = {
-          role: 'user',
-          content: userMessage || "Analyize this image",
-          image: userImg || undefined,
-          timestamp: new Date()
-        };
+  const solveDoubt = async () => {
+    if (!input.trim() && !selectedImage) return;
     
-        setMessages(prev => [...prev, newUserMsg]);
-        setInput('');
-        setSelectedImage(null);
-        setLoading(true);
+    playTickSound();
+    const userMessage = input.trim();
+    const userImg = selectedImage;
     
-        try {
-          const history = messages.slice(-5).map(m => ({
-            role: m.role === 'user' ? 'user' : 'model',
-            parts: [{ text: m.content }]
-          }));
-    
-          const response = await fetch('/api/solve-doubt', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userMessage: userMessage || "Analyze this image"
-            })
-          });
-    
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || "Failed to get response");
+    const newUserMsg: Message = {
+      role: 'user',
+      content: userMessage || "Analyze this image",
+      image: userImg || undefined,
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, newUserMsg]);
+    setInput('');
+    setSelectedImage(null);
+    setLoading(true);
+
+    try {
+      const parts: any[] = [];
+      
+      if (userMessage) {
+        parts.push({ text: `Subject: ${activeSubject}\nTask: Solve this doubt step-by-step with clear explanations and LaTeX formatting for formulas.\n\nUser Question: ${userMessage}` });
+      } else {
+        parts.push({ text: `Subject: ${activeSubject}\nTask: Analyze the attached image and solve the problem shown with step-by-step explanations and LaTeX formatting for formulas.` });
+      }
+
+      if (userImg) {
+        const base64Data = userImg.split(',')[1];
+        const mimeType = userImg.split(';')[0].split(':')[1];
+        parts.push({
+          inlineData: {
+            data: base64Data,
+            mimeType: mimeType
           }
-    
-          const data = await response.json();
-    
-          const aiResponse: Message = {
-            role: 'assistant',
-            content: data.text,
-            timestamp: new Date()
-          };
-    
-          setMessages(prev => [...prev, aiResponse]);
-    
-          // Save to history in Firebase if logged in
-          if (auth.currentUser) {
-            await addDoc(collection(db, 'users', auth.currentUser.uid, 'doubtHistory'), {
-              question: userMessage,
-              answer: data.text,
-              subject: activeSubject,
-              timestamp: serverTimestamp()
-            });
-          }
-    
-        } catch (error) {
-          console.error("AI Error:", error);
-          setMessages(prev => [...prev, {
-            role: 'assistant',
-            content: "Error connecting to Mission Intelligence. Please check your transmission link.",
-            timestamp: new Date()
-          }]);
-        } finally {
-          setLoading(false);
-        }
+        });
+      }
+
+      const response: GenerateContentResponse = await ai.models.generateContent({
+        model: "gemini-3.1-pro-preview",
+        contents: [{ parts }],
+      });
+
+      const responseText = response.text || "I apologize, but I couldn't formulate a solution. Please try rephrasing your question or providing a clearer image.";
+
+      const aiResponse: Message = {
+        role: 'assistant',
+        content: responseText,
+        timestamp: new Date()
       };
+
+      setMessages(prev => [...prev, aiResponse]);
+
+      // Save to history in Firebase if logged in
+      if (auth.currentUser) {
+        await addDoc(collection(db, 'users', auth.currentUser.uid, 'doubtHistory'), {
+          question: userMessage || "Image Search",
+          answer: responseText,
+          subject: activeSubject,
+          timestamp: serverTimestamp()
+        });
+      }
+
+    } catch (error) {
+      console.error("AI Error:", error);
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: "Error connecting to Mission Intelligence. Please check your transmission link and ensure your API key is configured correctly.",
+        timestamp: new Date()
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="h-[750px] bg-[#050506] text-white relative flex flex-col overflow-hidden rounded-3xl border border-white/5">
