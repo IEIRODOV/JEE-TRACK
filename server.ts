@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 import Razorpay from "razorpay";
 import crypto from "crypto";
 import dotenv from "dotenv";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 dotenv.config();
 
@@ -18,9 +18,8 @@ async function startServer() {
 
   app.use(express.json({ limit: '10mb' }));
 
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-  console.log("Environment keys:", Object.keys(process.env));
-  console.log("GEMINI_API_KEY:", process.env.GEMINI_API_KEY);
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
   
   const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID || "",
@@ -32,12 +31,11 @@ async function startServer() {
     try {
       const { userMessage } = req.body;
       
-      const result = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
+      const result = await model.generateContent({
         contents: [{ role: 'user', parts: [{ text: userMessage }] }]
       });
 
-      res.json({ text: result.text() });
+      res.json({ text: result.response.text() });
     } catch (error: any) {
       console.error("AI Error:", error);
       res.status(500).json({ error: error.message || "Failed to solve doubt" });
