@@ -738,9 +738,19 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
     }
   };
 
-  // Optimized Leaderboard - Point-in-time Fetch with background sync
+  // Real-time Leaderboard Listener
   useEffect(() => {
-    const fetchLeaderboard = async () => {
+    const interval = setInterval(() => {
+      handleArenaRefresh();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    fetchLeaderboard();
+  }, []);
+
+  const fetchLeaderboard = async () => {
       setIsLoading(true);
       const q = query(
         collection(db, 'leaderboard'),
@@ -807,9 +817,6 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
         setIsLoading(false);
       }
     };
-
-    fetchLeaderboard();
-  }, []);
 
   // Global Stats - Periodic Fetch (Every 5 minutes)
   useEffect(() => {

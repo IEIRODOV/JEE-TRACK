@@ -45,7 +45,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
   const PREMIUM_AVATARS = [
     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSA8QNq5M6qRgXoh3Ou9tkK8o_i1ZHoqsh04Q&s",
     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRyGEZxPk3X-Uxcfhs4yL150Hjt57ls_sqV1Q&s",
-    "https://preview.redd.it/iit-kgp-ghibli-art-v0-so4g54p7n4we1.jpg?width=1080&crop=smart&auto=webp&s=14a21e7d6952f9d7452b4755f00d1a561599d1f7",
+    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTkarcBQ7qUwks71ucb0hj1FqgvnyVBP5JQNA&s",
     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR1iPmt813Y9cWJhNQHxvbu7ck4otwVC_41cw&s"
   ];
 
