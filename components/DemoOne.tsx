@@ -5,6 +5,7 @@ import AnoAI from "@/components/ui/animated-shader-background";
 import CountdownTimer from "@/components/ui/countdown-timer";
 import SubjectChecklist from "@/components/SubjectChecklist";
 import WeeklyTargets from "@/components/WeeklyTargets";
+import DailyTargets from "@/components/DailyTargets";
 import { auth, onAuthStateChanged, db, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, orderBy, limit, User, handleFirestoreError, OperationType, serverTimestamp, increment, addDoc } from '@/src/firebase';
 import { updateProfile } from 'firebase/auth';
 import { playTickSound } from '@/src/lib/sounds';
@@ -773,6 +774,7 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
         </motion.div>
 
           <motion.div variants={itemVariants} className="w-full flex flex-col items-center gap-8">
+            <DailyTargets />
             <WeeklyTargets />
             <SubjectChecklist 
               category={selectedExam.id.split('_')[0]} 

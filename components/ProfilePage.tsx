@@ -29,12 +29,38 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState('');
+  const [selectedFlair, setSelectedFlair] = useState<string | null>(null);
+  const [purchasedFlairs, setPurchasedFlairs] = useState<string[]>([]);
   const [isPremium, setIsPremium] = useState(false);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [previewAvatar, setPreviewAvatar] = useState<string | null>(null);
   const [paymentStep, setPaymentStep] = useState<'details' | 'gateway' | 'success'>('details');
   const [processingPayment, setProcessingPayment] = useState(false);
 
-  const PREMIUM_AVATAR = "https://api.dicebear.com/9.x/bottts-neutral/svg?seed=Omnipotent&eyes=glow&mouth=bite&backgroundColor=000000";
+  const PREMIUM_AVATARS = [
+    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSA8QNq5M6qRgXoh3Ou9tkK8o_i1ZHoqsh04Q&s",
+    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRyGEZxPk3X-Uxcfhs4yL150Hjt57ls_sqV1Q&s",
+    "https://preview.redd.it/iit-kgp-ghibli-art-v0-so4g54p7n4we1.jpg?width=1080&crop=smart&auto=webp&s=14a21e7d6952f9d7452b4755f00d1a561599d1f7",
+    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR1iPmt813Y9cWJhNQHxvbu7ck4otwVC_41cw&s"
+  ];
+
+  const PREMIUM_AVATAR_NAMES = ["IITB", "IITD", "IITR", "IITKGP"];
+
+  const FLAIRS = [
+    { id: 'kabutar_science', label: 'kabutar science', color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/30' },
+    { id: 'alecc_daddy', label: 'Alecc Daddy', color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30' },
+    { id: 'dropper_topper', label: 'dropper >>>topper', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
+    { id: 'nta_victim', label: "NTA's VICTIM", color: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/30' },
+    { id: 'retarted', label: 'retarted', color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/30' },
+  ];
+
+  const PREMIUM_AVATAR = PREMIUM_AVATARS[0];
+
+  const getPremiumName = (url: string | null) => {
+    if (!url) return "God Level";
+    const index = PREMIUM_AVATARS.indexOf(url);
+    return index !== -1 ? PREMIUM_AVATAR_NAMES[index] : "God Level";
+  };
 
   const handleResetPremium = async () => {
     try {
@@ -49,7 +75,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
         }, { merge: true });
         
         setIsPremium(false);
-        if (selectedAvatar === PREMIUM_AVATAR) {
+        if (PREMIUM_AVATARS.includes(selectedAvatar)) {
           setSelectedAvatar(AVATARS[0]);
         }
         setSuccess('Premium package reset (Dev only).');
@@ -101,6 +127,8 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
         if (userDoc.exists()) {
           const data = userDoc.data();
           setIsPremium(data.isPremium || false);
+          setSelectedFlair(data.selectedFlair || null);
+          setPurchasedFlairs(data.purchasedFlairs || []);
           if (data.photoURL && !selectedAvatar) setSelectedAvatar(data.photoURL);
           const isCustom = !['jee', 'neet', 'boards'].includes(data.exam?.toLowerCase());
           setSelectedExam(isCustom ? 'more' : (data.exam || ''));
@@ -162,6 +190,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
         await setDoc(doc(db, 'users', currentUser.uid), {
           displayName: displayName,
           photoURL: selectedAvatar,
+          selectedFlair: selectedFlair,
           exam: examName,
           year: selectedYear,
           subExam: selectedExam === 'jee' ? selectedSubExam : null,
@@ -173,6 +202,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
         await setDoc(doc(db, 'leaderboard', currentUser.uid), {
           displayName: displayName,
           photoURL: selectedAvatar,
+          selectedFlair: selectedFlair,
           isPremium: isPremium
         }, { merge: true });
 
@@ -285,8 +315,8 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
         amount: "1500", // 15 INR in paise
         currency: "INR",
         name: "Mission Control",
-        description: "God Level Premium Unlock",
-        image: PREMIUM_AVATAR,
+        description: `${getPremiumName(previewAvatar)} Premium Unlock`,
+        image: previewAvatar || PREMIUM_AVATAR,
         order_id: orderData.id, // using the order id generated from backend
         handler: async function (response: any) {
           try {
@@ -312,18 +342,22 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
 
             const currentUser = auth.currentUser;
             if (currentUser) {
+              const newAvatar = previewAvatar || PREMIUM_AVATAR;
+              await updateProfile(currentUser, { photoURL: newAvatar });
               await setDoc(doc(db, 'users', currentUser.uid), {
-                isPremium: true
+                isPremium: true,
+                photoURL: newAvatar
               }, { merge: true });
               
               await setDoc(doc(db, 'leaderboard', currentUser.uid), {
-                isPremium: true
+                isPremium: true,
+                photoURL: newAvatar
               }, { merge: true });
               
               setIsPremium(true);
-              setSuccess('God Level package unlocked successfully!');
+              setSuccess(`${getPremiumName(newAvatar)} package unlocked successfully!`);
               setPaymentStep('success');
-              setSelectedAvatar(PREMIUM_AVATAR);
+              setSelectedAvatar(newAvatar);
               setTimeout(() => {
                 setShowPremiumModal(false);
                 setPaymentStep('details');
@@ -369,6 +403,83 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
     }
   };
 
+  const handlePurchaseFlair = async (flairId: string) => {
+    setProcessingPayment(true);
+    setError('');
+
+    const res = await loadRazorpayScript();
+    if (!res) {
+      setError('Razorpay SDK failed to load.');
+      setProcessingPayment(false);
+      return;
+    }
+
+    try {
+      const orderResponse = await fetch('/api/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: 1000, // 10 INR
+          currency: 'INR',
+        }),
+      });
+
+      const orderData = await orderResponse.json();
+      if (!orderResponse.ok) throw new Error(orderData.error || 'Failed to create order');
+
+      const key = orderData.key_id || import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_rOMv0P3R0wFj24';
+      const flairLabel = FLAIRS.find(f => f.id === flairId)?.label || 'Flair';
+
+      const options = {
+        key,
+        amount: "1000",
+        currency: "INR",
+        name: "Mission Control",
+        description: `Unlock Flair: ${flairLabel}`,
+        order_id: orderData.id,
+        handler: async function (response: any) {
+          try {
+            const currentUser = auth.currentUser;
+            if (currentUser) {
+              const newPurchasedFlairs = [...purchasedFlairs, flairId];
+              await setDoc(doc(db, 'users', currentUser.uid), {
+                purchasedFlairs: newPurchasedFlairs,
+                selectedFlair: flairId // Auto-select on purchase
+              }, { merge: true });
+              
+              await setDoc(doc(db, 'leaderboard', currentUser.uid), {
+                selectedFlair: flairId
+              }, { merge: true });
+              
+              setPurchasedFlairs(newPurchasedFlairs);
+              setSelectedFlair(flairId);
+              setSuccess(`Flair "${flairLabel}" unlocked!`);
+              setTimeout(() => setSuccess(''), 3000);
+            }
+          } catch (err: any) {
+            setError('Failed to update flair status');
+          } finally {
+            setProcessingPayment(false);
+          }
+        },
+        prefill: {
+          name: auth.currentUser?.displayName || "User",
+          email: auth.currentUser?.email || "",
+        },
+        theme: { color: "#f59e0b" },
+        modal: {
+          ondismiss: () => setProcessingPayment(false)
+        }
+      };
+
+      const paymentObject = new (window as any).Razorpay(options);
+      paymentObject.open();
+    } catch (err: any) {
+      setError("Payment Initialization Failed: " + err.message);
+      setProcessingPayment(false);
+    }
+  };
+
   const YEARS = ['2026', '2027', '2028'];
   const CLASSES = ['9th', '10th', '11th', '12th'];
 
@@ -401,9 +512,9 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
           <div className="relative group">
             <div className="w-20 h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
               {selectedAvatar ? (
-                <img src={selectedAvatar} alt="Profile" className="w-full h-full object-cover" />
+                <img src={selectedAvatar} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
               ) : user?.photoURL ? (
-                <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
               ) : (
                 <UserIcon className="w-10 h-10 text-white/20" />
               )}
@@ -413,7 +524,20 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
             </div>
           </div>
           <div>
-            <h1 className="text-3xl font-black tracking-tight mb-1">Commander Profile</h1>
+            <div className="flex items-center gap-3 mb-1">
+              <h1 className="text-3xl font-black tracking-tight">Commander Profile</h1>
+              {selectedFlair && (
+                <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border transition-all ${
+                  FLAIRS.find(f => f.id === selectedFlair)?.bg || 'bg-white/5'
+                } ${
+                  FLAIRS.find(f => f.id === selectedFlair)?.border || 'border-white/10'
+                } ${
+                  FLAIRS.find(f => f.id === selectedFlair)?.color || 'text-white/40'
+                }`}>
+                  {FLAIRS.find(f => f.id === selectedFlair)?.label}
+                </div>
+              )}
+            </div>
             <div className="flex items-center gap-3">
               <p className="text-white/40 text-[10px] font-black uppercase tracking-widest">ID: {user?.uid?.slice(0, 8)}...</p>
               <div className="w-1 h-1 bg-white/10 rounded-full" />
@@ -430,6 +554,72 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
           </div>
         </div>
 
+        {/* Flair Selection & Purchase */}
+        <div className="mb-12 space-y-6">
+          <div className="flex items-center justify-between">
+            <label className="text-[10px] font-black text-white/40 uppercase tracking-widest block">Mission Flairs</label>
+            <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">₹10 each • Permanent Unlock</span>
+          </div>
+          
+          <div className="flex flex-wrap gap-3">
+            {/* None Option */}
+            <button
+              onClick={() => { playTickSound(); setSelectedFlair(null); }}
+              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
+                selectedFlair === null 
+                  ? 'bg-white/10 border-white/20 text-white' 
+                  : 'bg-white/5 border-white/5 text-white/20 hover:text-white/40 hover:border-white/10'
+              }`}
+            >
+              None
+            </button>
+
+            {FLAIRS.map((flair) => {
+              const isPurchased = purchasedFlairs.includes(flair.id);
+              const isSelected = selectedFlair === flair.id;
+              
+              return (
+                <button
+                  key={flair.id}
+                  onClick={() => { 
+                    playTickSound(); 
+                    if (isPurchased) {
+                      setSelectedFlair(isSelected ? null : flair.id);
+                    } else {
+                      handlePurchaseFlair(flair.id);
+                    }
+                  }}
+                  disabled={processingPayment}
+                  className={`relative px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all flex items-center gap-2 group overflow-hidden ${
+                    isSelected 
+                      ? `${flair.bg} ${flair.border} ${flair.color} scale-105 shadow-[0_0_15px_rgba(255,255,255,0.05)]` 
+                      : isPurchased
+                        ? 'bg-white/5 border-white/10 text-white/40 hover:text-white'
+                        : 'bg-white/2 border-white/5 text-white/10 hover:border-white/10'
+                  }`}
+                >
+                  {isSelected && (
+                    <div className="absolute inset-0 bg-white/5 animate-pulse" />
+                  )}
+                  
+                  <span className="relative z-10">{flair.label}</span>
+                  
+                  {!isPurchased && (
+                    <div className="flex items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+                      <CreditCard className="w-3 h-3" />
+                      <span className="text-[8px] font-black">₹10</span>
+                    </div>
+                  )}
+
+                  {isPurchased && isSelected && (
+                    <Check className="w-3 h-3 text-current" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Avatar Selection */}
         <div className="mb-12 space-y-4">
           <label className="text-[10px] font-black text-white/40 uppercase tracking-widest block">Choose Avatar</label>
@@ -443,7 +633,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
             >
                <div className="w-full h-full bg-white/5 flex flex-col items-center justify-center text-center p-1">
                  {user?.photoURL ? (
-                    <img src={user.photoURL} className="w-full h-full object-cover" />
+                    <img src={user.photoURL} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                  ) : (
                     <UserIcon className="w-4 h-4 text-white/40" />
                  )}
@@ -456,33 +646,38 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
                <div className="absolute bottom-0 left-0 right-0 bg-black/60 py-0.5 text-[6px] font-black uppercase text-white/80">Account</div>
             </button>
 
-            {/* Premium Avatar Option */}
-            <button
-              onClick={() => { 
-                playTickSound(); 
-                if (!isPremium) {
-                  setShowPremiumModal(true);
-                } else {
-                  setSelectedAvatar(PREMIUM_AVATAR);
-                }
-              }}
-              className={`relative w-full aspect-square rounded-xl overflow-hidden border-2 transition-all ${
-                selectedAvatar === PREMIUM_AVATAR ? 'border-amber-400 scale-110 z-10 shadow-[0_0_20px_rgba(245,158,11,0.6)]' : 'border-amber-400/50 opacity-100 hover:opacity-100 hover:scale-105 shadow-[0_0_10px_rgba(245,158,11,0.3)] animate-pulse hover:animate-none'
-              }`}
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/40 to-orange-500/40 mix-blend-overlay z-0" />
-              <img src={PREMIUM_AVATAR} alt="Premium Avatar" className="w-full h-full object-cover relative z-10 drop-shadow-[0_0_10px_rgba(245,158,11,1)]" />
-              {selectedAvatar === PREMIUM_AVATAR ? (
-                <div className="absolute inset-0 bg-amber-500/20 flex items-center justify-center z-20">
-                  <Check className="w-4 h-4 text-white" />
-                </div>
-              ) : !isPremium ? (
-                <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-20 transition-opacity backdrop-blur-[2px]">
-                  <Sparkles className="w-5 h-5 text-amber-400 mb-1 drop-shadow-[0_0_5px_rgba(245,158,11,0.8)]" />
-                  <span className="text-[7px] font-black uppercase text-amber-400 bg-amber-400/20 px-1.5 py-0.5 rounded border border-amber-400/30">Unlock</span>
-                </div>
-              ) : null}
-            </button>
+            {/* Premium Avatar Options */}
+            {PREMIUM_AVATARS.map((pUrl, i) => (
+              <button
+                key={`premium-${i}`}
+                onClick={() => { 
+                  playTickSound(); 
+                  if (!isPremium) {
+                    setPreviewAvatar(pUrl);
+                    setShowPremiumModal(true);
+                  } else {
+                    setSelectedAvatar(pUrl);
+                  }
+                }}
+                className={`relative w-full aspect-square rounded-xl overflow-hidden border-2 transition-all group ${
+                  selectedAvatar === pUrl ? 'border-amber-400 scale-110 z-10 shadow-[0_0_20px_rgba(245,158,11,0.6)]' : 'border-amber-400/50 opacity-100 hover:opacity-100 hover:scale-105 shadow-[0_0_10px_rgba(245,158,11,0.3)] animate-pulse hover:animate-none'
+                }`}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/40 to-orange-500/40 mix-blend-overlay z-0" />
+                <img src={pUrl} alt={`Premium Avatar ${i}`} className="w-full h-full object-cover relative z-10" referrerPolicy="no-referrer" />
+                
+                {selectedAvatar === pUrl ? (
+                  <div className="absolute inset-0 bg-amber-500/20 flex items-center justify-center z-20">
+                    <Check className="w-4 h-4 text-white" />
+                  </div>
+                ) : !isPremium ? (
+                  <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-20 transition-opacity backdrop-blur-[2px]">
+                    <Sparkles className="w-5 h-5 text-amber-400 mb-1 drop-shadow-[0_0_5px_rgba(245,158,11,0.8)]" />
+                    <span className="text-[6px] font-black uppercase text-amber-400 bg-amber-400/20 px-1 py-0.5 rounded border border-amber-400/30">Unlock</span>
+                  </div>
+                ) : null}
+              </button>
+            ))}
 
             {AVATARS.map((url, i) => (
               <button
@@ -492,7 +687,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
                   selectedAvatar === url ? 'border-purple-500 scale-110 z-10' : 'border-white/5 opacity-40 hover:opacity-100'
                 }`}
               >
-                <img src={url} alt={`Avatar ${i}`} className="w-full h-full object-cover" />
+                <img src={url} alt={`Avatar ${i}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                 {selectedAvatar === url && (
                   <div className="absolute inset-0 bg-purple-500/20 flex items-center justify-center">
                     <Check className="w-4 h-4 text-white" />
@@ -797,8 +992,9 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
                   onClick={() => {
                     setShowPremiumModal(false);
                     setPaymentStep('details');
+                    setProcessingPayment(false);
                   }}
-                  className="absolute top-6 right-6 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors z-10"
+                  className="absolute top-6 right-6 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors z-50 cursor-pointer"
                 >
                   <X className="w-4 h-4 text-white/40" />
                 </button>
@@ -806,11 +1002,32 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
                 {paymentStep === 'details' && (
                   <>
                     <div className="relative z-10 text-center mb-8">
-                      <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-[0_0_40px_rgba(245,158,11,0.3)] mb-6 border border-white/20 overflow-hidden">
-                        <img src={PREMIUM_AVATAR} className="w-full h-full object-cover" />
+                      <div className="w-20 h-20 mx-auto rounded-3xl bg-amber-500/10 flex items-center justify-center shadow-[0_0_40px_rgba(245,158,11,0.2)] mb-4 border border-amber-500/30 overflow-hidden relative group">
+                        <div className="absolute inset-0 bg-gradient-to-br from-amber-500/20 to-orange-500/20 animate-pulse" />
+                        <img src={previewAvatar || PREMIUM_AVATAR} className="w-full h-full object-cover relative z-10" referrerPolicy="no-referrer" />
                       </div>
-                      <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 uppercase tracking-tight mb-2">God Level</h2>
-                      <p className="text-xs text-white/60">Unlock the God Level Avatar and Premium Glow.</p>
+                      <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 uppercase tracking-tight mb-2"> {getPremiumName(previewAvatar)} </h2>
+                      
+                      {/* Live Preview Card */}
+                      <div className="mt-4 p-4 rounded-2xl bg-white/5 border border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.1)] text-left">
+                        <div className="flex items-center gap-3">
+                          <div className="relative">
+                            <div className="w-10 h-10 rounded-xl border border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.4)] overflow-hidden">
+                              <img src={previewAvatar || PREMIUM_AVATAR} className="w-full h-full object-cover" />
+                            </div>
+                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full border border-black flex items-center justify-center">
+                              <Sparkles className="w-1.5 h-1.5 text-white" />
+                            </div>
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">{displayName || 'Commander'}</span>
+                              <div className="px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/30 text-[6px] font-black text-amber-400 uppercase">{getPremiumName(previewAvatar).toUpperCase()}</div>
+                            </div>
+                            <div className="text-[8px] text-white/40 font-black uppercase tracking-widest">Rank: Lieutenant</div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="space-y-3 mb-8 relative z-10">
@@ -818,13 +1035,13 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
                         <div className="w-8 h-8 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
                           <UserIcon className="w-4 h-4 text-amber-400" />
                         </div>
-                        <span className="text-sm font-bold text-white/80">God Level Premium Avatar</span>
+                        <span className="text-sm font-bold text-white/80">Premium Avatar</span>
                       </div>
                       <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/5">
                         <div className="w-8 h-8 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
                           <Trophy className="w-4 h-4 text-amber-400" />
                         </div>
-                        <span className="text-sm font-bold text-white/80">God Level Glow in Leaderboard</span>
+                        <span className="text-sm font-bold text-white/80">Premium Glow in Leaderboard</span>
                       </div>
                       <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/5">
                         <div className="w-8 h-8 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
@@ -867,7 +1084,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
                     </div>
                     <h3 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-500 uppercase tracking-tight mb-2">Payment Successful!</h3>
                     <p className="text-sm text-white/60 mb-8 max-w-[200px] text-center">
-                      God Level Premium Unlocked!
+                      {getPremiumName(previewAvatar)} Premium Unlocked!
                     </p>
                   </div>
                 )}

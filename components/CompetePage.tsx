@@ -39,6 +39,14 @@ const itemVariants = {
   }
 };
 
+const FLAIRS = [
+  { id: 'kabutar_science', label: 'kabutar science', color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/30' },
+  { id: 'alecc_daddy', label: 'Alecc Daddy', color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30' },
+  { id: 'dropper_topper', label: 'dropper >>>topper', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
+  { id: 'nta_victim', label: "NTA's VICTIM", color: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/30' },
+  { id: 'retarted', label: 'retarted', color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/30' },
+];
+
 const FriendTimer = memo(({ timerState }: { timerState: any }) => {
   const [displayTime, setDisplayTime] = useState('00:00:00');
 
@@ -120,7 +128,6 @@ const FriendListItem = memo(({
             className={`w-10 h-10 rounded-2xl border transition-all object-cover
               ${isSelected ? 'border-purple-400' : 'border-white/10 group-hover:border-white/30'}`} 
             alt="" 
-            referrerPolicy="no-referrer"
           />
           {unreadCount > 0 && (
             <motion.div 
@@ -133,10 +140,22 @@ const FriendListItem = memo(({
           )}
         </div>
         <div className="text-left">
-          <div className="text-[11px] font-black text-white uppercase tracking-tight mb-1 flex items-center gap-2">
+          <div className="text-[11px] font-black text-white uppercase tracking-tight mb-1 flex flex-wrap items-center gap-1.5">
             {friend.displayName || 'Friend'}
+            {friend.selectedFlair && (
+              <span className={`px-1.5 py-0.5 rounded text-[6px] font-black uppercase tracking-widest border ${
+                FLAIRS.find(f => f.id === friend.selectedFlair)?.bg || 'bg-white/5'
+              } ${
+                FLAIRS.find(f => f.id === friend.selectedFlair)?.border || 'border-white/10'
+              } ${
+                FLAIRS.find(f => f.id === friend.selectedFlair)?.color || 'text-white/40'
+              }`}>
+                {FLAIRS.find(f => f.id === friend.selectedFlair)?.label}
+              </span>
+            )}
+            {friend.isPremium && <Sparkles className="w-2.5 h-2.5 text-amber-400" />}
             {timerState?.isRunning && (
-              <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+              <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse ml-auto" />
             )}
           </div>
           <div className="flex flex-col gap-1.5">
@@ -222,17 +241,29 @@ const LeaderboardList = memo(({
                     src={player.photoURL || `https://ui-avatars.com/api/?name=${player.displayName}&background=random`} 
                     className={`w-7 h-7 rounded-lg border transition-all ${isCurrentUser ? 'border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.3)]' : 'border-white/10 group-hover:border-blue-500/50'}`} 
                     alt={player.displayName} 
-                    referrerPolicy="no-referrer" 
                   />
                 </div>
                 <div className="min-w-[80px]">
-                  <span className={`block text-[10px] font-bold transition-colors ${
-                    player.isPremium ? 'text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]' :
-                    isCurrentUser ? 'text-blue-400' : 'text-white group-hover:text-blue-400'
-                  }`}>
-                    {player.displayName}
-                    {player.isPremium && <Sparkles className="inline-block w-2.5 h-2.5 ml-1 text-amber-400 -mt-0.5" />}
-                  </span>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className={`text-[10px] font-bold transition-colors flex items-center gap-1.5 ${
+                      player.isPremium ? 'text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]' :
+                      isCurrentUser ? 'text-blue-400' : 'text-white group-hover:text-blue-400'
+                    }`}>
+                      {player.displayName}
+                    </span>
+                    {player.selectedFlair && (
+                      <span className={`px-1.5 py-0.5 rounded text-[6px] font-black uppercase tracking-widest border ${
+                        FLAIRS.find(f => f.id === player.selectedFlair)?.bg || 'bg-white/5'
+                      } ${
+                        FLAIRS.find(f => f.id === player.selectedFlair)?.border || 'border-white/10'
+                      } ${
+                        FLAIRS.find(f => f.id === player.selectedFlair)?.color || 'text-white/40'
+                      }`}>
+                        {FLAIRS.find(f => f.id === player.selectedFlair)?.label}
+                      </span>
+                    )}
+                    {player.isPremium && <Sparkles className="inline-block w-2.5 h-2.5 text-amber-400 shrink-0" />}
+                  </div>
                   <div className="flex items-center gap-1.5">
                     <span className="text-[6px] font-bold text-white/40 uppercase tracking-widest">Streak: {player.streak}d</span>
                     <div className="w-0.5 h-0.5 bg-white/20 rounded-full" />
@@ -848,7 +879,7 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
                 <div className="flex items-center gap-3">
                   <div className="flex flex-col items-start gap-1 bg-white/5 border border-white/10 p-2.5 rounded-2xl backdrop-blur-lg transition-all text-left min-w-[180px] group">
                     <div className="flex items-center gap-3 w-full">
-                      <img src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=random`} className="w-8 h-8 rounded-full border border-white/20 transition-colors" alt="Profile" referrerPolicy="no-referrer" />
+                      <img src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=random`} className="w-8 h-8 rounded-full border border-white/20 transition-colors" alt="Profile" />
                       <div className="flex-1 min-w-0">
                         <span className="block text-[10px] font-black text-white uppercase tracking-wider truncate">{user.displayName || user.email?.split('@')[0]}</span>
                         <div className="flex items-center gap-1.5">
@@ -1112,7 +1143,6 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
                                     src={selectedFriend.photoURL || `https://ui-avatars.com/api/?name=${selectedFriend.displayName || 'Friend'}&background=random`} 
                                     className="w-12 h-12 rounded-2xl border border-white/20 shadow-[0_0_20px_rgba(255,255,255,0.1)] object-cover" 
                                     alt="" 
-                                    referrerPolicy="no-referrer"
                                   />
                                   <div>
                                     <h3 className="text-base font-black text-white uppercase tracking-tight">{selectedFriend.displayName}</h3>

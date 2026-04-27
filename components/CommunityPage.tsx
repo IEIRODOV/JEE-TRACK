@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import Notifications from './Notifications';
 import DonateModal from './DonateModal';
+import DoubtSolver from './DoubtSolver';
 import { 
   Send, 
   MessageSquare, 
@@ -32,7 +33,8 @@ import {
   Share2,
   RotateCcw,
   Copy,
-  Check
+  Check,
+  Brain
 } from 'lucide-react';
 import PulseLoader from "@/components/ui/pulse-loader";
 import { toast } from 'sonner';
@@ -99,6 +101,14 @@ const COMMUNITIES = [
   { id: 'jee', label: 'JEE', icon: Target },
   { id: 'neet', label: 'NEET', icon: Heart },
   { id: 'boards', label: 'Boards', icon: BookOpen },
+];
+
+const FLAIRS = [
+  { id: 'kabutar_science', label: 'kabutar science', color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/30' },
+  { id: 'alecc_daddy', label: 'Alecc Daddy', color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30' },
+  { id: 'dropper_topper', label: 'dropper >>>topper', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
+  { id: 'nta_victim', label: "NTA's VICTIM", color: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/30' },
+  { id: 'retarted', label: 'retarted', color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/30' },
 ];
 
 const RESOURCES = {
@@ -521,7 +531,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
   const [posts, setPosts] = useState<Post[]>([]);
   const [inputText, setInputText] = useState('');
   const [selectedCommunity, setSelectedCommunity] = useState<'all' | 'jee' | 'neet' | 'boards'>('all');
-  const [activeView, setActiveView] = useState<'feed' | 'resources'>('feed');
+  const [activeView, setActiveView] = useState<'feed' | 'resources' | 'ai'>('feed');
   const [sortMode, setSortMode] = useState<'new' | 'top'>('new');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -652,12 +662,19 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
       const batchSize = 10;
       for (let i = 0; i < uids.length; i += batchSize) {
         const batch = uids.slice(i, i + batchSize);
-        await Promise.all(batch.map(async (uid) => {
+          await Promise.all(batch.map(async (uid) => {
           try {
             const lbDoc = await getDoc(doc(db, 'leaderboard', uid));
-            newRanks[uid] = lbDoc.exists() 
-              ? { ...getRankInfo(lbDoc.data().totalQuestions || 0), isPremium: lbDoc.data().isPremium }
-              : getRankInfo(0);
+            if (lbDoc.exists()) {
+              const data = lbDoc.data();
+              newRanks[uid] = { 
+                ...getRankInfo(data.totalQuestions || 0), 
+                isPremium: data.isPremium,
+                selectedFlair: data.selectedFlair
+              };
+            } else {
+              newRanks[uid] = getRankInfo(0);
+            }
             changed = true;
           } catch (e) {
             console.error("Error fetching rank for", uid, e);
@@ -1150,6 +1167,16 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                 <Target className="w-4 h-4" />
                 Resource Hub
               </button>
+              <button
+                onClick={() => setActiveView('ai')}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl transition-all text-xs font-black uppercase tracking-widest
+                  ${activeView === 'ai' 
+                    ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)]' 
+                    : 'text-white/40 hover:text-white/60'}`}
+              >
+                <Sparkles className="w-4 h-4" />
+                A.I. Solver
+              </button>
             </div>
             
             <div className="hidden md:block h-8 w-px bg-white/5" />
@@ -1255,7 +1282,11 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
               </div>
             )}
 
-            {activeView === 'resources' ? (
+            {activeView === 'ai' ? (
+              <div className="lg:col-span-12">
+                <DoubtSolver />
+              </div>
+            ) : activeView === 'resources' ? (
               <div className="space-y-8 relative">
                 <div className="relative z-10 space-y-8">
                   <motion.div 
@@ -1287,7 +1318,6 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                         href={resource.link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        referrerPolicy="no-referrer"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.1 }}
@@ -1477,6 +1507,17 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                                 <span className={`text-sm font-black ${userRanks[post.uid]?.isPremium ? 'text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'text-white'}`}>
                                   u/{post.displayName}
                                 </span>
+                                {userRanks[post.uid]?.selectedFlair && (
+                                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border ${
+                                    FLAIRS.find(f => f.id === userRanks[post.uid].selectedFlair)?.bg || 'bg-white/5'
+                                  } ${
+                                    FLAIRS.find(f => f.id === userRanks[post.uid].selectedFlair)?.border || 'border-white/10'
+                                  } ${
+                                    FLAIRS.find(f => f.id === userRanks[post.uid].selectedFlair)?.color || 'text-white/40'
+                                  }`}>
+                                    {FLAIRS.find(f => f.id === userRanks[post.uid].selectedFlair)?.label}
+                                  </span>
+                                )}
                                 {userRanks[post.uid]?.isPremium && (
                                   <Sparkles className="w-3 h-3 text-amber-400 shrink-0" />
                                 )}
@@ -1746,6 +1787,17 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                                                   <span className={`text-xs font-black ${userRanks[comment.uid]?.isPremium ? 'text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'text-white'}`}>
                                                     {comment.displayName}
                                                   </span>
+                                                  {userRanks[comment.uid]?.selectedFlair && (
+                                                    <span className={`px-1 py-0.5 rounded text-[7px] font-black uppercase tracking-widest border ${
+                                                      FLAIRS.find(f => f.id === userRanks[comment.uid].selectedFlair)?.bg || 'bg-white/5'
+                                                    } ${
+                                                      FLAIRS.find(f => f.id === userRanks[comment.uid].selectedFlair)?.border || 'border-white/10'
+                                                    } ${
+                                                      FLAIRS.find(f => f.id === userRanks[comment.uid].selectedFlair)?.color || 'text-white/40'
+                                                    }`}>
+                                                      {FLAIRS.find(f => f.id === userRanks[comment.uid].selectedFlair)?.label}
+                                                    </span>
+                                                  )}
                                                   {userRanks[comment.uid]?.isPremium && (
                                                     <Sparkles className="w-2.5 h-2.5 text-amber-400 shrink-0" />
                                                   )}
@@ -1841,6 +1893,17 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                                                         <span className={`text-[11px] font-black ${userRanks[reply.uid]?.isPremium ? 'text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'text-white'}`}>
                                                           {reply.displayName}
                                                         </span>
+                                                        {userRanks[reply.uid]?.selectedFlair && (
+                                                          <span className={`px-1 py-0.5 rounded text-[6px] font-black uppercase tracking-widest border ${
+                                                            FLAIRS.find(f => f.id === userRanks[reply.uid].selectedFlair)?.bg || 'bg-white/5'
+                                                          } ${
+                                                            FLAIRS.find(f => f.id === userRanks[reply.uid].selectedFlair)?.border || 'border-white/10'
+                                                          } ${
+                                                            FLAIRS.find(f => f.id === userRanks[reply.uid].selectedFlair)?.color || 'text-white/40'
+                                                          }`}>
+                                                            {FLAIRS.find(f => f.id === userRanks[reply.uid].selectedFlair)?.label}
+                                                          </span>
+                                                        )}
                                                         {userRanks[reply.uid]?.isPremium && (
                                                           <Sparkles className="w-2.5 h-2.5 text-amber-400 shrink-0" />
                                                         )}
