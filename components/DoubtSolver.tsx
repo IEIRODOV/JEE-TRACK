@@ -46,99 +46,76 @@ const DoubtSolver = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const solveDoubt = async () => {
-    if (!input.trim() && !selectedImage) return;
-    
-    playTickSound();
-    const userMessage = input.trim();
-    const userImg = selectedImage;
-    
-    const newUserMsg: Message = {
-      role: 'user',
-      content: userMessage || "Analyize this image",
-      image: userImg || undefined,
-      timestamp: new Date()
-    };
-
-    setMessages(prev => [...prev, newUserMsg]);
-    setInput('');
-    setSelectedImage(null);
-    setLoading(true);
-
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      
-      const contents: any[] = [];
-      
-      // System instructions as context
-      const systemContext = `You are a professional JEE/NEET senior teacher. Your goal is to solve student doubts with extreme precision, providing step-by-step explanations.
-      Current Subject: ${activeSubject}
-      Rules:
-      1. Use clear, formatted LaTeX for formulas if needed.
-      2. Be encouraging but direct.
-      3. If a question is incomplete or ambiguous, ask for clarification.
-      4. Break down complex steps.
-      5. Provide a 'Key Concept' summary at the end.`;
-
-      // Add history for context (last 5 messages)
-      const history = messages.slice(-5).map(m => ({
-        role: m.role === 'user' ? 'user' : 'model',
-        parts: [{ text: m.content }]
-      }));
-
-      const parts: any[] = [
-        { text: `${systemContext}\n\nStudent Question: ${userMessage}` }
-      ];
-
-      if (userImg) {
-        const base64Data = userImg.split(',')[1];
-        parts.push({
-          inlineData: {
-            mimeType: "image/jpeg",
-            data: base64Data
-          }
-        });
-      }
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
-        contents: [
-          ...history,
-          { role: 'user', parts }
-        ]
-      });
-
-      const aiText = response.text || "I'm sorry, I couldn't process that. Could you try rephrasing or sending a clearer image?";
-      
-      const aiResponse: Message = {
-        role: 'assistant',
-        content: aiText,
-        timestamp: new Date()
-      };
-
-      setMessages(prev => [...prev, aiResponse]);
-
       // Save to history in Firebase if logged in
-      if (auth.currentUser) {
-        await addDoc(collection(db, 'users', auth.currentUser.uid, 'doubtHistory'), {
-          question: userMessage,
-          answer: aiText,
-          subject: activeSubject,
-          timestamp: serverTimestamp()
-        });
-      }
-
-    } catch (error) {
-      console.error("AI Error:", error);
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: "Error connecting to Mission Intelligence. Please check your transmission link.",
-        timestamp: new Date()
-      }]);
-    } finally {
-      setLoading(false);
-    }
-  };
+      const solveDoubt = async () => {
+        if (!input.trim() && !selectedImage) return;
+        
+        playTickSound();
+        const userMessage = input.trim();
+        const userImg = selectedImage;
+        
+        const newUserMsg: Message = {
+          role: 'user',
+          content: userMessage || "Analyize this image",
+          image: userImg || undefined,
+          timestamp: new Date()
+        };
+    
+        setMessages(prev => [...prev, newUserMsg]);
+        setInput('');
+        setSelectedImage(null);
+        setLoading(true);
+    
+        try {
+          const history = messages.slice(-5).map(m => ({
+            role: m.role === 'user' ? 'user' : 'model',
+            parts: [{ text: m.content }]
+          }));
+    
+          const response = await fetch('/api/solve-doubt', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userMessage: userMessage || "Analyze this image",
+              imageBase64: userImg ? userImg.split(',')[1] : null,
+              activeSubject,
+              history
+            })
+          });
+    
+          if (!response.ok) throw new Error("Failed to get response");
+    
+          const data = await response.json();
+    
+          const aiResponse: Message = {
+            role: 'assistant',
+            content: data.text,
+            timestamp: new Date()
+          };
+    
+          setMessages(prev => [...prev, aiResponse]);
+    
+          // Save to history in Firebase if logged in
+          if (auth.currentUser) {
+            await addDoc(collection(db, 'users', auth.currentUser.uid, 'doubtHistory'), {
+              question: userMessage,
+              answer: data.text,
+              subject: activeSubject,
+              timestamp: serverTimestamp()
+            });
+          }
+    
+        } catch (error) {
+          console.error("AI Error:", error);
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: "Error connecting to Mission Intelligence. Please check your transmission link.",
+            timestamp: new Date()
+          }]);
+        } finally {
+          setLoading(false);
+        }
+      };
 
   return (
     <div className="h-[750px] bg-[#050506] text-white relative flex flex-col overflow-hidden rounded-3xl border border-white/5">
