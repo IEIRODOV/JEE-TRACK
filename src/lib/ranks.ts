@@ -58,7 +58,7 @@ export const getRankInfo = (questions: number): RankInfo => {
     if (lvl <= 6) return "text-emerald-400";
     if (lvl <= 9) return "text-blue-400";
     if (lvl <= 12) return "text-cyan-400";
-    if (lvl <= 15) return "text-purple-400";
+    if (lvl <= 15) return "text-fuchsia-400";
     if (lvl <= 18) return "text-pink-400";
     if (lvl <= 21) return "text-rose-400";
     if (lvl <= 24) return "text-orange-400";
@@ -70,29 +70,29 @@ export const getRankInfo = (questions: number): RankInfo => {
     if (lvl <= 42) return "text-sky-400";
     if (lvl <= 45) return "text-indigo-400";
     if (lvl <= 48) return "text-violet-400";
-    if (lvl <= 50) return "text-fuchsia-400";
-    return "text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]";
+    if (lvl <= 50) return "text-purple-400";
+    return "text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.7)] font-black";
   };
 
   const getBg = (lvl: number) => {
-    if (lvl <= 3) return "bg-zinc-500/10";
-    if (lvl <= 6) return "bg-emerald-500/10";
-    if (lvl <= 9) return "bg-blue-500/10";
-    if (lvl <= 12) return "bg-cyan-500/10";
-    if (lvl <= 15) return "bg-purple-500/10";
-    if (lvl <= 18) return "bg-pink-500/10";
-    if (lvl <= 21) return "bg-rose-500/10";
-    if (lvl <= 24) return "bg-orange-500/10";
-    if (lvl <= 27) return "bg-amber-500/10";
-    if (lvl <= 30) return "bg-yellow-500/10";
-    if (lvl <= 33) return "bg-lime-500/10";
-    if (lvl <= 36) return "bg-green-500/10";
-    if (lvl <= 39) return "bg-teal-500/10";
-    if (lvl <= 42) return "bg-sky-500/10";
-    if (lvl <= 45) return "bg-indigo-500/10";
-    if (lvl <= 48) return "bg-violet-500/10";
-    if (lvl <= 50) return "bg-fuchsia-500/10";
-    return "bg-white/10";
+    if (lvl <= 3) return "bg-zinc-400/20";
+    if (lvl <= 6) return "bg-emerald-400/20";
+    if (lvl <= 9) return "bg-blue-400/20";
+    if (lvl <= 12) return "bg-cyan-400/20";
+    if (lvl <= 15) return "bg-fuchsia-400/20";
+    if (lvl <= 18) return "bg-pink-400/20";
+    if (lvl <= 21) return "bg-rose-400/20";
+    if (lvl <= 24) return "bg-orange-400/20";
+    if (lvl <= 27) return "bg-amber-400/20";
+    if (lvl <= 30) return "bg-yellow-400/20";
+    if (lvl <= 33) return "bg-lime-400/20";
+    if (lvl <= 36) return "bg-green-400/20";
+    if (lvl <= 39) return "bg-teal-400/20";
+    if (lvl <= 42) return "bg-sky-400/20";
+    if (lvl <= 45) return "bg-indigo-400/20";
+    if (lvl <= 48) return "bg-violet-400/20";
+    if (lvl <= 50) return "bg-purple-400/20";
+    return "bg-white/20 shadow-[0_0_15px_rgba(255,255,255,0.2)]";
   };
 
   const getIcon = (lvl: number) => {

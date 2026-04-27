@@ -47,11 +47,11 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
   const PREMIUM_AVATAR_NAMES = ["IITB", "IITD", "IITR", "IITKGP"];
 
   const FLAIRS = [
-    { id: 'kabutar_science', label: 'kabutar science', color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/30' },
-    { id: 'alecc_daddy', label: 'Alecc Daddy', color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30' },
-    { id: 'dropper_topper', label: 'dropper >>>topper', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
-    { id: 'nta_victim', label: "NTA's VICTIM", color: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/30' },
-    { id: 'retarted', label: 'retarted', color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/30' },
+    { id: 'kabutar_science', label: 'kabutar science', color: 'text-cyan-400', bg: 'bg-cyan-400/20', border: 'border-cyan-400/50' },
+    { id: 'alecc_daddy', label: 'Alecc Daddy', color: 'text-yellow-400', bg: 'bg-yellow-400/20', border: 'border-yellow-400/50' },
+    { id: 'dropper_topper', label: 'dropper >>>topper', color: 'text-lime-400', bg: 'bg-lime-400/20', border: 'border-lime-400/50' },
+    { id: 'nta_victim', label: "NTA's VICTIM", color: 'text-rose-400', bg: 'bg-rose-400/20', border: 'border-rose-400/50' },
+    { id: 'retarted', label: 'retarted', color: 'text-fuchsia-400', bg: 'bg-fuchsia-400/20', border: 'border-fuchsia-400/50' },
   ];
 
   const PREMIUM_AVATAR = PREMIUM_AVATARS[0];
