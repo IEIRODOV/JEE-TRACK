@@ -5,11 +5,25 @@ import { fileURLToPath } from "url";
 import Razorpay from "razorpay";
 import crypto from "crypto";
 import dotenv from "dotenv";
+import { GoogleGenAI } from "@google/genai";
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Initialize Gemini
+let genAI: GoogleGenAI | null = null;
+function getGenAI() {
+  if (!genAI) {
+    const apiKey = process.env.Gemini_API_Key || process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("Gemini API Key is not configured in environment variables.");
+    }
+    genAI = new GoogleGenAI({ apiKey });
+  }
+  return genAI;
+}
 
 async function startServer() {
   const app = express();
@@ -23,6 +37,43 @@ async function startServer() {
   });
 
   // API Routes
+  app.post("/api/solve-doubt", async (req, res) => {
+    try {
+      const { prompt, image, subject } = req.body;
+      const ai = getGenAI();
+
+      const parts: any[] = [];
+      const systemContext = `Subject: ${subject}\nTask: Solve this doubt step-by-step with clear explanations and LaTeX formatting for formulas.`;
+      
+      if (prompt) {
+        parts.push({ text: `${systemContext}\n\nUser Question: ${prompt}` });
+      } else {
+        parts.push({ text: systemContext });
+      }
+
+      if (image) {
+        const base64Data = image.split(',')[1];
+        const mimeType = image.split(';')[0].split(':')[1];
+        parts.push({
+          inlineData: {
+            data: base64Data,
+            mimeType: mimeType
+          }
+        });
+      }
+
+      const response = await ai.models.generateContent({
+        model: "gemini-flash-latest",
+        contents: { parts }
+      });
+
+      res.json({ text: response.text });
+    } catch (error: any) {
+      console.error("Gemini AI Error:", error);
+      res.status(500).json({ error: error.message || "Failed to generate AI response" });
+    }
+  });
+
   app.post("/api/create-order", async (req, res) => {
     try {
       const { amount, currency = "INR" } = req.body;
