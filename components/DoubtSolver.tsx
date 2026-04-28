@@ -77,13 +77,20 @@ const DoubtSolver = () => {
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Connection to Mission Intelligence failed. Make sure Gemini_API_Key is set in Secrets.');
+      let responseText = "";
+      const contentType = response.headers.get("content-type");
+      
+      if (contentType && contentType.includes("application/json")) {
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || 'Connection to Mission Intelligence failed.');
+        }
+        responseText = data.text || "I apologize, but I couldn't formulate a solution. Please try rephrasing your question or providing a clearer image.";
+      } else {
+        const textError = await response.text();
+        console.error("Non-JSON response received:", textError);
+        throw new Error(`Server returned a non-JSON response. Status: ${response.status}. Please check server logs and Gemini_API_Key.`);
       }
-
-      const data = await response.json();
-      const responseText = data.text || "I apologize, but I couldn't formulate a solution. Please try rephrasing your question or providing a clearer image.";
 
       const aiResponse: Message = {
         role: 'assistant',

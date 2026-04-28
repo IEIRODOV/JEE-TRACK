@@ -31,6 +31,18 @@ async function startServer() {
 
   app.use(express.json({ limit: '10mb' }));
 
+  // Global Error Handler to ensure JSON responses
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (err) {
+      console.error("Server Error:", err);
+      return res.status(err.status || 500).json({ 
+        error: err.message || "Internal Server Error",
+        type: "GlobalServerError"
+      });
+    }
+    next();
+  });
+
   const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID || "",
     key_secret: process.env.RAZORPAY_KEY_SECRET || "",
@@ -40,10 +52,15 @@ async function startServer() {
   app.post("/api/solve-doubt", async (req, res) => {
     try {
       const { prompt, image, subject } = req.body;
+      
+      if (!prompt && !image) {
+        return res.status(400).json({ error: "Either a prompt or an image is required." });
+      }
+
       const ai = getGenAI();
 
       const parts: any[] = [];
-      const systemContext = `Subject: ${subject}\nTask: Solve this doubt step-by-step with clear explanations and LaTeX formatting for formulas.`;
+      const systemContext = `Subject: ${subject || 'General'}\nTask: Solve this doubt step-by-step with clear explanations and LaTeX formatting for formulas.`;
       
       if (prompt) {
         parts.push({ text: `${systemContext}\n\nUser Question: ${prompt}` });
@@ -51,26 +68,42 @@ async function startServer() {
         parts.push({ text: systemContext });
       }
 
-      if (image) {
-        const base64Data = image.split(',')[1];
-        const mimeType = image.split(';')[0].split(':')[1];
-        parts.push({
-          inlineData: {
-            data: base64Data,
-            mimeType: mimeType
-          }
-        });
+      if (image && typeof image === 'string' && image.includes(',')) {
+        try {
+          const splitImage = image.split(',');
+          const base64Data = splitImage[1];
+          const mimeType = splitImage[0].split(':')[1].split(';')[0];
+          parts.push({
+            inlineData: {
+              data: base64Data,
+              mimeType: mimeType
+            }
+          });
+        } catch (imageErr) {
+          console.error("Error parsing image data:", imageErr);
+          return res.status(400).json({ error: "Invalid image data format." });
+        }
       }
 
+      console.log(`Solving doubt for subject: ${subject}`);
+      
       const response = await ai.models.generateContent({
         model: "gemini-flash-latest",
         contents: { parts }
       });
 
+      if (!response || !response.text) {
+        throw new Error("No response generated from AI.");
+      }
+
       res.json({ text: response.text });
     } catch (error: any) {
       console.error("Gemini AI Error:", error);
-      res.status(500).json({ error: error.message || "Failed to generate AI response" });
+      // Ensure we always return JSON
+      res.status(500).json({ 
+        error: error.message || "Failed to generate AI response",
+        details: process.env.NODE_ENV !== 'production' ? error.stack : undefined
+      });
     }
   });
 
