@@ -36,16 +36,11 @@ async function startServer() {
   });
 
   app.use(express.json({ limit: '10mb' }));
-
-  app.all("/api/*", (req, res, next) => {
-    console.log(`[API Debug] Catch-all hit: ${req.method} ${req.url}`);
-    next();
-  });
-
-  // Global Error Handler to ensure JSON responses
+  
+  // Global Error Handler
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
     if (err) {
-      console.error("Server Error:", err);
+      console.error("Global Server Error:", err);
       return res.status(err.status || 500).json({ 
         error: err.message || "Internal Server Error",
         type: "GlobalServerError"
@@ -54,14 +49,17 @@ async function startServer() {
     next();
   });
 
-  const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID || "",
-    key_secret: process.env.RAZORPAY_KEY_SECRET || "",
-  });
-
-  // API Routes
+  // API Routes - Registered BEFORE anything else
   app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", time: new Date().toISOString() });
+    const keysPresent = {
+      Gemini_API_Key: !!process.env.Gemini_API_Key,
+      GEMINI_API_KEY: !!process.env.GEMINI_API_KEY,
+    };
+    res.json({ 
+      status: "ok", 
+      time: new Date().toISOString(),
+      env_check: keysPresent
+    });
   });
 
   app.post("/api/solve-doubt", async (req, res) => {
@@ -120,6 +118,11 @@ async function startServer() {
         details: process.env.NODE_ENV !== 'production' ? error.stack : undefined
       });
     }
+  });
+
+  const razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID || "",
+    key_secret: process.env.RAZORPAY_KEY_SECRET || "",
   });
 
   app.post("/api/create-order", async (req, res) => {

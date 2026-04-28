@@ -65,8 +65,7 @@ const DoubtSolver = () => {
     setLoading(true);
 
     try {
-      const apiUrl = `${window.location.origin}/api/solve-doubt`;
-      const response = await fetch(apiUrl, {
+      const response = await fetch('/api/solve-doubt', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
