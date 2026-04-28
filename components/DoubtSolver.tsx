@@ -65,7 +65,8 @@ const DoubtSolver = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/solve-doubt', {
+      const apiUrl = `${window.location.origin}/api/solve-doubt`;
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -89,7 +90,8 @@ const DoubtSolver = () => {
       } else {
         const textError = await response.text();
         console.error("Non-JSON response received:", textError);
-        throw new Error(`Server returned a non-JSON response. Status: ${response.status}. Please check server logs and Gemini_API_Key.`);
+        const snippet = textError.substring(0, 100);
+        throw new Error(`Server error (${response.status}): ${snippet}... Check Gemini_API_Key in Secrets.`);
       }
 
       const aiResponse: Message = {

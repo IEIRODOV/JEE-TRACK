@@ -5,7 +5,6 @@
   "license": "MIT",
   "version": "1.0.0",
   "type": "module",
-  "homepage": "https://ieirodov.github.io/JEE-PULSE/",
   "scripts": {
     "dev": "tsx server.ts",
     "start": "node server.ts",

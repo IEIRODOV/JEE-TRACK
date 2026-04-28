@@ -29,7 +29,18 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Log all requests to debug 404
+  app.use((req, res, next) => {
+    console.log(`[Incoming Request] ${req.method} ${req.url}`);
+    next();
+  });
+
   app.use(express.json({ limit: '10mb' }));
+
+  app.all("/api/*", (req, res, next) => {
+    console.log(`[API Debug] Catch-all hit: ${req.method} ${req.url}`);
+    next();
+  });
 
   // Global Error Handler to ensure JSON responses
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -49,6 +60,10 @@ async function startServer() {
   });
 
   // API Routes
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok", time: new Date().toISOString() });
+  });
+
   app.post("/api/solve-doubt", async (req, res) => {
     try {
       const { prompt, image, subject } = req.body;
