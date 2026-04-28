@@ -184,6 +184,23 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["chatId", "participants", "senderId", "receiverId", "text", "type", "read"]
+    },
+    "Note": {
+      "title": "Note",
+      "description": "A quick note taken by the user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "subject": { "type": "string" },
+        "chapter": { "type": "string" },
+        "type": { "type": "string", "enum": ["note", "goal"] },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "content", "createdAt", "type"]
     }
   },
   "firestore": {
@@ -206,6 +223,10 @@
     "/users/{uid}/dailyStats/{date}": {
       "schema": "DailyStats",
       "description": "Daily study statistics for a user."
+    },
+    "/users/{uid}/notes/{noteId}": {
+      "schema": "Note",
+      "description": "Notes for a user."
     },
     "/leaderboard/{uid}": {
       "schema": "User",

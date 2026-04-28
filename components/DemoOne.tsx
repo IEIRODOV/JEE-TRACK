@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Target, Zap, Clock, Trophy, CheckCircle2, Activity, User as UserIcon, Check } from 'lucide-react';
+import { Target, Zap, Clock, Trophy, CheckCircle2, Activity, User as UserIcon, Check, StickyNote } from 'lucide-react';
 import AnoAI from "@/components/ui/animated-shader-background";
 import CountdownTimer from "@/components/ui/countdown-timer";
 import SubjectChecklist from "@/components/SubjectChecklist";
 import WeeklyTargets from "@/components/WeeklyTargets";
+import NotesTool from "@/components/NotesTool";
 import { auth, onAuthStateChanged, db, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, orderBy, limit, User, handleFirestoreError, OperationType, serverTimestamp, increment, addDoc } from '@/src/firebase';
 import { updateProfile } from 'firebase/auth';
 import { playTickSound } from '@/src/lib/sounds';
@@ -55,6 +56,7 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
   const [globalRank, setGlobalRank] = useState<number | string>('--');
   const [timerState, setTimerState] = useState({ isRunning: false, startTime: null as number | null, accumulatedSeconds: 0 });
   const [showSettings, setShowSettings] = useState(false);
+  const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [showExamCounter, setShowExamCounter] = useState(true);
   const [dailyStudySeconds, setDailyStudySeconds] = useState<Record<string, number>>({});
   const [dailyQuestions, setDailyQuestions] = useState<Record<string, number>>({});
@@ -549,8 +551,23 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
     <div className="w-full min-h-screen bg-black overflow-x-hidden relative">
       <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(17,24,39,1)_0%,rgba(0,0,0,1)_100%)] pointer-events-none" />
       
-      {/* Top Bar with Profile */}
-      <div className="absolute top-0 left-0 right-0 z-[100] flex justify-end p-6">
+      {/* Top Bar with Profile and Notes */}
+      <div className="absolute top-0 left-0 right-0 z-[100] flex justify-between items-start p-6">
+        <motion.button 
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => { playTickSound(); setIsNotesOpen(true); }}
+          className="group relative"
+        >
+          <div className="px-6 py-2.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-xl hover:bg-white/[0.08] hover:border-white/20 transition-all flex items-center gap-3 shadow-2xl">
+            <div className="p-1.5 rounded-lg bg-blue-500/20 text-blue-400">
+              <StickyNote className="w-4 h-4" />
+            </div>
+            <span className="text-xs font-black text-white uppercase tracking-[0.2em]">Notes</span>
+          </div>
+          <div className="absolute -inset-1 bg-blue-500/10 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity" />
+        </motion.button>
+
         <div className="relative">
           <button 
             onClick={() => { playTickSound(); setShowSettings(!showSettings); }}
@@ -806,7 +823,13 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
               examId={selectedExam.id} 
             />
           </motion.div>
-      </motion.div>
+        </motion.div>
+
+      <NotesTool 
+        isOpen={isNotesOpen} 
+        onClose={() => setIsNotesOpen(false)} 
+        examType={selectedExam.id}
+      />
     </div>
   );
 };

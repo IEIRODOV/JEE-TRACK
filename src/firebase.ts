@@ -27,6 +27,7 @@ import {
   persistentLocalCache,
   persistentMultipleTabManager
 } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase
@@ -46,6 +47,8 @@ export const db = initializeFirestore(app, {
     tabManager: persistentMultipleTabManager()
   })
 }, dbId);
+
+export const storage = getStorage(app);
 
 // Connection test
 async function testConnection() {
@@ -145,6 +148,9 @@ export {
   arrayUnion,
   arrayRemove,
   getCountFromServer,
-  writeBatch
+  writeBatch,
+  ref,
+  uploadBytes,
+  getDownloadURL
 };
 export type { User };
