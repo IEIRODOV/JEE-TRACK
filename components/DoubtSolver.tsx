@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Send, Image as ImageIcon, Loader2, Brain, Info, X, Trash2, Bot, User, Check, Paperclip } from 'lucide-react';
-import { GoogleGenAI } from '@google/genai';
 import { playTickSound } from '@/src/lib/sounds';
 import { db, auth } from '@/src/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -23,10 +22,6 @@ const DoubtSolver = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const subjects = ['Physics', 'Chemistry', 'Mathematics', 'Biology'];
-
-  const ai = new GoogleGenAI({ 
-    apiKey: (process.env as any).Gemini_API_Key || process.env.GEMINI_API_KEY 
-  });
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -70,32 +65,25 @@ const DoubtSolver = () => {
     setLoading(true);
 
     try {
-      const parts: any[] = [];
-      const systemContext = `Subject: ${activeSubject}\nTask: Solve this doubt step-by-step with clear explanations and LaTeX formatting for formulas.`;
-      
-      if (userMessage) {
-        parts.push({ text: `${systemContext}\n\nUser Question: ${userMessage}` });
-      } else {
-        parts.push({ text: systemContext });
-      }
-
-      if (userImg) {
-        const base64Data = userImg.split(',')[1];
-        const mimeType = userImg.split(';')[0].split(':')[1];
-        parts.push({
-          inlineData: {
-            data: base64Data,
-            mimeType: mimeType
-          }
-        });
-      }
-
-      const response = await ai.models.generateContent({
-        model: "gemini-flash-latest",
-        contents: { parts }
+      const response = await fetch('/api/solve-doubt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: userMessage,
+          image: userImg,
+          subject: activeSubject
+        }),
       });
 
-      const responseText = response.text || "I apologize, but I couldn't formulate a solution. Please try rephrasing your question or providing a clearer image.";
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Connection to Mission Intelligence failed. Make sure Gemini_API_Key is set in Secrets.');
+      }
+
+      const data = await response.json();
+      const responseText = data.text || "I apologize, but I couldn't formulate a solution. Please try rephrasing your question or providing a clearer image.";
 
       const aiResponse: Message = {
         role: 'assistant',
