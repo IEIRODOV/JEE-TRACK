@@ -29,9 +29,11 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Log all requests to debug 404
+  // Log all requests with status code
   app.use((req, res, next) => {
-    console.log(`[Incoming Request] ${req.method} ${req.url}`);
+    res.on('finish', () => {
+      console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - ${res.statusCode}`);
+    });
     next();
   });
 
@@ -39,14 +41,14 @@ async function startServer() {
   
   // Global Error Handler
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    if (err) {
-      console.error("Global Server Error:", err);
-      return res.status(err.status || 500).json({ 
-        error: err.message || "Internal Server Error",
-        type: "GlobalServerError"
-      });
+    console.error("Global Server Error:", err);
+    if (res.headersSent) {
+      return next(err);
     }
-    next();
+    return res.status(err.status || 500).json({ 
+      error: err.message || "Internal Server Error",
+      type: "GlobalServerError"
+    });
   });
 
   // API Routes - Registered BEFORE anything else

@@ -545,7 +545,6 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
                     {rankInfo.title}
                   </span>
                 </div>
-                <span className="text-white/40">(Lvl {rankInfo.level})</span>
                 <button 
                   onClick={() => { playTickSound(); setShowRankInfo(true); }}
                   className="ml-1 p-1 rounded-full bg-white/5 hover:bg-white/10 transition-colors"

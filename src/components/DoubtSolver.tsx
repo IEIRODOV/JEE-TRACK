@@ -208,7 +208,13 @@ const DoubtSolver = () => {
                       : 'bg-white/5 text-white/80 border border-white/10 rounded-tl-none prose-invert'
                   }`}>
                     {msg.content.split('\n').map((line, idx) => (
-                      <p key={idx} className={line.trim() === '' ? 'h-2' : 'mb-2'}>{line}</p>
+                      <p 
+                        key={idx} 
+                        className={line.trim() === '' ? 'h-2' : 'mb-2 text-[20px]'}
+                        style={{ fontFamily: '"Times New Roman", serif', fontStyle: 'normal' }}
+                      >
+                        {line}
+                      </p>
                     ))}
                   </div>
                   <p className="text-[10px] text-white/20 font-black uppercase tracking-widest">{msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
