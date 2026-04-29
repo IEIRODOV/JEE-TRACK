@@ -637,12 +637,22 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
   useEffect(() => {
     // Load from cache first for instant UI
     const cachedPosts = localStorage.getItem('pulse_community_cache');
+    const cachedRanks = localStorage.getItem('pulse_community_ranks_cache');
+    
     if (cachedPosts) {
       try {
         setPosts(JSON.parse(cachedPosts));
         setIsLoading(false);
       } catch (e) {
         console.error("Cache parse error", e);
+      }
+    }
+    
+    if (cachedRanks) {
+      try {
+        setUserRanks(JSON.parse(cachedRanks));
+      } catch (e) {
+        console.error("Ranks cache parse error", e);
       }
     }
 
@@ -738,6 +748,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
 
       if (changed) {
         setUserRanks(newRanks);
+        localStorage.setItem('pulse_community_ranks_cache', JSON.stringify(newRanks));
       }
       setRanksSynced(true);
     };
@@ -1196,7 +1207,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
     <div className="w-full min-h-screen pt-24 pb-12 px-4 md:px-8">
       <AnimatePresence>
         {shutterState !== 'done' && (
-          <div className="fixed inset-0 z-[99999] pointer-events-none flex flex-col">
+          <div className="fixed inset-0 z-[8000] pointer-events-none flex flex-col">
             {/* Top Half */}
             <motion.div
               initial={{ y: "-100%" }}
@@ -1661,20 +1672,26 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                             </div>
                             <div className="ml-auto flex items-center gap-2">
                               {user?.uid === post.uid && (
-                                <div className="flex items-center gap-1">
+                                <div className="flex items-center gap-1 relative z-30">
                                   <button 
-                                    onClick={() => {
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
                                       setEditingPostId(post.id);
                                       setEditText(post.text);
                                     }}
-                                    className="text-blue-400/60 hover:text-blue-400 transition-colors p-2 hover:bg-white/5 rounded-xl"
+                                    className="text-blue-400/60 hover:text-blue-400 transition-colors p-2 hover:bg-white/5 rounded-xl cursor-pointer"
                                     title="Edit Post"
                                   >
                                     <Pencil className="w-4 h-4" />
                                   </button>
                                   <button 
-                                    onClick={() => handleDeletePost(post.id)}
-                                    className="text-rose-500/60 hover:text-rose-500 transition-colors p-2 hover:bg-white/5 rounded-xl"
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      handleDeletePost(post.id);
+                                    }}
+                                    className="text-rose-500/60 hover:text-rose-500 transition-colors p-2 hover:bg-white/5 rounded-xl cursor-pointer"
                                     title="Delete Post"
                                   >
                                     <Trash2 className="w-4 h-4" />
@@ -1982,19 +1999,25 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                                                 </button>
                                                 
                                                 {user?.uid === comment.uid && (
-                                                  <div className="flex items-center gap-3">
+                                                  <div className="flex items-center gap-3 relative z-20">
                                                     <button 
-                                                      onClick={() => {
+                                                      type="button"
+                                                      onClick={(e) => {
+                                                        e.preventDefault();
                                                         setEditingCommentId({ postId: post.id, commentId: comment.id });
                                                         setEditCommentText(comment.text);
                                                       }}
-                                                      className="text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-blue-400 transition-colors"
+                                                      className="text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-blue-400 transition-colors p-1 cursor-pointer"
                                                     >
                                                       Edit
                                                     </button>
                                                     <button 
-                                                      onClick={() => handleDeleteComment(post.id, comment.id)}
-                                                      className="text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-rose-500 transition-colors"
+                                                      type="button"
+                                                      onClick={(e) => {
+                                                        e.preventDefault();
+                                                        handleDeleteComment(post.id, comment.id);
+                                                      }}
+                                                      className="text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-rose-500 transition-colors p-1 cursor-pointer"
                                                     >
                                                       Delete
                                                     </button>
