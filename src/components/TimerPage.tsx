@@ -2949,7 +2949,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         testStyle = { backgroundColor: `rgba(249, 115, 22, ${0.1 + intensity})` };
     }
 
-    const dayBoxStyle = !showOnlyTests 
+    const dayBoxStyle: React.CSSProperties = !showOnlyTests 
       ? calendarType === 'study' && studySeconds > 0 
         ? { backgroundColor: `rgba(16, 185, 129, ${0.1 + studyIntensity})` } 
         : calendarType === 'questions' && questionCount > 0
@@ -2965,8 +2965,8 @@ const TimerPage = ({ settings }: TimerPageProps) => {
         style={dayBoxStyle}
         className={`h-16 md:h-20 border border-white/20 p-1.5 transition-all duration-300 hover:scale-[1.05] hover:z-20 hover:border-white/40 group relative cursor-pointer overflow-hidden
           ${isToday ? 'bg-white/15 border-blue-500 ring-2 ring-blue-500/20' : 'bg-white/2 shadow-[inset_0_0_20px_rgba(255,255,255,0.01)]'}
-          ${!showOnlyTests && calendarType === 'questions' && isQuestionMet && !dayBoxStyle.backgroundColor ? 'bg-pink-500/20' : ''}
-          ${!showOnlyTests && calendarType === 'study' && isStudyMet && !dayBoxStyle.backgroundColor ? 'bg-emerald-500/20' : ''}
+          ${!showOnlyTests && calendarType === 'questions' && isQuestionMet && !dayBoxStyle?.backgroundColor ? 'bg-pink-500/20' : ''}
+          ${!showOnlyTests && calendarType === 'study' && isStudyMet && !dayBoxStyle?.backgroundColor ? 'bg-emerald-500/20' : ''}
           ${!showOnlyTests && calendarType === 'revision' && isRevisionDay ? 'bg-orange-500/5 border-orange-500/30' : ''}
           ${showOnlyTests && isMockTest ? 'border-blue-400 bg-blue-400/20 shadow-[0_0_20px_rgba(59,130,246,0.1)]' : ''}
           ${!showOnlyTests && hasActivity ? 'shadow-[inset_0_0_15px_rgba(255,255,255,0.03)]' : ''}`}

@@ -1,6 +1,5 @@
 
 export interface RankInfo {
-  level: number;
   tier: string;
   subTier: string;
   title: string;
@@ -75,13 +74,11 @@ export const getRankInfo = (questions: number): RankInfo => {
     }
   }
 
-  const level = ranks.indexOf(currentRank) + 1;
   const parts = currentRank.title.split(' ');
   const tier = parts[0];
   const subTier = parts[1] || "";
 
   return {
-    level,
     tier,
     subTier,
     title: currentRank.title,

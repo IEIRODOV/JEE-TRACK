@@ -3,7 +3,7 @@ export const FLAIRS = [
   { id: 'alecc_daddy', label: 'Alecc Daddy', color: 'text-black', bg: 'bg-yellow-400', border: 'border-yellow-400' },
   { id: 'dropper_topper', label: 'dropper >>> topper', color: 'text-black', bg: 'bg-lime-400', border: 'border-lime-400' },
   { id: 'nta_victim', label: "NTA's VICTIM", color: 'text-black', bg: 'bg-rose-400', border: 'border-rose-400' },
-  { id: 'air_19', label: 'AIR 19', color: 'text-white', bg: 'bg-fuchsia-600', border: 'border-fuchsia-600' },
+  { id: 'dropper_yug', label: 'DROPPER YUG', color: 'text-white', bg: 'bg-fuchsia-600', border: 'border-fuchsia-600' },
   { id: 'air_247', label: 'AIR 247', color: 'text-white', bg: 'bg-violet-600', border: 'border-violet-600' },
   { id: 'eye_eye_tea_bamboo', label: 'eye eye tea bamboo', color: 'text-black', bg: 'bg-emerald-400', border: 'border-emerald-400' },
   { id: 'aids_sangh', label: 'AIDS -ALL INDIA DROPER SANGH', color: 'text-black', bg: 'bg-orange-500', border: 'border-orange-500' },

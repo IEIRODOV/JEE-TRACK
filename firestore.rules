@@ -117,15 +117,16 @@ service cloud.firestore {
              data.createdAt == request.time;
     }
 
-    function isValidPost(data) {
-      return data.keys().hasAll(['text', 'uid', 'displayName', 'photoURL', 'category', 'community', 'likes', 'createdAt']) &&
+    function isValidPost(data, isUpdate) {
+      let requiredFields = ['text', 'uid', 'displayName', 'photoURL', 'category', 'community', 'likes', 'createdAt'];
+      return data.keys().hasAll(requiredFields) &&
              data.text is string && data.text.size() <= 5000 &&
-             data.uid == request.auth.uid &&
+             data.uid == (isUpdate ? existing().uid : request.auth.uid) &&
              data.displayName is string && data.displayName.size() <= 100 &&
              data.category is string &&
              data.community in ['jee', 'neet', 'boards'] &&
              data.likes is list && data.likes.size() <= 10000 &&
-             data.createdAt == request.time;
+             (isUpdate ? data.createdAt == existing().createdAt : data.createdAt == request.time);
     }
 
     function isValidMessage(data) {
@@ -188,12 +189,12 @@ service cloud.firestore {
 
     match /posts/{postId} {
       allow get, list: if true;
-      allow create: if isAuthenticated() && isValidPost(incoming());
+      allow create: if isAuthenticated() && isValidPost(incoming(), false);
       allow update: if isAuthenticated() && (
-        // Action: Like/React
+        // Action: Like/React/Comment
         (incoming().diff(existing()).affectedKeys().hasAny(['likes', 'reactions', 'comments'])) ||
         // Action: Edit
-        (isOwner(existing().uid) && isValidPost(incoming()) && incoming().uid == existing().uid)
+        (isOwner(existing().uid) && isValidPost(incoming(), true))
       );
       allow delete: if isOwner(resource.data.uid) || isAdmin();
     }

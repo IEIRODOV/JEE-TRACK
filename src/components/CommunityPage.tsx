@@ -74,6 +74,7 @@ interface Comment {
   replyTo?: string; // Name of the person being replied to
   parentId?: string; // ID of the parent comment
   createdAt: Timestamp | null;
+  lastEdited?: Timestamp | null;
 }
 
 interface Post {
@@ -97,27 +98,13 @@ interface CommunityPageProps {
   activateCommunity?: boolean;
 }
 
+import { FLAIRS } from '@/src/constants/flairs';
+
 const COMMUNITIES = [
   { id: 'all', label: 'All Communities', icon: Users },
   { id: 'jee', label: 'JEE', icon: Target },
   { id: 'neet', label: 'NEET', icon: Heart },
   { id: 'boards', label: 'Boards', icon: BookOpen },
-];
-
-const FLAIRS = [
-  { id: 'kabutar_science', label: 'kabutar science', color: 'text-black', bg: 'bg-cyan-400', border: 'border-cyan-400' },
-  { id: 'alecc_daddy', label: 'Alecc Daddy', color: 'text-black', bg: 'bg-yellow-400', border: 'border-yellow-400' },
-  { id: 'dropper_topper', label: 'dropper >>> topper', color: 'text-black', bg: 'bg-lime-400', border: 'border-lime-400' },
-  { id: 'nta_victim', label: "NTA's VICTIM", color: 'text-black', bg: 'bg-rose-400', border: 'border-rose-400' },
-  { id: 'air_19', label: 'AIR 19', color: 'text-white', bg: 'bg-fuchsia-600', border: 'border-fuchsia-600' },
-  { id: 'air_247', label: 'AIR 247', color: 'text-white', bg: 'bg-violet-600', border: 'border-violet-600' },
-  { id: 'eye_eye_tea_bamboo', label: 'eye eye tea bamboo', color: 'text-black', bg: 'bg-emerald-400', border: 'border-emerald-400' },
-  { id: 'all_india_dropper', label: 'ALL INDIA DROPPER', color: 'text-black', bg: 'bg-orange-400', border: 'border-orange-400' },
-  { id: 'peedabloo', label: 'PEEDABLOO', color: 'text-white', bg: 'bg-blue-600', border: 'border-blue-600' },
-  { id: 'alien', label: 'ALIEN', color: 'text-white', bg: 'bg-green-700', border: 'border-green-700' },
-  { id: 'kaddu_gang', label: 'KADDU GANG', color: 'text-black', bg: 'bg-yellow-500', border: 'border-yellow-500' },
-  { id: 'fan_rope_dealer', label: 'FAN AND ROPE DEALER', color: 'text-white', bg: 'bg-gray-800', border: 'border-gray-800' },
-  { id: 'kyu_nhi_ho_rhi_padhaai', label: 'KYU NHI HO RHI PADHAAI', color: 'text-white', bg: 'bg-red-600', border: 'border-red-600' },
 ];
 
 const RESOURCES = {
@@ -627,7 +614,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
           setShutterState('done');
         }, 1000); // Duration to fully open (1.0s)
         
-      }, 50); // Time it stays closed (loading time + visual effect)
+      }, 1000); // Time it stays closed (loading time + visual effect)
     }
     return () => {
       if (t2) clearTimeout(t2);
@@ -946,39 +933,46 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
     }
   };
 
-  const handleEditComment = async (postId: string, commentId: string) => {
+  const handleEditComment = async (postId: string, commentId: string, postObj?: Post) => {
     if (!user || !editCommentText.trim()) return;
 
-    // Optimistic Update
+    const targetPost = postObj || posts.find(p => p.id === postId);
+    if (!targetPost || !targetPost.comments) return;
+
+    // Save for rollback
     const originalPosts = [...posts];
+    
+    // Optimistic Update
     const postIndex = posts.findIndex(p => p.id === postId);
-    if (postIndex !== -1 && posts[postIndex].comments) {
+    if (postIndex !== -1) {
       const newPosts = [...posts];
+      const updatedComments = newPosts[postIndex].comments!.map(c =>
+        c.id === commentId ? { ...c, text: editCommentText.trim(), lastEdited: Timestamp.now() } : c
+      );
       newPosts[postIndex] = {
         ...newPosts[postIndex],
-        comments: newPosts[postIndex].comments!.map(c =>
-          c.id === commentId ? { ...c, text: editCommentText.trim(), lastEdited: Timestamp.now() } : c
-        )
+        comments: updatedComments
       };
       setPosts(newPosts);
     }
 
     try {
-      const post = posts.find(p => p.id === postId);
-      if (!post || !post.comments) return;
-
-      const newComments = post.comments.map(c => 
+      const newComments = targetPost.comments.map(c => 
         c.id === commentId ? { ...c, text: editCommentText.trim(), lastEdited: Timestamp.now() } : c
       );
 
       await updateDoc(doc(db, 'posts', postId), {
         comments: newComments
       });
+      
       setEditingCommentId(null);
       setEditCommentText('');
+      toast.success("Comment updated successfully!");
     } catch (error) {
       // Rollback
       setPosts(originalPosts);
+      console.error("Error editing comment:", error);
+      toast.error("Failed to update comment.");
       handleFirestoreError(error, OperationType.UPDATE, 'posts', false);
     }
   };
@@ -988,14 +982,16 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
       onAuthRequest?.();
       return;
     }
-    if (!replyText[postId]?.trim()) return;
+    const text = replyText[postId]?.trim();
+    if (!text) return;
 
-    const text = replyText[postId].trim();
     const replyTo = replyToComment?.postId === postId ? replyToComment.name : null;
     const parentId = replyToComment?.postId === postId ? replyToComment.commentId : null;
     
-    // Optimistic UI Update
-    const currentReplyText = replyText[postId];
+    // Save state for rollback
+    const previousReplyText = replyText[postId];
+    
+    // Clear input and close early for better UX
     setReplyText(prev => ({ ...prev, [postId]: '' }));
     setReplyToComment(null);
     setShowCommentInput(null);
@@ -1012,9 +1008,11 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
       ...(parentId && { parentId }),
     };
 
-    const newPosts = [...posts];
-    const postIndex = newPosts.findIndex(p => p.id === postId);
+    // Optimistic Update
+    const originalPosts = [...posts];
+    const postIndex = posts.findIndex(p => p.id === postId);
     if (postIndex !== -1) {
+      const newPosts = [...posts];
       newPosts[postIndex] = {
         ...newPosts[postIndex],
         comments: [...(newPosts[postIndex].comments || []), newComment]
@@ -1028,43 +1026,53 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
         comments: arrayUnion(newComment)
       });
 
-      // Notify post author
-      const post = posts.find(p => p.id === postId);
-      if (post && post.uid !== user.uid) {
-        await addDoc(collection(db, 'notifications'), {
-          toUid: post.uid,
-          fromUid: user.uid,
-          fromName: user.displayName || 'Someone',
-          fromPhoto: user.photoURL || '',
-          type: parentId ? 'comment_reply' : 'post_reply',
-          postId: postId,
-          content: text.substring(0, 50) + (text.length > 50 ? '...' : ''),
-          read: false,
-          createdAt: serverTimestamp()
-        });
-      }
+      toast.success("Comment posted!");
 
-      // Also notify the comment author if it's a reply to a specific comment
-      if (parentId) {
-        const parentComment = post?.comments?.find(c => c.id === parentId);
-        if (parentComment && parentComment.uid !== user.uid && parentComment.uid !== post?.uid) {
-          await addDoc(collection(db, 'notifications'), {
-            toUid: parentComment.uid,
-            fromUid: user.uid,
-            fromName: user.displayName || 'Someone',
-            fromPhoto: user.photoURL || '',
-            type: 'comment_reply',
-            postId: postId,
-            content: text.substring(0, 50) + (text.length > 50 ? '...' : ''),
-            read: false,
-            createdAt: serverTimestamp()
-          });
+      // Non-blocking notifications
+      (async () => {
+        try {
+          const post = posts.find(p => p.id === postId);
+          if (post && post.uid !== user.uid) {
+            await addDoc(collection(db, 'notifications'), {
+              toUid: post.uid,
+              fromUid: user.uid,
+              fromName: user.displayName || 'Someone',
+              fromPhoto: user.photoURL || '',
+              type: parentId ? 'comment_reply' : 'post_reply',
+              postId: postId,
+              content: text.substring(0, 50) + (text.length > 50 ? '...' : ''),
+              read: false,
+              createdAt: serverTimestamp()
+            });
+          }
+
+          if (parentId) {
+            const parentComment = post?.comments?.find(c => c.id === parentId);
+            if (parentComment && parentComment.uid !== user.uid && parentComment.uid !== post?.uid) {
+              await addDoc(collection(db, 'notifications'), {
+                toUid: parentComment.uid,
+                fromUid: user.uid,
+                fromName: user.displayName || 'Someone',
+                fromPhoto: user.photoURL || '',
+                type: 'comment_reply',
+                postId: postId,
+                content: text.substring(0, 50) + (text.length > 50 ? '...' : ''),
+                read: false,
+                createdAt: serverTimestamp()
+              });
+            }
+          }
+        } catch (e) {
+          console.warn("Notification failed:", e);
         }
-      }
+      })();
     } catch (error) {
       console.error("Error sending reply:", error);
-      // Restore text on error
-      setReplyText(prev => ({ ...prev, [postId]: currentReplyText }));
+      // Restore state
+      setPosts(originalPosts);
+      setReplyText(prev => ({ ...prev, [postId]: previousReplyText }));
+      setShowCommentInput(postId);
+      toast.error("Failed to post comment.");
       handleFirestoreError(error, OperationType.UPDATE, 'posts', false);
     }
   };
@@ -1677,6 +1685,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                                     type="button"
                                     onClick={(e) => {
                                       e.preventDefault();
+                                      e.stopPropagation();
                                       setEditingPostId(post.id);
                                       setEditText(post.text);
                                     }}
@@ -1689,6 +1698,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                                     type="button"
                                     onClick={(e) => {
                                       e.preventDefault();
+                                      e.stopPropagation();
                                       handleDeletePost(post.id);
                                     }}
                                     className="text-rose-500/60 hover:text-rose-500 transition-colors p-2 hover:bg-white/5 rounded-xl cursor-pointer"
@@ -1726,13 +1736,23 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                                 />
                                 <div className="flex justify-end gap-2">
                                   <button 
-                                    onClick={() => setEditingPostId(null)}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setEditingPostId(null);
+                                    }}
                                     className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-[#818384] hover:bg-white/5"
                                   >
                                     Cancel
                                   </button>
                                   <button 
-                                    onClick={() => handleEditPost(post.id)}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleEditPost(post.id);
+                                    }}
                                     className="px-6 py-2 bg-purple-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-purple-500 shadow-lg shadow-purple-500/20"
                                   >
                                     Save Changes
@@ -1953,23 +1973,34 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                                                 </div>
                                                 
                                                 {editingCommentId?.commentId === comment.id ? (
-                                                  <div className="space-y-2">
+                                                  <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
                                                     <textarea
                                                       autoFocus
                                                       value={editCommentText}
                                                       onChange={(e) => setEditCommentText(e.target.value)}
+                                                      onClick={(e) => e.stopPropagation()}
                                                       className="w-full bg-white/5 border border-white/10 rounded-xl p-2 text-sm text-white focus:outline-none focus:border-purple-500/50 resize-none min-h-[60px]"
                                                     />
                                                     <div className="flex justify-end gap-2">
                                                       <button 
-                                                        onClick={() => setEditingCommentId(null)}
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                          e.preventDefault();
+                                                          e.stopPropagation();
+                                                          setEditingCommentId(null);
+                                                        }}
                                                         className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-white/40 hover:bg-white/5"
                                                       >
                                                         Cancel
                                                       </button>
                                                       <button 
-                                                        onClick={() => handleEditComment(post.id, comment.id)}
-                                                        className="px-4 py-1.5 bg-purple-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-purple-500"
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                          e.preventDefault();
+                                                          e.stopPropagation();
+                                                          handleEditComment(post.id, comment.id, post);
+                                                        }}
+                                                        className="px-4 py-1.5 bg-purple-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-purple-500 cursor-pointer relative z-30"
                                                       >
                                                         Save
                                                       </button>
@@ -2004,6 +2035,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                                                       type="button"
                                                       onClick={(e) => {
                                                         e.preventDefault();
+                                                        e.stopPropagation();
                                                         setEditingCommentId({ postId: post.id, commentId: comment.id });
                                                         setEditCommentText(comment.text);
                                                       }}
@@ -2015,6 +2047,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                                                       type="button"
                                                       onClick={(e) => {
                                                         e.preventDefault();
+                                                        e.stopPropagation();
                                                         handleDeleteComment(post.id, comment.id);
                                                       }}
                                                       className="text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-rose-500 transition-colors p-1 cursor-pointer"
@@ -2060,23 +2093,34 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                                                       </div>
                                                       
                                                       {editingCommentId?.commentId === reply.id ? (
-                                                        <div className="space-y-2">
+                                                        <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
                                                           <textarea
                                                             autoFocus
                                                             value={editCommentText}
                                                             onChange={(e) => setEditCommentText(e.target.value)}
+                                                            onClick={(e) => e.stopPropagation()}
                                                             className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-purple-500/50 resize-none min-h-[40px]"
                                                           />
                                                           <div className="flex justify-end gap-2">
                                                             <button 
-                                                              onClick={() => setEditingCommentId(null)}
+                                                              type="button"
+                                                              onClick={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                setEditingCommentId(null);
+                                                              }}
                                                               className="px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest text-white/40 hover:bg-white/5"
                                                             >
                                                               Cancel
                                                             </button>
                                                             <button 
-                                                              onClick={() => handleEditComment(post.id, reply.id)}
-                                                              className="px-3 py-1 bg-purple-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-purple-500"
+                                                              type="button"
+                                                              onClick={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                handleEditComment(post.id, reply.id, post);
+                                                              }}
+                                                              className="px-3 py-1 bg-purple-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-purple-500 cursor-pointer relative z-30"
                                                             >
                                                               Save
                                                             </button>
@@ -2108,23 +2152,31 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                                                       </button>
                                                       
                                                       {user?.uid === reply.uid && (
-                                                        <>
+                                                        <div className="flex items-center gap-3 relative z-20">
                                                           <button 
-                                                            onClick={() => {
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                              e.preventDefault();
+                                                              e.stopPropagation();
                                                               setEditingCommentId({ postId: post.id, commentId: reply.id });
                                                               setEditCommentText(reply.text);
                                                             }}
-                                                            className="text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-blue-400 transition-colors"
+                                                            className="text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-blue-400 transition-colors p-1 cursor-pointer"
                                                           >
                                                             Edit
                                                           </button>
                                                           <button 
-                                                            onClick={() => handleDeleteComment(post.id, reply.id)}
-                                                            className="text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-rose-500 transition-colors"
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                              e.preventDefault();
+                                                              e.stopPropagation();
+                                                              handleDeleteComment(post.id, reply.id);
+                                                            }}
+                                                            className="text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-rose-500 transition-colors p-1 cursor-pointer"
                                                           >
                                                             Delete
                                                           </button>
-                                                        </>
+                                                        </div>
                                                       )}
                                                     </div>
                                                   </div>
