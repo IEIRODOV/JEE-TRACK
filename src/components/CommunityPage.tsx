@@ -1285,7 +1285,29 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Top Navigation - Community Switcher & View Switcher */}
         <div className="sticky top-0 z-[1000] flex flex-col md:flex-row items-center justify-between gap-6 glass rounded-3xl p-4 border border-white/10 backdrop-blur-3xl mb-12">
-          <div />
+          <div className="hidden lg:flex flex-col gap-1.5 w-48 group cursor-help transition-all duration-500 hover:w-56" onClick={() => setShowDonate(true)}>
+            <div className="flex items-center justify-between">
+               <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-1.5 group-hover:text-red-500/80 transition-colors">
+                 <div className="w-1.5 h-1.5 bg-red-600 rounded-full animate-pulse shadow-[0_0_8px_rgba(220,38,38,0.8)]" />
+                 Sustainability
+               </span>
+               <span className="text-[9px] font-black text-white/60 tracking-wider">₹100 / ₹1,000</span>
+            </div>
+            <div className="h-2.5 bg-black/60 border border-white/5 rounded-full overflow-hidden relative p-[1px]">
+               <div className="absolute inset-0 opacity-[0.05] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '8px 8px' }} />
+               <motion.div 
+                 initial={{ width: 0 }}
+                 animate={{ width: '10%' }}
+                 transition={{ duration: 2, ease: "circOut" }}
+                 className="h-full bg-gradient-to-r from-red-700 via-red-600 to-red-500 rounded-full relative overflow-hidden shadow-[0_0_15px_rgba(220,38,38,0.3)]"
+               >
+                 <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.2)_50%,transparent_100%)] w-20 animate-[shimmer_2s_infinite]" />
+               </motion.div>
+            </div>
+            <p className="text-[7px] font-black text-white/20 uppercase tracking-widest leading-none group-hover:text-white/40 transition-colors">
+              Help us pay for Domain, Hosting & this month costs <span className="text-red-600/40 font-black">• ₹900 LEFT</span>
+            </p>
+          </div>
 
           <div className="flex items-center gap-4">
             <div className="flex bg-black/40 p-1.5 rounded-2xl border border-white/5">

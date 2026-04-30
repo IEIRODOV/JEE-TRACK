@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { auth, GoogleAuthProvider, signInWithPopup, db, serverTimestamp } from '@/src/firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { Sparkles, Zap, CheckCircle2, Activity, Target, BookOpen, Loader2 } from 'lucide-react';
+import { Sparkles, Zap, CheckCircle2, Activity, Target, BookOpen, Loader2, Award } from 'lucide-react';
 import { playTickSound } from '@/src/lib/sounds';
 
 interface AuthPageProps {
@@ -115,6 +115,7 @@ const AuthPage = ({ onBack }: AuthPageProps) => {
     { id: 'jee', label: 'JEE', icon: <Target className="w-5 h-5" /> },
     { id: 'neet', label: 'NEET', icon: <Activity className="w-5 h-5" /> },
     { id: 'boards', label: 'Boards', icon: <BookOpen className="w-5 h-5" /> },
+    { id: 'ca', label: 'CA', icon: <Award className="w-5 h-5" /> },
     { id: 'more', label: 'More', icon: <Sparkles className="w-5 h-5" /> },
   ];
 

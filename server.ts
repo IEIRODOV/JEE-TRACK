@@ -29,10 +29,12 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Log all requests with status code
+  // Log API requests and errors to reduce terminal noise
   app.use((req, res, next) => {
     res.on('finish', () => {
-      console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - ${res.statusCode}`);
+      if (req.originalUrl.startsWith('/api') || res.statusCode >= 400) {
+        console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - ${res.statusCode}`);
+      }
     });
     next();
   });

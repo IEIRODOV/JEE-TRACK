@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Target, Zap, Clock, Trophy, CheckCircle2, Activity, User as UserIcon, Check, StickyNote } from 'lucide-react';
+import { Target, Zap, Clock, Trophy, CheckCircle2, Activity, User as UserIcon, Check, StickyNote, Sparkles, BrainCircuit } from 'lucide-react';
 import AnoAI from "@/components/ui/animated-shader-background";
 import CountdownTimer from "@/components/ui/countdown-timer";
 import SubjectChecklist from "@/components/SubjectChecklist";
 import WeeklyTargets from "@/components/WeeklyTargets";
 import NotesTool from "@/components/NotesTool";
+import DeepAnalyticsModal from "@/components/DeepAnalyticsModal";
+import DeepAnalyticsPreviewModal from "@/components/DeepAnalyticsPreviewModal";
 import { auth, onAuthStateChanged, db, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, orderBy, limit, User, handleFirestoreError, OperationType, serverTimestamp, increment, addDoc } from '@/src/firebase';
 import { updateProfile } from 'firebase/auth';
 import { playTickSound } from '@/src/lib/sounds';
@@ -57,6 +59,9 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
   const [timerState, setTimerState] = useState({ isRunning: false, startTime: null as number | null, accumulatedSeconds: 0 });
   const [showSettings, setShowSettings] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const [isDeepAnalyticsUnlocked, setIsDeepAnalyticsUnlocked] = useState(false);
+  const [isDeepAnalyticsOpen, setIsDeepAnalyticsOpen] = useState(false);
+  const [isDeepAnalyticsPreviewOpen, setIsDeepAnalyticsPreviewOpen] = useState(false);
   const [showExamCounter, setShowExamCounter] = useState(true);
   const [dailyStudySeconds, setDailyStudySeconds] = useState<Record<string, number>>({});
   const [dailyQuestions, setDailyQuestions] = useState<Record<string, number>>({});
@@ -100,6 +105,17 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
     };
   });
   const [targetHours, setTargetHours] = useState(settings?.streakGoal || 7);
+  const [targetGoal, setTargetGoal] = useState(() => {
+    return typeof window !== 'undefined' ? localStorage.getItem('pulse_target_goal') || 'TARGET: TOP 100 RANK' : 'TARGET: TOP 100 RANK';
+  });
+
+  const updateTargetGoal = async (newGoal: string) => {
+    setTargetGoal(newGoal);
+    localStorage.setItem('pulse_target_goal', newGoal);
+    if (user) {
+      await setDoc(doc(db, 'users', user.uid, 'settings', 'dashboard'), { targetGoal: newGoal }, { merge: true });
+    }
+  };
 
   useEffect(() => {
     if (settings?.streakGoal) {
@@ -182,6 +198,7 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
           exam = (data.exam || exam).toLowerCase();
           year = data.year || year;
           subExam = data.subExam || subExam;
+          setIsDeepAnalyticsUnlocked(data.isDeepAnalyticsUnlocked || false);
           
           // Sync to localStorage to prevent flicker on next load
           localStorage.setItem('pulse_user_exam', exam);
@@ -245,6 +262,10 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
         const data = doc.data();
         if (data.targetHours) setTargetHours(data.targetHours);
         if (data.showExamCounter !== undefined) setShowExamCounter(data.showExamCounter);
+        if (data.targetGoal) {
+          setTargetGoal(data.targetGoal);
+          localStorage.setItem('pulse_target_goal', data.targetGoal);
+        }
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, `users/${user.uid}/settings/dashboard`, false);
@@ -548,6 +569,91 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
     }
   };
 
+  const hasDeepAnalysisAccess = isDeepAnalyticsUnlocked || user?.email === 'bablasaur19@gmail.com' || user?.email === 'pokelife128@gmail.com';
+
+  const handleUnlockDeepAnalytics = async () => {
+    if (hasDeepAnalysisAccess) {
+      playTickSound();
+      setIsDeepAnalyticsOpen(true);
+      return;
+    }
+
+    playTickSound();
+    if (!user) {
+      alert("Please login to unlock Deep Analytics");
+      return;
+    }
+
+    setIsDeepAnalyticsPreviewOpen(true);
+  };
+
+  const handlePurchaseDeepAnalytics = async () => {
+    const loadRazorpay = () => {
+      return new Promise((resolve) => {
+        const script = document.createElement("script");
+        script.src = "https://checkout.razorpay.com/v1/checkout.js";
+        script.onload = () => resolve(true);
+        script.onerror = () => resolve(false);
+        document.body.appendChild(script);
+      });
+    };
+
+    const res = await loadRazorpay();
+    if (!res) {
+      alert("Razorpay SDK failed to load. Are you online?");
+      return;
+    }
+
+    try {
+      const orderResponse = await fetch('/api/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: 10000, // 100 INR in paise
+          currency: 'INR',
+        }),
+      });
+
+      const orderData = await orderResponse.json();
+      if (!orderResponse.ok) throw new Error(orderData.error);
+
+      const key = orderData.key_id || 'rzp_test_rOMv0P3R0wFj24';
+
+      const options = {
+        key,
+        amount: "10000",
+        currency: "INR",
+        name: "Mission Control",
+        description: "Unlock Deep Analytics Package",
+        order_id: orderData.id,
+        handler: async function (response: any) {
+          try {
+            await setDoc(doc(db, 'users', user.uid), {
+              isDeepAnalyticsUnlocked: true
+            }, { merge: true });
+            setIsDeepAnalyticsUnlocked(true);
+            setIsDeepAnalyticsPreviewOpen(false);
+            setIsDeepAnalyticsOpen(true);
+            alert("Congratulations! Deep Analytics unlocked successfully.");
+          } catch (err) {
+            console.error("Selection update error:", err);
+          }
+        },
+        prefill: {
+          name: user.displayName || "User",
+          email: user.email || "",
+        },
+        theme: { color: "#9333ea" }
+      };
+
+      const paymentObject = new (window as any).Razorpay(options);
+      paymentObject.open();
+    } catch (err: any) {
+      console.error(err);
+      alert("Payment failed to initialize: " + err.message);
+    }
+  };
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -569,23 +675,94 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
       <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(17,24,39,1)_0%,rgba(0,0,0,1)_100%)] pointer-events-none" />
       
       {/* Top Bar with Profile and Notes */}
-      <div className="absolute top-0 left-0 right-0 z-[100] flex justify-between items-start p-6">
-        <motion.button 
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => { playTickSound(); setIsNotesOpen(true); }}
-          className="group relative"
-        >
-          <div className="px-6 py-2.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-xl hover:bg-white/[0.08] hover:border-white/20 transition-all flex items-center gap-3 shadow-2xl">
-            <div className="p-1.5 rounded-lg bg-blue-500/20 text-blue-400">
-              <StickyNote className="w-4 h-4" />
-            </div>
-            <span className="text-xs font-black text-white uppercase tracking-[0.2em]">Notes</span>
-          </div>
-          <div className="absolute -inset-1 bg-blue-500/10 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity" />
-        </motion.button>
+        <div className="absolute top-0 left-0 right-0 z-[100] flex justify-between items-start p-6">
+          <div className="flex items-center gap-4">
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => { playTickSound(); setIsNotesOpen(true); }}
+              className="group relative"
+            >
+              <div className="px-6 py-2.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-xl hover:bg-white/[0.08] hover:border-white/20 transition-all flex items-center gap-3 shadow-2xl">
+                <div className="p-1.5 rounded-lg bg-blue-500/20 text-blue-400">
+                  <StickyNote className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-black text-white uppercase tracking-[0.2em]">Notes</span>
+              </div>
+              <div className="absolute -inset-1 bg-blue-500/10 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity" />
+            </motion.button>
 
-        <div className="relative">
+            {selectedExam.id.startsWith('jee') && (
+              <motion.button 
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleUnlockDeepAnalytics}
+                className="group relative"
+              >
+              {/* Premium Glow Effect */}
+              <div className={`absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-sm ${
+                hasDeepAnalysisAccess ? 'bg-gradient-to-r from-purple-500 to-blue-500' : 'bg-gradient-to-r from-purple-600/50 to-blue-600/50'
+              }`} />
+              
+              <div className={`relative px-6 py-3 rounded-2xl border backdrop-blur-2xl transition-all duration-500 flex items-center gap-4 shadow-[0_0_30px_rgba(0,0,0,0.5)] overflow-hidden ${
+                hasDeepAnalysisAccess
+                  ? 'bg-purple-500/5 border-purple-500/40 text-purple-400' 
+                  : 'bg-white/[0.02] border-white/10 hover:border-purple-500/30'
+              }`}>
+                {/* Shimmer Overlay */}
+                <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.05)_50%,transparent_75%)] bg-[length:250%_250%] animate-[shimmer_3s_infinite] opacity-0 group-hover:opacity-100 transition-opacity" />
+                
+                {/* Icon Container with Pulse */}
+                <div className="relative">
+                  <div className={`p-2 rounded-xl transition-all duration-500 ${
+                    hasDeepAnalysisAccess
+                      ? 'bg-purple-500/20 text-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.4)]' 
+                      : 'bg-white/5 text-white/40 group-hover:bg-purple-500/10 group-hover:text-purple-400'
+                  }`}>
+                    <Activity className={`w-5 h-5 ${hasDeepAnalysisAccess ? 'animate-[pulse_2s_infinite]' : ''}`} />
+                  </div>
+                  {hasDeepAnalysisAccess && (
+                    <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-[#0a0a0b] flex items-center justify-center">
+                      <Check className="w-1.5 h-1.5 text-black stroke-[4]" />
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-col items-start relative z-10">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-black uppercase tracking-[0.25em] text-white">
+                      {hasDeepAnalysisAccess ? 'Deep Analysis' : 'Unlock Deep Analysis'}
+                    </span>
+                    {!hasDeepAnalysisAccess && <Sparkles className="w-3 h-3 text-purple-500 animate-pulse" />}
+                  </div>
+                  
+                  <div className="flex items-center gap-2 mt-0.5">
+                    {hasDeepAnalysisAccess ? (
+                      <span className="text-[8px] font-mono font-black text-purple-400/80 uppercase tracking-[0.1em] flex items-center gap-1">
+                        <div className="w-1 h-1 bg-purple-500 rounded-full" />
+                        {user?.email === 'bablasaur19@gmail.com' || user?.email === 'pokelife128@gmail.com' ? 'Admin Override Active' : 'System Operating'}
+                      </span>
+                    ) : (
+                      <>
+                        <span className="text-[9px] font-mono font-black text-purple-500 tracking-wider">₹100</span>
+                        <div className="w-1 h-1 bg-white/10 rounded-full" />
+                        <span className="text-[7px] font-black text-white/30 uppercase tracking-[0.15em]">Permanent Access</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Cyberpunk corner accents */}
+                <div className="absolute top-0 right-0 w-8 h-8 pointer-events-none">
+                  <div className="absolute top-2 right-2 w-[1px] h-2 bg-white/10" />
+                  <div className="absolute top-2 right-2 w-2 h-[1px] bg-white/10" />
+                </div>
+              </div>
+            </motion.button>
+            )}
+          </div>
+
+          <div className="relative">
           <button 
             onClick={() => { playTickSound(); setShowSettings(!showSettings); }}
             className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all overflow-hidden"
@@ -726,7 +903,7 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="relative z-10 flex flex-col items-center pt-20 pb-32 px-4"
+        className="relative z-10 flex flex-col items-center pt-40 pb-32 px-4"
       >
         {/* Hero Section */}
         <motion.div variants={itemVariants} className="flex flex-col items-center justify-center mb-16 text-center">
@@ -833,19 +1010,37 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
           {/* Target Hours Controller - Removed as requested */}
         </motion.div>
 
-          <motion.div variants={itemVariants} className="w-full flex flex-col items-center gap-8">
-            <WeeklyTargets />
-            <SubjectChecklist 
-              category={selectedExam.id.split('_')[0]} 
-              examId={selectedExam.id} 
-            />
-          </motion.div>
+        <motion.div variants={itemVariants} className="w-full flex flex-col items-center gap-8">
+          <WeeklyTargets />
+          <SubjectChecklist 
+            category={selectedExam.id.split('_')[0]} 
+            examId={selectedExam.id} 
+          />
+        </motion.div>
         </motion.div>
 
       <NotesTool 
         isOpen={isNotesOpen} 
         onClose={() => setIsNotesOpen(false)} 
         examType={selectedExam.id}
+      />
+
+      <DeepAnalyticsPreviewModal
+        isOpen={isDeepAnalyticsPreviewOpen}
+        onClose={() => setIsDeepAnalyticsPreviewOpen(false)}
+        onPurchase={handlePurchaseDeepAnalytics}
+      />
+
+      <DeepAnalyticsModal 
+        isOpen={isDeepAnalyticsOpen}
+        onClose={() => setIsDeepAnalyticsOpen(false)}
+        dailyStudySeconds={dailyStudySeconds}
+        dailyQuestions={dailyQuestions}
+        targetHours={targetHours}
+        examId={selectedExam.id}
+        targetDate={selectedExam.date}
+        targetGoal={targetGoal}
+        updateTargetGoal={updateTargetGoal}
       />
     </div>
   );

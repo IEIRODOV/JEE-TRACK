@@ -40,7 +40,7 @@ const FlairPurchaseModal: React.FC<FlairPurchaseModalProps> = ({ isOpen, onClose
             </div>
 
             <h2 className="text-xl font-black text-white mb-2">Unlock Flair: {flair.label}</h2>
-            <p className="text-white/50 text-xs mb-6">Are you sure you want to purchase this unique flair for ₹10?</p>
+            <p className="text-white/50 text-xs mb-6">Are you sure you want to purchase this unique flair for ₹20?</p>
 
             <button
               onClick={() => { playTickSound(); onConfirm(); onClose(); }}

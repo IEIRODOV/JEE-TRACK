@@ -171,20 +171,39 @@ const DonateModal: React.FC<DonateModalProps> = ({ isOpen, onClose }) => {
                     </button>
                   </div>
 
-                  <div className="mt-6 flex flex-col gap-3">
-                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/20">
-                      <Award className="w-3 h-3 text-red-500" />
-                      Recent Champions
+                  {/* Server Cost Goal Progress */}
+                  <div className="mt-8 pt-6 border-t border-white/5 text-left">
+                    <div className="flex items-center justify-between mb-2">
+                       <span className="text-[9px] font-black uppercase tracking-widest text-white/40 flex items-center gap-1.5">
+                         <div className="w-1.5 h-1.5 bg-red-600 rounded-full animate-pulse shadow-[0_0_8px_rgba(220,38,38,0.8)]" />
+                         Server Sustainability
+                       </span>
+                       <span className="text-[10px] font-black text-white/60">₹100 / ₹1,000</span>
                     </div>
-                    <div className="flex flex-wrap gap-2 justify-center">
-                      {donors.length > 0 ? donors.map((donor, i) => (
-                        <div key={donor.id} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/5 animate-in fade-in slide-in-from-bottom-2 duration-500" style={{ animationDelay: `${i * 100}ms` }}>
-                          <img src={donor.photoURL || `https://ui-avatars.com/api/?name=${donor.displayName}&background=random`} className="w-4 h-4 rounded-full border border-white/10" alt="" />
-                          <span className="text-[8px] font-bold text-white/50 uppercase tracking-widest">{donor.displayName}</span>
-                        </div>
-                      )) : (
-                        <div className="text-[8px] font-bold text-white/10 uppercase tracking-widest">No donors yet</div>
-                      )}
+                    <div className="h-6 bg-white/[0.03] border border-white/5 rounded-xl overflow-hidden relative p-[3px]">
+                       {/* Background Matrix Pattern */}
+                       <div className="absolute inset-0 opacity-[0.05] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '8px 8px' }} />
+                       
+                       <motion.div 
+                         initial={{ width: 0 }}
+                         animate={{ width: '10%' }}
+                         transition={{ duration: 2, ease: "circOut" }}
+                         className="h-full bg-gradient-to-r from-red-700 via-red-600 to-red-500 rounded-lg relative overflow-hidden group shadow-[0_0_15px_rgba(220,38,38,0.3)]"
+                       >
+                         {/* Matrix Scanline Effect */}
+                         <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.2)_50%,transparent_100%)] w-20 animate-[shimmer_2s_infinite]" />
+                         <div className="absolute inset-0 bg-[repeating-linear-gradient(90deg,transparent,transparent_2px,rgba(0,0,0,0.1)_2px,rgba(0,0,0,0.1)_4px)]" />
+                         
+                         {/* Glossy top edge */}
+                         <div className="absolute top-0 left-0 w-full h-[1px] bg-white/30" />
+                       </motion.div>
+                    </div>
+                    <div className="mt-3 flex justify-center">
+                      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.02] border border-white/5">
+                        <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.05em] leading-tight text-center">
+                          Help us pay for <span className="text-white/40">Domain, Web Hosting</span> & <span className="text-white/40">this month server cost</span> <span className="text-red-600/60">(Goal: ₹1000 left-900)</span>
+                        </p>
+                      </div>
                     </div>
                   </div>
 

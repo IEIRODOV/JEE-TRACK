@@ -299,7 +299,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          amount: 1500, // 15 INR
+          amount: 2500, // 25 INR
           currency: 'INR',
         }),
       });
@@ -316,7 +316,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
 
       const options = {
         key: key,
-        amount: "1500", // 15 INR in paise
+        amount: "2500", // 25 INR in paise
         currency: "INR",
         name: "Mission Control",
         description: `${getPremiumName(previewAvatar)} Premium Unlock`,
@@ -423,7 +423,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: 1000, // 10 INR
+          amount: 2000, // 20 INR
           currency: 'INR',
         }),
       });
@@ -436,7 +436,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
 
       const options = {
         key,
-        amount: "1000",
+        amount: "2000",
         currency: "INR",
         name: "Mission Control",
         description: `Unlock Flair: ${flairLabel}`,
@@ -594,7 +594,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
                 </button>
               </div>
             )}
-            <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">₹10 each • Permanent Unlock</span>
+            <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">₹20 each • Permanent Unlock</span>
           </div>
           
           <div className="flex flex-wrap gap-3">
@@ -645,7 +645,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
                   {!isPurchased && (
                     <div className="flex items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
                       <CreditCard className="w-3 h-3" />
-                      <span className="text-[8px] font-black">₹10</span>
+                      <span className="text-[8px] font-black">₹20</span>
                     </div>
                   )}
 
@@ -1089,7 +1089,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
                       disabled={processingPayment}
                       className="relative z-10 w-full py-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white rounded-2xl text-sm font-black uppercase tracking-widest transition-all shadow-[0_0_40px_rgba(245,158,11,0.2)] hover:shadow-[0_0_60px_rgba(245,158,11,0.4)] hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
                     >
-                      Pay ₹15
+                      Pay ₹25
                     </button>
                   </>
                 )}
@@ -1101,7 +1101,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
                     </div>
                     <h3 className="text-lg font-bold text-white mb-2">Secure Payment Gateway</h3>
                     <p className="text-xs text-white/40 mb-8 text-center max-w-[200px]">
-                      Processing your payment of ₹15... Please do not close this window.
+                      Processing your payment of ₹25... Please do not close this window.
                     </p>
                     <div className="flex items-center gap-2 text-amber-400 text-sm font-bold">
                       <Loader2 className="w-5 h-5 animate-spin" />
