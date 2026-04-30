@@ -118,7 +118,7 @@ const Notifications = () => {
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
               className="absolute right-0 mt-4 w-80 bg-[#0a0a0b] border border-white/10 rounded-[24px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-[99999] overflow-hidden"
             >
-              <div className="p-5 border-b border-white/5 flex items-center justify-between bg-white/[0.03] backdrop-blur-md">
+              <div className="p-5 border-b border-white/5 flex items-center justify-between bg-white/[0.03] backdrop-blur-sm">
                 <div className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" />
                   <h3 className="text-[11px] font-black text-white uppercase tracking-[0.2em]">Inbox</h3>

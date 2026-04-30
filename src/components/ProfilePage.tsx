@@ -724,7 +724,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
                     <Check className="w-4 h-4 text-white" />
                   </div>
                 ) : !isPremium ? (
-                  <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-20 transition-opacity backdrop-blur-[2px]">
+                  <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-20 transition-opacity backdrop-blur-sm">
                     <Sparkles className="w-5 h-5 text-amber-400 mb-1 drop-shadow-[0_0_5px_rgba(245,158,11,0.8)]" />
                     <span className="text-[6px] font-black uppercase text-amber-400 bg-amber-400/20 px-1 py-0.5 rounded border border-amber-400/30">Unlock</span>
                   </div>
@@ -758,7 +758,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4"
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
             >
               <motion.div 
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -1010,7 +1010,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4"
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
             >
               <motion.div 
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}

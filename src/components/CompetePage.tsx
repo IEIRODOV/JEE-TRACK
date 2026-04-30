@@ -858,7 +858,7 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
                 </button>
               ) : (
                 <div className="flex items-center gap-3">
-                  <div className="flex flex-col items-start gap-1 bg-white/5 border border-white/10 p-2.5 rounded-2xl backdrop-blur-lg transition-all text-left min-w-[180px] group">
+                  <div className="flex flex-col items-start gap-1 bg-white/5 border border-white/10 p-2.5 rounded-2xl backdrop-blur-sm transition-all text-left min-w-[180px] group">
                     <div className="flex items-center gap-3 w-full">
                       <img src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=random`} className="w-8 h-8 rounded-full border border-white/20 transition-colors" alt="Profile" />
                       <div className="flex-1 min-w-0">
@@ -902,7 +902,7 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="mb-8 p-4 rounded-3xl border border-rose-500/20 bg-rose-500/5 backdrop-blur-lg flex items-center gap-3"
+                className="mb-8 p-4 rounded-3xl border border-rose-500/20 bg-rose-500/5 backdrop-blur-sm flex items-center gap-3"
               >
                 <div className="p-2 rounded-xl bg-rose-500/20 text-rose-400">
                   <ShieldCheck className="w-4 h-4" />
@@ -981,7 +981,7 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
 
           <motion.div 
             whileHover={{ scale: 1.01 }}
-            className="mt-12 p-8 rounded-[40px] border border-blue-500/20 bg-blue-500/5 backdrop-blur-xl relative overflow-hidden group"
+            className="mt-12 p-8 rounded-[40px] border border-blue-500/20 bg-blue-500/5 backdrop-blur-sm relative overflow-hidden group"
           >
             <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:scale-110 group-hover:rotate-12 transition-all duration-700">
               <Trophy className="w-48 h-48 text-blue-400" />
@@ -1302,7 +1302,7 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4"
+            className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
           >
             <motion.div 
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -1344,7 +1344,7 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/95 backdrop-blur-2xl p-4"
+            className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/95 backdrop-blur-sm p-4"
             onClick={() => setSelectedProfile(null)}
           >
             <motion.div 

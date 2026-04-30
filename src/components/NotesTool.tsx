@@ -153,7 +153,7 @@ const NotesTool: React.FC<NotesToolProps> = ({ isOpen, onClose, examType = 'jee'
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+        className="absolute inset-0 bg-black/90 backdrop-blur-sm"
       />
 
       <motion.div
@@ -368,7 +368,7 @@ const NotesTool: React.FC<NotesToolProps> = ({ isOpen, onClose, examType = 'jee'
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[2200] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md"
+            className="fixed inset-0 z-[2200] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }}

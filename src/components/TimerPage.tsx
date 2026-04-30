@@ -55,7 +55,7 @@ const SpringLeverNav = ({ activeTab, setActiveTab, setShowDeleteConfirm }: { act
 
   return (
     <div className="flex flex-col items-center gap-8 mb-16 pt-8">
-      <div className="flex items-center gap-2 p-1.5 rounded-[18px] bg-[#080808] border border-white/15 shadow-2xl backdrop-blur-3xl">
+      <div className="flex items-center gap-2 p-1.5 rounded-[18px] bg-[#080808] border border-white/15 shadow-2xl backdrop-blur-sm">
         {tabs.map((tab, idx) => (
           <button
             key={tab.id}
@@ -282,7 +282,7 @@ const RevisionPage = ({ subjectStudySeconds, subjectQuestionCounts, getSubjectCo
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <div className="flex border border-white/10 rounded-2xl p-1 bg-black/40 backdrop-blur-xl">
+              <div className="flex border border-white/10 rounded-2xl p-1 bg-black/40 backdrop-blur-sm">
                 <div className="px-4 py-2 text-[11px] font-bold text-white/40 uppercase tracking-wide border-r border-white/10">Science-backed learning</div>
                 <div className="px-4 py-2 text-[11px] font-bold text-amber-500 uppercase tracking-wide animate-pulse">Running</div>
               </div>
@@ -401,7 +401,7 @@ const RevisionPage = ({ subjectStudySeconds, subjectQuestionCounts, getSubjectCo
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.5, transition: { duration: 0.2 } }}
                 whileHover={{ y: -8, scale: 1.02 }}
-                className="p-8 rounded-[48px] bg-zinc-900/40 border border-white/10 backdrop-blur-3xl relative overflow-hidden group shadow-xl h-full flex flex-col"
+                className="p-8 rounded-[48px] bg-zinc-900/40 border border-white/10 backdrop-blur-sm relative overflow-hidden group shadow-xl h-full flex flex-col"
               >
               <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-20 transition-all duration-500 transform group-hover:rotate-12 pointer-events-none">
                 <Zap className="w-20 h-20" style={{ color: getSubjectColor(slot.subject) }} />
@@ -1079,7 +1079,7 @@ const BarGraphs = React.memo(({ barChartData, targetHours, questionTarget, revis
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="p-8 rounded-[48px] bg-amber-500/5 border border-amber-500/20 backdrop-blur-xl relative overflow-hidden"
+          className="p-8 rounded-[48px] bg-amber-500/5 border border-amber-500/20 backdrop-blur-sm relative overflow-hidden"
         >
           <div className="absolute top-0 right-0 p-8">
              <Zap className="w-12 h-12 text-amber-500/10" />
@@ -3180,7 +3180,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
               className="w-full mb-8 relative group"
             >
             <div className="absolute inset-0 bg-zinc-800/20 rounded-2xl blur-xl opacity-50" />
-            <div className="relative py-6 px-10 rounded-xl bg-zinc-900/90 backdrop-blur-xl border border-white/20 overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
+            <div className="relative py-6 px-10 rounded-xl bg-zinc-900/90 backdrop-blur-sm border border-white/20 overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
               <div className="flex items-center gap-6 flex-1 min-w-0">
                 <div className="hidden md:flex p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
                   <Zap className="w-5 h-5 text-purple-400" />
@@ -3268,7 +3268,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                   </motion.div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12 bg-white/5 border border-white/10 rounded-[48px] p-8 backdrop-blur-xl">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12 bg-white/5 border border-white/10 rounded-[48px] p-8 backdrop-blur-sm">
                   {/* Study Time Distribution Pie Chart */}
                   <div className="flex flex-col items-center">
                     <h3 className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-8 flex items-center gap-2">
@@ -3626,7 +3626,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                 className="w-full max-w-4xl mx-auto"
               >
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-6">
-            <div className="flex items-center gap-2 bg-white/5 p-1 rounded-xl border border-white/10 backdrop-blur-xl">
+            <div className="flex items-center gap-2 bg-white/5 p-1 rounded-xl border border-white/10 backdrop-blur-sm">
               <button 
                 onClick={() => setViewMode('month')}
                 className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all
@@ -3741,7 +3741,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                </div>
             </div>
 
-            <div className="mb-8 p-8 rounded-[32px] bg-gradient-to-br from-orange-500/10 via-orange-500/5 to-transparent border border-orange-500/20 backdrop-blur-xl flex flex-col md:flex-row items-center gap-6 relative overflow-hidden group">
+            <div className="mb-8 p-8 rounded-[32px] bg-gradient-to-br from-orange-500/10 via-orange-500/5 to-transparent border border-orange-500/20 backdrop-blur-sm flex flex-col md:flex-row items-center gap-6 relative overflow-hidden group">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(249,115,22,0.1),transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
               <div className="p-5 rounded-[24px] bg-orange-500/20 text-orange-400 shadow-[0_0_30px_rgba(249,115,22,0.2)] relative z-10">
                 <CalendarIcon className="w-8 h-8" />
@@ -3856,7 +3856,7 @@ const TimerPage = ({ settings }: TimerPageProps) => {
                 </div>
 
                 {/* New: Calendar Type Switcher */}
-                <div className="flex flex-wrap items-center gap-3 bg-white/2 p-2 rounded-3xl border border-white/5 backdrop-blur-md">
+                <div className="flex flex-wrap items-center gap-3 bg-white/2 p-2 rounded-3xl border border-white/5 backdrop-blur-sm">
                    <button 
                      onClick={() => setCalendarType('study')}
                      className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all

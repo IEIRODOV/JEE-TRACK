@@ -414,12 +414,21 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
       const streak = `${currentStreak} Days`;
       const isGoalMet = displayStudySeconds >= targetHours * 3600;
 
-      setStats([
+      const newStats = [
         { label: "Daily Goal", value: dailyGoalValue, icon: <Target className="w-3 h-3" />, color: "text-emerald-400", completed: dailyGoalValue === "100%" },
         { label: "Study Time", value: studyTimeDisplay, icon: <Clock className="w-3 h-3" />, color: "text-blue-400", completed: isGoalMet },
         { label: "Questions Solved", value: displayQuestions.toString(), icon: <Target className="w-3 h-3" />, color: "text-purple-400", completed: displayQuestions >= 50 },
         { label: "Current Streak", value: streak, icon: <Zap className="w-3 h-3" />, color: "text-orange-400", completed: currentStreak > 0 },
-      ]);
+      ];
+
+      setStats((prev) => {
+        const isSame = prev.length === newStats.length && prev.every((p, i) => 
+          p.label === newStats[i].label && 
+          p.value === newStats[i].value && 
+          p.completed === newStats[i].completed
+        );
+        return isSame ? prev : newStats;
+      });
     };
 
     updateStats();
@@ -683,7 +692,7 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
               onClick={() => { playTickSound(); setIsNotesOpen(true); }}
               className="group relative"
             >
-              <div className="px-6 py-2.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-xl hover:bg-white/[0.08] hover:border-white/20 transition-all flex items-center gap-3 shadow-2xl">
+              <div className="px-6 py-2.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-sm hover:bg-white/[0.08] hover:border-white/20 transition-all flex items-center gap-3 shadow-2xl">
                 <div className="p-1.5 rounded-lg bg-blue-500/20 text-blue-400">
                   <StickyNote className="w-4 h-4" />
                 </div>
@@ -704,7 +713,7 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
                 hasDeepAnalysisAccess ? 'bg-gradient-to-r from-purple-500 to-blue-500' : 'bg-gradient-to-r from-purple-600/50 to-blue-600/50'
               }`} />
               
-              <div className={`relative px-6 py-3 rounded-2xl border backdrop-blur-2xl transition-all duration-500 flex items-center gap-4 shadow-[0_0_30px_rgba(0,0,0,0.5)] overflow-hidden ${
+              <div className={`relative px-6 py-3 rounded-2xl border backdrop-blur-sm transition-all duration-500 flex items-center gap-4 shadow-[0_0_30px_rgba(0,0,0,0.5)] overflow-hidden ${
                 hasDeepAnalysisAccess
                   ? 'bg-purple-500/5 border-purple-500/40 text-purple-400' 
                   : 'bg-white/[0.02] border-white/10 hover:border-purple-500/30'
@@ -907,7 +916,7 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
       >
         {/* Hero Section */}
         <motion.div variants={itemVariants} className="flex flex-col items-center justify-center mb-16 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 backdrop-blur-lg mb-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm mb-6">
             <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" />
             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">Mission Control</span>
           </div>

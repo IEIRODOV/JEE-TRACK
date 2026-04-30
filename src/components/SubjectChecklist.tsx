@@ -167,7 +167,7 @@ const SubjectChecklist = ({ category, examId }: SubjectChecklistProps) => {
       </div>
 
       {/* Total Progress Bar */}
-      <div className="mb-12 p-8 rounded-3xl border border-white/10 backdrop-blur-xl bg-white/5 text-center">
+      <div className="mb-12 p-8 rounded-3xl border border-white/10 backdrop-blur-sm bg-white/5 text-center">
         <div className="flex flex-col items-center mb-6">
           <h3 className="text-white/40 text-[10px] uppercase tracking-[0.4em] font-black font-heading mb-2">Overall Mission Progress</h3>
           <div className="text-5xl font-black text-white tracking-tighter font-heading text-glow">
@@ -194,7 +194,7 @@ const SubjectChecklist = ({ category, examId }: SubjectChecklistProps) => {
       {subjects.map((subject, sIdx) => (
         <div 
           key={subject.name} 
-          className={`w-full rounded-2xl border backdrop-blur-md p-6 flex flex-col h-[550px] transition-all duration-300 hover:scale-[1.02] ${subject.color}`}
+          className={`w-full rounded-2xl border backdrop-blur-sm p-6 flex flex-col h-[550px] transition-all duration-300 hover:scale-[1.02] ${subject.color}`}
         >
           <div className="flex flex-col items-center text-center gap-3 mb-6">
             <div className="p-3 rounded-2xl bg-white/5 border border-white/10">

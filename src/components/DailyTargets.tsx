@@ -88,7 +88,7 @@ const DailyTargets = () => {
 
   return (
     <div className="w-full max-w-sm mx-auto px-4 mt-4 mb-8">
-      <div className="rounded-xl border border-white/10 backdrop-blur-xl bg-white/5 p-3.5 shadow-2xl">
+      <div className="rounded-xl border border-white/10 backdrop-blur-sm bg-white/5 p-3.5 shadow-2xl">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <div className="p-1 rounded-lg bg-emerald-500/20 text-emerald-400">

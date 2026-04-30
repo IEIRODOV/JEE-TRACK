@@ -1284,7 +1284,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
 
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Top Navigation - Community Switcher & View Switcher */}
-        <div className="sticky top-0 z-[1000] flex flex-col md:flex-row items-center justify-between gap-6 glass rounded-3xl p-4 border border-white/10 backdrop-blur-3xl mb-12">
+        <div className="sticky top-0 z-[1000] flex flex-col md:flex-row items-center justify-between gap-6 glass rounded-3xl p-4 border border-white/10 backdrop-blur-sm mb-12">
           <div className="hidden lg:flex flex-col gap-1.5 w-48 group cursor-help transition-all duration-500 hover:w-56" onClick={() => setShowDonate(true)}>
             <div className="flex items-center justify-between">
                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/40 flex items-center gap-1.5 group-hover:text-red-500/80 transition-colors">
@@ -1379,7 +1379,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                   </div>
                 </div>
 
-                <div className="mt-8 p-6 rounded-[24px] bg-black/40 backdrop-blur-xl border border-white/10 text-center relative overflow-hidden group shadow-2xl">
+                <div className="mt-8 p-6 rounded-[24px] bg-black/40 backdrop-blur-sm border border-white/10 text-center relative overflow-hidden group shadow-2xl">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-red-500/20 transition-colors duration-1000" />
                   <div className="absolute -bottom-16 -left-16 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl group-hover:bg-purple-500/20 transition-colors duration-1000" />
                   
@@ -2222,7 +2222,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4"
+            className="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
           >
             <motion.div 
               initial={{ scale: 0.9, opacity: 0, y: 20 }}

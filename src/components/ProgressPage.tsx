@@ -57,19 +57,17 @@ const ProgressPage = () => {
       if (sessionStr) {
         try {
           const session = JSON.parse(sessionStr);
-          // Safety: If the session data is older than 60 seconds, ignore it (likely a stale tab/crash)
-          // This prevents "stale session doubling" where a crashed session's time is added to persistent data
           if (session.lastUpdate && Date.now() - session.lastUpdate < 60000) {
             setSessionDelta(session);
           } else {
             console.log("ProgressPage: Stale session detected, ignoring live delta.");
-            setSessionDelta({});
+            setSessionDelta(prev => Object.keys(prev).length === 0 ? prev : {});
           }
         } catch (e) {
-          setSessionDelta({});
+          setSessionDelta(prev => Object.keys(prev).length === 0 ? prev : {});
         }
       } else {
-        setSessionDelta({});
+        setSessionDelta(prev => Object.keys(prev).length === 0 ? prev : {});
       }
     };
     syncSession();
@@ -449,7 +447,7 @@ const ProgressPage = () => {
               {Object.keys(SYLLABUS_DATA[examInfo.id] || SYLLABUS_DATA[examInfo.id.split('_')[0]] || SYLLABUS_DATA.jee).map((subject) => {
                 const progress = calculateSubjectProgress(subject);
                 return (
-                  <div key={subject} className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl relative overflow-hidden group">
+                  <div key={subject} className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm relative overflow-hidden group">
                     <div className="flex justify-between items-end mb-6 relative z-10">
                       <div>
                         <h4 className="text-white/40 text-[9px] font-black uppercase tracking-widest mb-1">{subject}</h4>

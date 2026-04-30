@@ -215,19 +215,27 @@ const DeepAnalyticsModal = ({ isOpen, onClose, dailyStudySeconds, dailyQuestions
   if (TOTAL_CHAPTERS === 0) TOTAL_CHAPTERS = 90; // Fallback
 
   // 1. Percentile Predictor
-  // Realistic prediction formula based on actual exam targets and mechanics
   const masteryFraction = Math.min(1, completedChaptersCount / Math.max(1, TOTAL_CHAPTERS));
   
-  // Base percentile using a mathematical curve to mimic the reality of percentile systems
-  // 0% syllabus ~ 10 percentile, 50% syllabus ~ 87 percentile, 100% syllabus ~ 98.3 percentile (without extra effort)
-  const baseCalculatedPercentile = 100 - 90 * Math.exp(-4 * masteryFraction);
+  // Effort factor based on streak and daily questions average.
+  // We want a few days of hard work to max out the effort factor.
+  const streakFactor = Math.min(1, streak / 7);
+  // Cap at 30 questions/day for full effort heuristic
+  const questionsFactor = Math.min(1, avgQuestions / 30);
+  const effortFactor = (streakFactor * 0.6) + (questionsFactor * 0.4);
   
-  // Bonus for high volume of question practice and consistency streak
-  const effortBonus = Math.min(1.5, avgQuestions / 25) + Math.min(1.5, Math.log10(streak + 1));
+  // Starts at 60 percentile with no effort
+  let predictedPercentile = 60;
   
-  let predictedPercentile = baseCalculatedPercentile + effortBonus;
+  // Up to 85 percentile easily achievable with consistent effort
+  predictedPercentile += (25 * effortFactor);
+  
+  // 85 to 99 percentile requires actual syllabus mastery, module, pyqs
+  const masteryBonus = 14.99 * Math.pow(masteryFraction, 0.7); // 0.7 power creates a realistic curve
+  predictedPercentile += masteryBonus;
+  
   if (predictedPercentile > 99.99) predictedPercentile = 99.99;
-  if (predictedPercentile < 0.1) predictedPercentile = 0.1;
+  if (predictedPercentile < 60) predictedPercentile = 60;
 
   // 2. Velocity Tracker
   // We can calculate how many chapters done vs total
@@ -328,7 +336,7 @@ const DeepAnalyticsModal = ({ isOpen, onClose, dailyStudySeconds, dailyQuestions
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-2xl"
+        className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm"
       >
         <motion.div
           initial={{ scale: 0.9, opacity: 0, y: 20 }}

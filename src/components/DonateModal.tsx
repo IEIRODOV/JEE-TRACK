@@ -81,7 +81,7 @@ const DonateModal: React.FC<DonateModalProps> = ({ isOpen, onClose }) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-black/80 backdrop-blur-md"
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
           />
           
           <motion.div
@@ -117,7 +117,7 @@ const DonateModal: React.FC<DonateModalProps> = ({ isOpen, onClose }) => {
                     Support <span className="text-red-600">Pulse</span>
                   </h2>
                   
-                  <div className="bg-white/[0.03] backdrop-blur-xl rounded-[24px] p-5 border border-white/10 mb-6 text-left relative overflow-hidden group">
+                  <div className="bg-white/[0.03] backdrop-blur-sm rounded-[24px] p-5 border border-white/10 mb-6 text-left relative overflow-hidden group">
                     <div className="absolute top-0 left-0 w-1 h-full bg-red-600 shadow-[0_0_20px_rgba(220,38,38,0.5)]" />
                     <p className="text-white font-bold text-xs leading-relaxed mb-3 italic">
                       "Dear Student, your support is a lifeline for the dreams we host here every day."
