@@ -111,7 +111,7 @@ service cloud.firestore {
              data.toUid is string && isValidId(data.toUid) &&
              data.fromUid == request.auth.uid &&
              data.fromName is string && data.fromName.size() <= 100 &&
-             data.type in ['reaction', 'reply'] &&
+             data.type in ['reaction', 'reply', 'comment_reply', 'post_reply'] &&
              data.read == false &&
              data.content is string && data.content.size() <= 1000 &&
              data.createdAt == request.time;
@@ -124,7 +124,7 @@ service cloud.firestore {
              data.uid == (isUpdate ? existing().uid : request.auth.uid) &&
              data.displayName is string && data.displayName.size() <= 100 &&
              data.category is string &&
-             data.community in ['jee', 'neet', 'boards'] &&
+             data.community is string && data.community.size() <= 50 &&
              data.likes is list && data.likes.size() <= 10000 &&
              (isUpdate ? data.createdAt == existing().createdAt : data.createdAt == request.time);
     }
@@ -152,13 +152,14 @@ service cloud.firestore {
              data.createdAt == request.time;
     }
 
-    function isValidLeaderboard(data) {
-      return data.keys().hasAll(['displayName', 'photoURL', 'totalQuestions', 'totalHours', 'streak', 'lastUpdated']) &&
+    function isValidLeaderboard(data, isUpdate) {
+      let requiredFields = ['displayName', 'photoURL', 'totalQuestions', 'totalHours', 'streak', 'lastUpdated'];
+      return (isUpdate || data.keys().hasAll(requiredFields)) &&
              data.displayName is string && data.displayName.size() <= 100 &&
              data.totalQuestions is number &&
              data.totalHours is number &&
              data.streak is number &&
-             data.lastUpdated == request.time;
+             (isUpdate ? (data.lastUpdated == existing().lastUpdated || data.lastUpdated == request.time) : data.lastUpdated == request.time);
     }
 
     // ===============================================================
@@ -175,8 +176,8 @@ service cloud.firestore {
 
     match /leaderboard/{userId} {
       allow get, list: if true;
-      allow create: if isOwner(userId) && isValidLeaderboard(incoming());
-      allow update: if (isOwner(userId) && isValidLeaderboard(incoming())) || isAdmin();
+      allow create: if isOwner(userId) && isValidLeaderboard(incoming(), false);
+      allow update: if (isOwner(userId) && isValidLeaderboard(incoming(), true)) || isAdmin();
       allow delete: if isAdmin();
     }
 

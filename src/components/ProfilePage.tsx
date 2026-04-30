@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { auth, db, signOut, onAuthStateChanged } from '@/src/firebase';
+import { auth, db, signOut, onAuthStateChanged, serverTimestamp } from '@/src/firebase';
 import { doc, setDoc, getDoc, updateDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { User, Target, BookOpen, Activity, Loader2, LogOut, Save, User as UserIcon, ChevronLeft, Sparkles, Trophy, Medal, Info, X, Check, RefreshCw, CreditCard, Award } from 'lucide-react';
@@ -192,15 +192,22 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
           year: selectedYear,
           subExam: selectedExam === 'jee' ? selectedSubExam : null,
           customDate: selectedExam === 'more' ? customExamDate : null,
-          updatedAt: new Date()
+          updatedAt: serverTimestamp()
         }, { merge: true });
 
         // 3. Update Leaderboard display name and photo
-        await setDoc(doc(db, 'leaderboard', currentUser.uid), {
+        // Fetch current leaderboard data first to ensure we don't overwrite with defaults if possible
+        const lbRef = doc(db, 'leaderboard', currentUser.uid);
+        const lbSnap = await getDoc(lbRef);
+        const lbData = lbSnap.exists() ? lbSnap.data() : { totalQuestions: 0, totalHours: 0, streak: 0 };
+
+        await setDoc(lbRef, {
+          ...lbData,
           displayName: displayName,
           photoURL: selectedAvatar,
           selectedFlair: selectedFlair,
-          isPremium: isPremium
+          isPremium: isPremium,
+          lastUpdated: serverTimestamp()
         }, { merge: true });
 
         // 4. Update Activity Feed (optional but good for consistency)

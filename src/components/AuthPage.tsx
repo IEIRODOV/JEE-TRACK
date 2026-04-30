@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { auth, GoogleAuthProvider, signInWithPopup, db } from '@/src/firebase';
+import { auth, GoogleAuthProvider, signInWithPopup, db, serverTimestamp } from '@/src/firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { Sparkles, Zap, CheckCircle2, Activity, Target, BookOpen, Loader2 } from 'lucide-react';
 import { playTickSound } from '@/src/lib/sounds';
@@ -82,7 +82,7 @@ const AuthPage = ({ onBack }: AuthPageProps) => {
           subExam: selectedExam === 'jee' ? selectedSubExam : null,
           customDate: selectedExam === 'more' ? customExamDate : null,
           onboarded: true,
-          updatedAt: new Date()
+          updatedAt: serverTimestamp()
         };
 
         await setDoc(doc(db, 'users', user.uid), examData, { merge: true });

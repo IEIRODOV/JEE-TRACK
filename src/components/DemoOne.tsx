@@ -158,8 +158,25 @@ const DemoOne = ({ onProfileClick, settings, updateSettings }: DemoOneProps) => 
           
           // One-time streak reset logic
           if (!data.streakReset_2026_04_12_v2) {
-            await setDoc(doc(db, 'leaderboard', user.uid), { streak: 0 }, { merge: true });
-            await updateDoc(userDocRef, { streakReset_2026_04_12_v2: true });
+            try {
+              const lbRef = doc(db, 'leaderboard', user.uid);
+              const lbSnap = await getDoc(lbRef);
+              if (lbSnap.exists()) {
+                await updateDoc(lbRef, { streak: 0, lastUpdated: serverTimestamp() });
+              } else {
+                await setDoc(lbRef, {
+                  displayName: user.displayName || user.email?.split('@')[0] || 'Student',
+                  photoURL: user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || user.email}&background=random`,
+                  totalQuestions: 0,
+                  totalHours: 0,
+                  streak: 0,
+                  lastUpdated: serverTimestamp()
+                });
+              }
+              await updateDoc(userDocRef, { streakReset_2026_04_12_v2: true });
+            } catch (err) {
+              console.error("Streak reset error:", err);
+            }
           }
 
           exam = (data.exam || exam).toLowerCase();
