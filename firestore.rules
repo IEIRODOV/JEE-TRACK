@@ -202,7 +202,7 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow get: if isAuthenticated();
-      allow list: if isAdmin(); // Prevent dumping user database
+      allow list: if isAuthenticated();
       allow create: if isOwner(userId);
       allow update: if isAuthenticated() && (
         isOwner(userId) || 

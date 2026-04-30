@@ -788,14 +788,14 @@ const CompetePage = ({ onAuthRequest, activateChat = true }: CompetePageProps) =
         // Use document-based stats as primary (accessible to all)
         let totalStudents = dbData.totalStudents || 0;
         
-        // Try precise count if possible (only works for admins due to list restriction)
+        // Try precise count
         try {
           const userCountSnapshot = await getCountFromServer(collection(db, 'users'));
           const count = userCountSnapshot.data().count;
-          if (count > 0) totalStudents = count;
+          totalStudents = count;
         } catch (error) {
-          // Permission denied for non-admins is expected here
-          // We rely on the dbData.totalStudents fallback
+          console.error("Count fetch error:", error);
+          // rely on fallback
         }
 
         // Calculate totals based on real leaderboard and DB stats
