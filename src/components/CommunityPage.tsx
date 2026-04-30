@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import Notifications from './Notifications';
 import DonateModal from './DonateModal';
-import DoubtSolver from './DoubtSolver';
+
 import { 
   Send, 
   MessageSquare, 
@@ -527,7 +527,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
   const [posts, setPosts] = useState<Post[]>([]);
   const [inputText, setInputText] = useState('');
   const [selectedCommunity, setSelectedCommunity] = useState<'all' | 'jee' | 'neet' | 'boards'>('all');
-  const [activeView, setActiveView] = useState<'feed' | 'resources' | 'ai'>('feed');
+  const [activeView, setActiveView] = useState<'feed' | 'resources'>('feed');
   const [sortMode, setSortMode] = useState<'new' | 'top'>('new');
   const [isLoading, setIsLoading] = useState(true);
   const [ranksSynced, setRanksSynced] = useState(false);
@@ -1331,16 +1331,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
                 <Target className="w-4 h-4" />
                 Resource Hub
               </button>
-              <button
-                onClick={() => setActiveView('ai')}
-                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl transition-all text-xs font-black uppercase tracking-widest
-                  ${activeView === 'ai' 
-                    ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)]' 
-                    : 'text-white/40 hover:text-white/60'}`}
-              >
-                <Sparkles className="w-4 h-4" />
-                A.I. Solver
-              </button>
+
             </div>
             
             <div className="hidden md:block h-8 w-px bg-white/5" />
@@ -1446,11 +1437,7 @@ const CommunityPage = ({ onAuthRequest, activateCommunity = true }: CommunityPag
               </div>
             )}
 
-            {activeView === 'ai' ? (
-              <div className="lg:col-span-12">
-                <DoubtSolver />
-              </div>
-            ) : activeView === 'resources' ? (
+            {activeView === 'resources' ? (
               <div className="space-y-8 relative">
                 <div className="relative z-10 space-y-8">
                   <motion.div 

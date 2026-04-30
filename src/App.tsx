@@ -4,7 +4,7 @@ import TimerPage from "@/components/TimerPage";
 import ProgressPage from "@/components/ProgressPage";
 import CompetePage from "@/components/CompetePage";
 import CommunityPage from "@/components/CommunityPage";
-import DoubtSolver from "@/components/DoubtSolver";
+
 import Navbar from "@/components/Navbar";
 import AuthPage from "@/components/AuthPage";
 import ErrorBoundary from "@/components/ErrorBoundary";
