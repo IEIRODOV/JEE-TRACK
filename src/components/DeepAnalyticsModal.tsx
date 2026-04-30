@@ -77,7 +77,7 @@ const DeepAnalyticsModal = ({ isOpen, onClose, dailyStudySeconds, dailyQuestions
         return Math.abs(hash % 100);
       };
 
-      const unfinished: {subject: string, chapter: string, color: string, score: number}[] = [];
+      const unfinished: {subject: string, chapter: string, color: string, score: number, theoryCompleted: boolean}[] = [];
       const colors = ['text-blue-400', 'text-rose-400', 'text-emerald-400', 'text-purple-400', 'text-amber-400'];
 
       let idx = 0;
@@ -90,6 +90,7 @@ const DeepAnalyticsModal = ({ isOpen, onClose, dailyStudySeconds, dailyQuestions
           if (hidden.includes(chName)) return;
           const prog = subjectData[chName];
           const completed = prog ? (prog.theoryLecture === 100 && prog.module && (prog.pyqMains || prog.pyqAdvanced || prog.pyq)) : false;
+          const theoryCompleted = prog ? prog.theoryLecture === 100 : false;
           if (!completed) {
             const w = getChapterWeightage(chName);
             const e = getChapterEffort(chName);
@@ -99,7 +100,7 @@ const DeepAnalyticsModal = ({ isOpen, onClose, dailyStudySeconds, dailyQuestions
             else if (w > 50 && e > 50) score = 50 + w; // Focus Area (second highest)
             else score = w; // Others
             
-            unfinished.push({ subject: subjectName, chapter: chName, color: color, score: score });
+            unfinished.push({ subject: subjectName, chapter: chName, color: color, score: score, theoryCompleted: theoryCompleted });
           }
         });
         idx++;
@@ -110,12 +111,17 @@ const DeepAnalyticsModal = ({ isOpen, onClose, dailyStudySeconds, dailyQuestions
       const topCandidates = unfinished.slice(0, 10).sort(() => 0.5 - Math.random());
       
       const selected = topCandidates.slice(0, Math.min(3, topCandidates.length));
-      const types = ['Theory Deep Dive', 'PYQ Solving Session', 'Module Practice'];
       
-      setGamePlan(selected.map((item, i) => ({
-        ...item,
-        type: types[i % types.length]
-      })));
+      setGamePlan(selected.map((item) => {
+        let type = 'Theory Deep Dive';
+        if (item.theoryCompleted) {
+          type = Math.random() > 0.5 ? 'PYQ Solving Session' : 'Module Practice';
+        }
+        return {
+          ...item,
+          type
+        };
+      }));
       
       setIsGeneratingPlan(false);
       setHasGeneratedPlan(true);
