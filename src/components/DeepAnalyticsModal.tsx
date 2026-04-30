@@ -17,6 +17,76 @@ interface DeepAnalyticsModalProps {
   updateTargetGoal: (newGoal: string) => void;
 }
 
+const CHAPTER_METRICS: Record<string, { effort: number, weightage: number }> = {
+  // Maths
+  "Sets, Relations & Functions": { effort: 40, weightage: 60 },
+  "Complex Numbers": { effort: 80, weightage: 70 },
+  "Matrices & Determinants": { effort: 40, weightage: 80 },
+  "Quadratic Equations": { effort: 40, weightage: 60 },
+  "Permutations & Combinations": { effort: 90, weightage: 55 },
+  "Binomial Theorem": { effort: 70, weightage: 65 },
+  "Sequences & Series": { effort: 50, weightage: 70 },
+  "Limit, Continuity & Differentiability": { effort: 60, weightage: 75 },
+  "Integral Calculus": { effort: 90, weightage: 85 },
+  "Differential Equations": { effort: 60, weightage: 70 },
+  "Coordinate Geometry": { effort: 85, weightage: 85 },
+  "Vector Algebra & 3D": { effort: 45, weightage: 95 },
+  "Probability": { effort: 80, weightage: 60 },
+  "Trigonometry": { effort: 85, weightage: 30 },
+  "Mathematical Reasoning": { effort: 20, weightage: 60 },
+  "Statistics": { effort: 30, weightage: 70 },
+  "Mathematical Induction": { effort: 20, weightage: 10 },
+  "Linear Inequalities": { effort: 20, weightage: 10 },
+  // Physics
+  "Physical World & Measurement": { effort: 20, weightage: 60 },
+  "Kinematics": { effort: 60, weightage: 55 },
+  "Laws of Motion": { effort: 60, weightage: 40 },
+  "Work, Energy & Power": { effort: 50, weightage: 60 },
+  "Rotational Motion": { effort: 95, weightage: 80 },
+  "Gravitation": { effort: 40, weightage: 60 },
+  "Properties of Solids & Liquids": { effort: 70, weightage: 40 },
+  "Thermodynamics": { effort: 60, weightage: 80 },
+  "Kinetic Theory of Gases": { effort: 30, weightage: 70 },
+  "Oscillations & Waves": { effort: 85, weightage: 55 },
+  "Electrostatics": { effort: 85, weightage: 80 },
+  "Current Electricity": { effort: 45, weightage: 85 },
+  "Magnetic Effects of Current & Magnetism": { effort: 75, weightage: 70 },
+  "Electromagnetic Induction & AC": { effort: 70, weightage: 60 },
+  "Electromagnetic Waves": { effort: 20, weightage: 55 },
+  "Optics": { effort: 85, weightage: 75 },
+  "Dual Nature of Matter & Radiation": { effort: 30, weightage: 65 },
+  "Atoms & Nuclei": { effort: 40, weightage: 70 },
+  "Electronic Devices": { effort: 40, weightage: 75 },
+  "Communication Systems": { effort: 20, weightage: 55 },
+  "Experimental Skills": { effort: 40, weightage: 60 },
+  // Chemistry
+  "Some Basic Concepts of Chemistry": { effort: 50, weightage: 40 },
+  "Structure of Atom": { effort: 40, weightage: 65 },
+  "Classification of Elements": { effort: 30, weightage: 55 },
+  "Chemical Bonding": { effort: 70, weightage: 85 },
+  "States of Matter": { effort: 40, weightage: 40 },
+  "Thermodynamics": { effort: 75, weightage: 70 },
+  "Equilibrium": { effort: 85, weightage: 70 },
+  "Redox Reactions": { effort: 40, weightage: 40 },
+  "Hydrogen": { effort: 20, weightage: 30 },
+  "s-Block Elements": { effort: 30, weightage: 40 },
+  "p-Block Elements": { effort: 85, weightage: 75 },
+  "d & f Block Elements": { effort: 50, weightage: 70 },
+  "Coordination Compounds": { effort: 60, weightage: 85 },
+  "Environmental Chemistry": { effort: 20, weightage: 50 },
+  "Purification & Characterisation of Organic Compounds": { effort: 40, weightage: 55 },
+  "General Organic Chemistry": { effort: 85, weightage: 95 },
+  "Hydrocarbons": { effort: 80, weightage: 70 },
+  "Haloalkanes & Haloarenes": { effort: 70, weightage: 60 },
+  "Alcohols, Phenols & Ethers": { effort: 70, weightage: 65 },
+  "Aldehydes, Ketones & Carboxylic Acids": { effort: 85, weightage: 80 },
+  "Amines": { effort: 60, weightage: 60 },
+  "Biomolecules": { effort: 40, weightage: 65 },
+  "Polymers": { effort: 30, weightage: 55 },
+  "Chemistry in Everyday Life": { effort: 30, weightage: 55 },
+  "Principles Related to Practical Chemistry": { effort: 40, weightage: 55 }
+};
+
 const DeepAnalyticsModal = ({ isOpen, onClose, dailyStudySeconds, dailyQuestions, targetHours, examId, targetDate, targetGoal, updateTargetGoal }: DeepAnalyticsModalProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [progressData, setProgressData] = useState<Record<string, any>>({});
@@ -67,11 +137,13 @@ const DeepAnalyticsModal = ({ isOpen, onClose, dailyStudySeconds, dailyQuestions
       
       // Calculate deterministic metrics for chapters to prioritize them
       const getChapterWeightage = (ch: string) => {
+        if (CHAPTER_METRICS[ch]) return CHAPTER_METRICS[ch].weightage;
         let hash = 0;
         for (let i = 0; i < ch.length; i++) hash = ch.charCodeAt(i) + ((hash << 5) - hash);
         return Math.abs(hash % 100);
       };
       const getChapterEffort = (ch: string) => {
+        if (CHAPTER_METRICS[ch]) return CHAPTER_METRICS[ch].effort;
         let hash = 0;
         for (let i = 0; i < ch.length; i++) hash = ch.charCodeAt(ch.length - 1 - i) + ((hash << 5) - hash);
         return Math.abs(hash % 100);
@@ -240,13 +312,23 @@ const DeepAnalyticsModal = ({ isOpen, onClose, dailyStudySeconds, dailyQuestions
   // 2. Velocity Tracker
   // We can calculate how many chapters done vs total
   const remainingChapters = Math.max(0, TOTAL_CHAPTERS - completedChaptersCount);
-  const WEEKS_UNTIL_EXAM = Math.max(1, daysLeft / 7);
-  // Assume user's rate of completion: approx based on daily questions vs requirements over the last 7 days
-  const completionRateChaptersPerWeek = Math.max(0.1, (avgQuestions * 7) / 40); // 40 questions = approx 1 chapter
-  const requiredVelocity = remainingChapters / WEEKS_UNTIL_EXAM;
-  const isOnTrack = completionRateChaptersPerWeek >= requiredVelocity;
-  const missedAmount = Math.max(0, remainingChapters - (completionRateChaptersPerWeek * WEEKS_UNTIL_EXAM));
-  const missedPercentage = Math.round((missedAmount / TOTAL_CHAPTERS) * 100);
+  const DAYS_UNTIL_EXAM = Math.max(1, daysLeft - 30);
+  
+  // Revised Velocity Logic
+  // Chapters per day calculation
+  const QUESTIONS_PER_CHAPTER = 40; 
+  const completionRateChaptersPerDay = Math.max(0.1, avgQuestions / QUESTIONS_PER_CHAPTER);
+  const completionRateChaptersPerWeek = completionRateChaptersPerDay * 7;
+  
+  const requiredVelocityPerDay = remainingChapters / DAYS_UNTIL_EXAM;
+  const requiredVelocityPerWeek = requiredVelocityPerDay * 7;
+  
+  const isOnTrack = completionRateChaptersPerDay >= requiredVelocityPerDay;
+  const plannedCompletionInDays = remainingChapters / Math.max(0.1, completionRateChaptersPerDay);
+  const daysDifference = Math.floor(plannedCompletionInDays - DAYS_UNTIL_EXAM);
+  
+  const missedAmount = Math.max(0, remainingChapters - (completionRateChaptersPerDay * DAYS_UNTIL_EXAM));
+  const missedPercentage = Math.round((missedAmount / Math.max(1, TOTAL_CHAPTERS)) * 100);
 
   // 3. Heat Maps & Knowledge Decay
   const subjectsHeatmap = actualHeatmap;
@@ -291,43 +373,52 @@ const DeepAnalyticsModal = ({ isOpen, onClose, dailyStudySeconds, dailyQuestions
 
   // Calculate deterministic metrics for chapters to populate the Time vs Marks Matrix
   const getChapterWeightage = (ch: string) => {
+    if (CHAPTER_METRICS[ch]) return CHAPTER_METRICS[ch].weightage;
     let hash = 0;
     for (let i = 0; i < ch.length; i++) hash = ch.charCodeAt(i) + ((hash << 5) - hash);
     return Math.abs(hash % 100);
   };
   const getChapterEffort = (ch: string) => {
+    if (CHAPTER_METRICS[ch]) return CHAPTER_METRICS[ch].effort;
     let hash = 0;
     for (let i = 0; i < ch.length; i++) hash = ch.charCodeAt(ch.length - 1 - i) + ((hash << 5) - hash);
     return Math.abs(hash % 100);
   };
 
-  const focusAreas: string[] = [];
-  const quickWins: string[] = [];
-  const ignoreForNow: string[] = [];
-  const fillers: string[] = [];
+  const focusAreas: { name: string, completed: boolean }[] = [];
+  const quickWins: { name: string, completed: boolean }[] = [];
+  const ignoreForNow: { name: string, completed: boolean }[] = [];
+  const fillers: { name: string, completed: boolean }[] = [];
 
-  incompleteChaptersList.forEach(ch => {
-    const chName = ch.substring(0, 18);
-    const weightage = getChapterWeightage(ch);
-    const effort = getChapterEffort(ch);
-    
-    if (weightage > 50 && effort > 50) focusAreas.push(chName);
-    else if (weightage > 50 && effort <= 50) quickWins.push(chName);
-    else if (weightage <= 50 && effort > 50) ignoreForNow.push(chName);
-    else fillers.push(chName);
+  Object.entries(syllabus).forEach(([subjectName, chapters]) => {
+    const subjectData = progressData[subjectName] || {};
+    const hidden = hiddenChapters[subjectName] || [];
+    (chapters as string[]).forEach(chName => {
+      if (hidden.includes(chName)) return;
+      const prog = subjectData[chName];
+      const completed = prog ? (prog.theoryLecture === 100 && prog.module && (prog.pyqMains || prog.pyqAdvanced || prog.pyq)) : false;
+      
+      const weightage = getChapterWeightage(chName);
+      const effort = getChapterEffort(chName);
+      
+      if (weightage > 50 && effort > 50) focusAreas.push({ name: chName, completed });
+      else if (weightage > 50 && effort <= 50) quickWins.push({ name: chName, completed });
+      else if (weightage <= 50 && effort > 50) ignoreForNow.push({ name: chName, completed });
+      else fillers.push({ name: chName, completed });
+    });
   });
 
   // Sort them so the highest weightage ones come first
-  focusAreas.sort((a, b) => getChapterWeightage(b) - getChapterWeightage(a));
-  quickWins.sort((a, b) => getChapterWeightage(b) - getChapterWeightage(a));
-  ignoreForNow.sort((a, b) => getChapterWeightage(b) - getChapterWeightage(a));
-  fillers.sort((a, b) => getChapterWeightage(b) - getChapterWeightage(a));
+  focusAreas.sort((a, b) => getChapterWeightage(b.name) - getChapterWeightage(a.name));
+  quickWins.sort((a, b) => getChapterWeightage(b.name) - getChapterWeightage(a.name));
+  ignoreForNow.sort((a, b) => getChapterWeightage(b.name) - getChapterWeightage(a.name));
+  fillers.sort((a, b) => getChapterWeightage(b.name) - getChapterWeightage(a.name));
 
   // Limit to top 5 for UI display
-  const focusAreasUI = focusAreas.slice(0, 5);
-  const quickWinsUI = quickWins.slice(0, 5);
-  const ignoreForNowUI = ignoreForNow.slice(0, 5);
-  const fillersUI = fillers.slice(0, 5);
+  const focusAreasUI = focusAreas;
+  const quickWinsUI = quickWins;
+  const ignoreForNowUI = ignoreForNow;
+  const fillersUI = fillers;
 
 
   return (
@@ -517,15 +608,14 @@ const DeepAnalyticsModal = ({ isOpen, onClose, dailyStudySeconds, dailyQuestions
                 </div>
                 
                 <div className="space-y-4 relative z-10">
-                  <div className="flex items-center justify-between bg-white/[0.03] p-4 rounded-2xl border border-white/5">
-                    <div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-white/[0.03] p-4 rounded-2xl border border-white/5">
                       <div className="text-[10px] text-white/40 font-black uppercase mb-1">Actual Speed</div>
-                      <div className="text-2xl font-black text-white">{completionRateChaptersPerWeek.toFixed(1)} <span className="text-xs text-white/30 uppercase">ch/week</span></div>
+                      <div className="text-xl font-black text-white">{completionRateChaptersPerWeek.toFixed(1)} <span className="text-[10px] text-white/30 uppercase">ch/week</span></div>
                     </div>
-                    <div className="h-8 w-[1px] bg-white/10"></div>
-                    <div>
+                    <div className="bg-white/[0.03] p-4 rounded-2xl border border-white/5">
                       <div className="text-[10px] text-white/40 font-black uppercase mb-1">Required Speed</div>
-                      <div className="text-2xl font-black text-white">{requiredVelocity.toFixed(1)} <span className="text-xs text-white/30 uppercase">ch/week</span></div>
+                      <div className="text-xl font-black text-white">{requiredVelocityPerWeek.toFixed(1)} <span className="text-[10px] text-white/30 uppercase">ch/week</span></div>
                     </div>
                   </div>
 
@@ -533,15 +623,15 @@ const DeepAnalyticsModal = ({ isOpen, onClose, dailyStudySeconds, dailyQuestions
                     <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-xl flex items-start gap-3">
                       <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
                       <p className="text-xs text-red-200/80 leading-relaxed font-medium">
-                        At this pace, you will miss <strong className="text-red-400">{missedPercentage}%</strong> of the syllabus. 
-                        Increase speed to <strong className="text-red-400">{Math.ceil(requiredVelocity)} chapters/week</strong> to finish by the exam date.
+                        You're approx {daysDifference} days behind schedule.
+                        Increase speed to <strong className="text-red-400">{requiredVelocityPerWeek.toFixed(1)} chapters/week</strong> to finish 1 month before the exam.
                       </p>
                     </div>
                   ) : (
                     <div className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl flex items-start gap-3">
                       <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
                       <p className="text-xs text-emerald-200/80 leading-relaxed font-medium">
-                        You're on track! Keep up this velocity to comfortably finish the syllabus before exams.
+                        You're on track to finish {Math.abs(daysDifference)} days before the exam! Keep up this velocity.
                       </p>
                     </div>
                   )}
@@ -595,38 +685,50 @@ const DeepAnalyticsModal = ({ isOpen, onClose, dailyStudySeconds, dailyQuestions
                   </div>
                   
                   {/* Quadrants */}
-                  <div className="bg-orange-500/5 rounded-2xl border border-orange-500/10 p-3 relative group overflow-hidden">
-                    <div className="absolute top-2 right-2 text-[10px] font-black text-orange-400/50 uppercase">Focus Areas</div>
-                    <div className="mt-6 flex flex-col gap-1.5 overflow-hidden">
+                  <div className="bg-orange-500/5 rounded-2xl border border-orange-500/10 p-3 pt-8 relative overflow-y-auto custom-scrollbar h-[200px]">
+                    <div className="absolute top-2 right-2 text-[10px] font-black text-orange-400/50 uppercase z-10 bg-black/40 px-2 py-0.5 rounded backdrop-blur-sm">Focus Areas</div>
+                    <div className="flex flex-col gap-1.5 min-h-max">
                       {focusAreasUI.map((topic, i) => topic ? (
-                        <div key={i} className="px-2 py-1 rounded bg-orange-500/20 text-orange-300 text-xs font-bold truncate">{topic}</div>
+                        <div key={i} className={`px-2 py-1.5 rounded bg-orange-500/10 text-orange-300 text-[10px] xl:text-xs font-bold flex items-center justify-between gap-2 border border-orange-500/20 ${topic.completed ? 'opacity-40 line-through' : ''}`}>
+                          <span className="truncate">{topic.name}</span>
+                          {topic.completed && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
+                        </div>
                       ) : null)}
                     </div>
                   </div>
                   
-                  <div className="bg-emerald-500/5 rounded-2xl border border-emerald-500/10 p-3 relative overflow-hidden">
-                    <div className="absolute top-2 right-2 text-[10px] font-black text-emerald-400/50 uppercase">Quick Wins</div>
-                    <div className="mt-6 flex flex-col gap-1.5 overflow-hidden">
+                  <div className="bg-emerald-500/5 rounded-2xl border border-emerald-500/10 p-3 pt-8 relative overflow-y-auto custom-scrollbar h-[200px]">
+                    <div className="absolute top-2 right-2 text-[10px] font-black text-emerald-400/50 uppercase z-10 bg-black/40 px-2 py-0.5 rounded backdrop-blur-sm">Quick Wins</div>
+                    <div className="flex flex-col gap-1.5 min-h-max">
                       {quickWinsUI.map((topic, i) => topic ? (
-                        <div key={i} className="px-2 py-1 rounded bg-emerald-500/20 text-emerald-300 text-xs font-bold truncate">{topic}</div>
+                        <div key={i} className={`px-2 py-1.5 rounded bg-emerald-500/10 text-emerald-300 text-[10px] xl:text-xs font-bold flex items-center justify-between gap-2 border border-emerald-500/20 ${topic.completed ? 'opacity-40 line-through' : ''}`}>
+                          <span className="truncate">{topic.name}</span>
+                          {topic.completed && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
+                        </div>
                       ) : null)}
                     </div>
                   </div>
 
-                  <div className="bg-red-500/5 rounded-2xl border border-red-500/10 p-3 relative overflow-hidden">
-                    <div className="absolute top-2 right-2 text-[10px] font-black text-red-400/50 uppercase">Ignore For Now</div>
-                    <div className="mt-6 flex flex-col gap-1.5 overflow-hidden">
+                  <div className="bg-red-500/5 rounded-2xl border border-red-500/10 p-3 pt-8 relative overflow-y-auto custom-scrollbar h-[200px]">
+                    <div className="absolute top-2 right-2 text-[10px] font-black text-red-400/50 uppercase z-10 bg-black/40 px-2 py-0.5 rounded backdrop-blur-sm">Ignore For Now</div>
+                    <div className="flex flex-col gap-1.5 min-h-max">
                       {ignoreForNowUI.map((topic, i) => topic ? (
-                        <div key={i} className="px-2 py-1 rounded bg-red-500/20 text-red-300 text-xs font-bold truncate">{topic}</div>
+                        <div key={i} className={`px-2 py-1.5 rounded bg-red-500/10 text-red-300 text-[10px] xl:text-xs font-bold flex items-center justify-between gap-2 border border-red-500/20 ${topic.completed ? 'opacity-40 line-through' : ''}`}>
+                          <span className="truncate">{topic.name}</span>
+                          {topic.completed && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
+                        </div>
                       ) : null)}
                     </div>
                   </div>
 
-                  <div className="bg-white/5 rounded-2xl border border-white/5 p-3 relative overflow-hidden">
-                    <div className="absolute top-2 right-2 text-[10px] font-black text-white/30 uppercase">Fillers</div>
-                    <div className="mt-6 flex flex-col gap-1.5 overflow-hidden">
+                  <div className="bg-white/5 rounded-2xl border border-white/5 p-3 pt-8 relative overflow-y-auto custom-scrollbar h-[200px]">
+                    <div className="absolute top-2 right-2 text-[10px] font-black text-white/30 uppercase z-10 bg-black/40 px-2 py-0.5 rounded backdrop-blur-sm">Fillers</div>
+                    <div className="flex flex-col gap-1.5 min-h-max">
                       {fillersUI.map((topic, i) => topic ? (
-                        <div key={i} className="px-2 py-1 rounded bg-white/10 text-white/60 text-xs font-bold truncate">{topic}</div>
+                        <div key={i} className={`px-2 py-1.5 rounded bg-white/10 text-white/60 text-[10px] xl:text-xs font-bold flex items-center justify-between gap-2 border border-white/10 ${topic.completed ? 'opacity-40 line-through' : ''}`}>
+                          <span className="truncate">{topic.name}</span>
+                          {topic.completed && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
+                        </div>
                       ) : null)}
                     </div>
                   </div>
